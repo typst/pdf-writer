@@ -2,18 +2,28 @@
 //!
 //! # Minimal example
 //! ```
-//! use pdf_writer::{PdfWriter, Ref};
+//! use pdf_writer::{PdfWriter, Rect, Ref};
 //!
 //! fn main() -> std::io::Result<()> {
 //!     let mut writer = PdfWriter::new();
 //!     writer.set_indent(2);
 //!
-//!     // Write the PDF-1.7 header, document catalog, page tree and
-//!     // finish with the cross-reference table and file trailer.
+//!     let catalog = Ref::new(1);
+//!     let tree = Ref::new(2);
+//!     let page = Ref::new(3);
+//!
+//!     // Write the PDF-1.7 header.
 //!     writer.start(1, 7);
-//!     writer.catalog(Ref::new(1)).pages(Ref::new(2));
-//!     writer.pages(Ref::new(2)).kids(vec![Ref::new(3), Ref::new(4)]);
-//!     writer.end(Ref::new(1));
+//!
+//!     // Write the document catalog and a page tree with one page.
+//!     writer.catalog(catalog).pages(tree);
+//!     writer.pages(tree).kids(vec![page]);
+//!     writer.page(page)
+//!         .parent(tree)
+//!         .media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
+//!
+//!     // Finish with the cross-reference table and file trailer.
+//!     writer.end(catalog);
 //!
 //!     std::fs::write("target/hello.pdf", writer.into_buf())
 //! }
@@ -21,7 +31,6 @@
 
 #![deny(missing_docs)]
 
-use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::io::Write;
 use std::num::NonZeroI32;
@@ -59,13 +68,9 @@ impl Ref {
     ///
     /// # Panics
     /// Panics if `id` is zero.
-    pub fn new(id: u32) -> Ref {
-        Self(
-            id.try_into()
-                .ok()
-                .and_then(NonZeroI32::new)
-                .expect("indirect reference out of valid range"),
-        )
+    pub fn new(id: i32) -> Ref {
+        let val = if id > 0 { NonZeroI32::new(id) } else { None };
+        Self(val.expect("indirect reference out of valid range"))
     }
 
     /// Return the underlying number as a primitive type.
@@ -78,6 +83,27 @@ impl Display for Ref {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         // We do not use any generations other than zero.
         std::write!(f, "{} 0", self.0)
+    }
+}
+
+/// A rectangle, specified by two opposite corners.
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[allow(missing_docs)]
+pub struct Rect {
+    /// The x-coordinate of the first (typically, lower-left) corner.
+    pub x1: f32,
+    /// The y-coordinate of the first (typically, lower-left) corner.
+    pub y1: f32,
+    /// The x-coordinate of the second (typically, upper-right) corner.
+    pub x2: f32,
+    /// The y-coordinate of the second (typically, upper-right) corner.
+    pub y2: f32,
+}
+
+impl Rect {
+    /// Create a new rectangle from four coordinate values.
+    pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
+        Self { x1, y1, x2, y2 }
     }
 }
 
@@ -252,6 +278,15 @@ impl<'a> Object<'a> {
     pub fn id(self, id: Ref) {
         write!(self.w, "{} R", id);
     }
+
+    /// Write a rectangle.
+    pub fn rect(self, rect: Rect) {
+        let mut array = self.array();
+        array.item().real(rect.x1);
+        array.item().real(rect.y1);
+        array.item().real(rect.x2);
+        array.item().real(rect.y2);
+    }
 }
 
 /// Writer for an array.
@@ -338,9 +373,14 @@ impl PdfWriter {
         Catalog::start(self.obj(id))
     }
 
-    /// Start writing the page tree.
+    /// Start writing a page tree.
     pub fn pages(&mut self, id: Ref) -> Pages<'_> {
         Pages::start(self.obj(id))
+    }
+
+    /// Start writing a page.
+    pub fn page(&mut self, id: Ref) -> Page<'_> {
+        Page::start(self.obj(id))
     }
 }
 
@@ -356,14 +396,14 @@ impl<'a> Catalog<'a> {
         Self { dict }
     }
 
-    /// Write the `/Pages` attribute pointing to the page tree.
+    /// Write the `/Pages` attribute pointing to the root page tree.
     pub fn pages(&mut self, id: Ref) -> &mut Self {
         self.dict.key("Pages").id(id);
         self
     }
 }
 
-/// Writer for the _page tree_.
+/// Writer for a _page tree_.
 pub struct Pages<'a> {
     dict: Dict<'a>,
 }
@@ -375,6 +415,11 @@ impl<'a> Pages<'a> {
         Self { dict }
     }
 
+    /// Write the `/Parent` attribute.
+    pub fn parent(&mut self, parent: Ref) {
+        self.dict.key("Parent").id(parent);
+    }
+
     /// Write the `/Kids` and `/Count` attributes.
     pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) {
         let mut array = self.dict.key("Kids").array();
@@ -384,5 +429,30 @@ impl<'a> Pages<'a> {
         let len = array.len();
         drop(array);
         self.dict.key("Count").int(len);
+    }
+}
+
+/// Writer for a _page_.
+pub struct Page<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> Page<'a> {
+    fn start(obj: Object<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.key("Type").name("Page");
+        Self { dict }
+    }
+
+    /// Write the `/Parent` attribute.
+    pub fn parent(&mut self, parent: Ref) -> &mut Self {
+        self.dict.key("Parent").id(parent);
+        self
+    }
+
+    /// Write the `/MediaBox` attribute.
+    pub fn media_box(&mut self, rect: Rect) -> &mut Self {
+        self.dict.key("MediaBox").rect(rect);
+        self
     }
 }
