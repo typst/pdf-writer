@@ -1,69 +1,79 @@
 /*!
 A PDF writer.
 
-# Minimal example
+# Example
+
+Writing a document with one A4 page containing the text "Hello World from Rust".
 ```
-use pdf_writer::{Name, PdfWriter, Rect, Ref};
+use pdf_writer::{Name, PdfWriter, Rect, Ref, TextStream};
 
-fn main() -> std::io::Result<()> {
-    let mut writer = PdfWriter::new();
-    writer.set_indent(2);
+# fn main() -> std::io::Result<()> {
+let catalog_id = Ref::new(1);
+let tree_id = Ref::new(2);
+let page_id = Ref::new(3);
+let font_id = Ref::new(4);
+let text_id = Ref::new(5);
 
-    let catalog = Ref::new(1);
-    let tree = Ref::new(2);
-    let page = Ref::new(3);
-    let font = Ref::new(4);
+// Write the PDF-1.7 header.
+let mut writer = PdfWriter::new(1, 7);
+writer.set_indent(2);
 
-    // Write the PDF-1.7 header.
-    writer.start(1, 7);
+// Write the document catalog and a page tree with one page.
+writer.catalog(catalog_id).pages(tree_id);
+writer.pages(tree_id).kids(vec![page_id]);
+writer.page(page_id)
+    .parent(tree_id)
+    .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
+    .contents(text_id)
+    .resources()
+    .fonts()
+    .pair("F1", font_id);
 
-    // Write the document catalog and a page tree with one page.
-    writer.catalog(catalog).pages(tree);
-    writer.pages(tree).kids(vec![page]);
-    writer.page(page)
-        .parent(tree)
-        .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
-        .resources()
-        .fonts()
-        .pair("F1", font);
+// The font we want to use (one of the base-14 fonts) and a line of text.
+writer.type1_font(font_id).base_font(Name("Helvetica"));
+writer.stream(
+    text_id,
+    TextStream::new()
+        .tf(Name("F1"), 14.0)
+        .td(108.0, 734.0)
+        .tj(b"Hello World from Rust!")
+        .end(),
+);
 
-    // The font we want to use (one of the base-14 fonts) and a line of text.
-    writer.type1_font(font).base_font(Name("Helvetica"));
-
-    // Finish with the cross-reference table and file trailer.
-    writer.end(catalog);
-
-    std::fs::write("target/hello.pdf", writer.into_buf())
-}
+// Finish with cross-reference table and trailer and write to file.
+std::fs::write("target/hello.pdf", writer.end(catalog_id))?;
+# Ok(())
+# }
 ```
 */
 
 #![deny(missing_docs)]
 
+use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
 macro_rules! write {
-    ($w:expr, $fmt:literal) => {{
-        $w.buf.extend($fmt.as_bytes());
+    ($buf:expr, $fmt:literal) => {{
+        $buf.extend($fmt.as_bytes());
     }};
-    ($w:expr, $value:expr) => {{
-        write!($w, "{}", $value);
+    ($buf:expr, $value:expr) => {{
+        write!($buf, "{}", $value);
     }};
-    ($w:expr, $fmt:literal, $($rest:tt)*) => {{
-        $w.buf.write_fmt(format_args!($fmt, $($rest)*)).unwrap();
+    ($buf:expr, $fmt:literal, $($rest:tt)*) => {{
+        $buf.write_fmt(format_args!($fmt, $($rest)*)).unwrap();
     }};
 }
 
 macro_rules! writeln {
-    ($w:expr) => {{
-        $w.buf.push(b'\n');
+    ($buf:expr) => {{
+        $buf.push(b'\n');
     }};
-    ($w:expr, $($rest:tt)*) => {{
-        write!($w, $($rest)*);
-        writeln!($w);
+    ($buf:expr, $($rest:tt)*) => {{
+        write!($buf, $($rest)*);
+        writeln!($buf);
     }};
 }
 
@@ -77,9 +87,16 @@ pub struct PdfWriter {
 
 impl PdfWriter {
     /// Create a new PDF writer.
-    pub fn new() -> Self {
+    ///
+    /// This already writes the PDF header, containing the version, that is:
+    /// ```text
+    /// %PDF-{major}-{minor}
+    /// ```
+    pub fn new(major: u32, minor: u32) -> Self {
+        let mut buf = vec![];
+        writeln!(buf, "%PDF-{}.{}\n", major, minor);
         Self {
-            buf: vec![],
+            buf,
             offsets: vec![],
             depth: 0,
             indent: 0,
@@ -93,31 +110,35 @@ impl PdfWriter {
         self.indent = indent;
     }
 
-    /// Write the PDF header, containing the version.
-    ///
-    /// That is, the following portion:
-    /// ```text
-    /// %PDF-{major}-{minor}
-    /// ```
-    pub fn start(&mut self, major: u32, minor: u32) {
-        writeln!(self, "%PDF-{}.{}\n", major, minor);
-    }
-
-    /// Start writing an indirectly referencable object.
+    /// Start writing an indirectly referenceable object.
     pub fn indirect(&mut self, id: Ref) -> Object<'_> {
         self.start_indirect(id);
         Object::new(self, true)
     }
 
-    /// Write the cross-reference table and file trailer.
-    pub fn end(&mut self, root: Ref) {
-        assert_eq!(self.depth, 0);
-        let (xref_len, xref_offset) = self.xref_table();
-        self.trailer(root, xref_len, xref_offset)
+    /// Write an indirectly referenceable stream.
+    pub fn stream(&mut self, id: Ref, data: impl AsRef<[u8]>) {
+        let data = data.as_ref();
+        let len = i32::try_from(data.len()).expect("data is too long");
+
+        self.start_indirect(id);
+
+        let mut dict = Dict::start(self, false);
+        dict.pair("Length", len);
+        drop(dict);
+
+        writeln!(self.buf, "stream");
+        self.buf.extend(data);
+        writeln!(self.buf, "endstream");
+
+        self.end_indirect();
     }
 
-    /// Return the underlying buffer.
-    pub fn into_buf(self) -> Vec<u8> {
+    /// Write the cross-reference table and file trailer and return the underlying buffer.
+    pub fn end(mut self, catalog_id: Ref) -> Vec<u8> {
+        assert_eq!(self.depth, 0);
+        let (xref_len, xref_offset) = self.xref_table();
+        self.trailer(catalog_id, xref_len, xref_offset);
         self.buf
     }
 
@@ -128,58 +149,58 @@ impl PdfWriter {
         let xref_len = 1 + offsets.last().map(|p| p.0.get()).unwrap_or(0);
         let xref_offset = self.buf.len();
 
-        writeln!(self, "xref");
-        writeln!(self, "0 {}", xref_len);
+        writeln!(self.buf, "xref");
+        writeln!(self.buf, "0 {}", xref_len);
 
         // Always write the initial entry for unusable id zero.
-        write!(self, "0000000000 65535 f\r\n");
+        write!(self.buf, "0000000000 65535 f\r\n");
         let mut next = 1;
 
         for (id, offset) in &offsets {
             let id = id.get();
             while next < id {
                 // TODO: Form linked list of free items.
-                write!(self, "0000000000 65535 f\r\n");
+                write!(self.buf, "0000000000 65535 f\r\n");
                 next += 1;
             }
 
-            write!(self, "{:010} 00000 n\r\n", offset);
+            write!(self.buf, "{:010} 00000 n\r\n", offset);
             next = id + 1;
         }
 
         (xref_len, xref_offset)
     }
 
-    fn trailer(&mut self, root: Ref, xref_len: i32, xref_offset: usize) {
+    fn trailer(&mut self, catalog_id: Ref, xref_len: i32, xref_offset: usize) {
         // Write the trailer dictionary.
-        writeln!(self, "trailer");
+        writeln!(self.buf, "trailer");
 
         let mut dict = Dict::start(self, false);
         dict.pair("Size", xref_len);
-        dict.pair("Root", root);
+        dict.pair("Root", catalog_id);
         drop(dict);
 
         // Write where the cross-reference table starts.
-        writeln!(self, "startxref");
-        writeln!(self, xref_offset);
+        writeln!(self.buf, "startxref");
+        writeln!(self.buf, xref_offset);
 
         // Write the end of file marker.
-        writeln!(self, "%%EOF");
+        writeln!(self.buf, "%%EOF");
     }
 
     fn start_indirect(&mut self, id: Ref) {
         assert_eq!(self.depth, 0);
         self.depth += 1;
         self.offsets.push((id, self.buf.len()));
-        writeln!(self, "{} obj", id);
+        writeln!(self.buf, "{} obj", id);
         self.write_indent();
     }
 
     fn end_indirect(&mut self) {
         self.depth -= 1;
-        writeln!(self);
-        writeln!(self, "endobj");
-        writeln!(self);
+        writeln!(self.buf);
+        writeln!(self.buf, "endobj");
+        writeln!(self.buf);
     }
 
     fn write_indent(&mut self) {
@@ -223,6 +244,12 @@ impl Display for Ref {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Name<'a>(pub &'a str);
 
+impl Display for Name<'_> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        std::write!(f, "/{}", self.0)
+    }
+}
+
 /// A rectangle, specified by two opposite corners.
 #[derive(Debug, Copy, Clone, PartialEq)]
 #[allow(missing_docs)]
@@ -244,7 +271,7 @@ impl Rect {
     }
 }
 
-/// A primtive PDF type.
+/// A basic PDF type.
 pub trait Primitive {
     #[doc(hidden)]
     fn write(self, w: &mut PdfWriter);
@@ -252,37 +279,37 @@ pub trait Primitive {
 
 impl Primitive for bool {
     fn write(self, w: &mut PdfWriter) {
-        write!(w, self);
+        write!(w.buf, self);
     }
 }
 
 impl Primitive for i32 {
     fn write(self, w: &mut PdfWriter) {
-        write!(w, self);
+        write!(w.buf, self);
     }
 }
 
 impl Primitive for f32 {
     fn write(self, w: &mut PdfWriter) {
-        write!(w, self);
+        write!(w.buf, self);
     }
 }
 
 impl Primitive for Ref {
     fn write(self, w: &mut PdfWriter) {
-        write!(w, "{} R", self);
+        write!(w.buf, "{} R", self);
     }
 }
 
 impl Primitive for Name<'_> {
     fn write(self, w: &mut PdfWriter) {
-        write!(w, "/{}", self.0);
+        write!(w.buf, "{}", self);
     }
 }
 
 impl Primitive for Rect {
     fn write(self, w: &mut PdfWriter) {
-        write!(w, "[{} {} {} {}]", self.x1, self.y1, self.x2, self.y2);
+        write!(w.buf, "[{} {} {} {}]", self.x1, self.y1, self.x2, self.y2);
     }
 }
 
@@ -317,9 +344,14 @@ impl<'a> Object<'a> {
         Dict::start(self.w, self.indirect)
     }
 
+    /// Write a typed array.
+    pub fn typed_array<T: Primitive>(self) -> TypedArray<'a, T> {
+        Array::start(self.w, self.indirect).typed()
+    }
+
     /// Write a typed dictionary.
     pub fn typed_dict<T: Primitive>(self) -> TypedDict<'a, T> {
-        TypedDict::new(Dict::start(self.w, self.indirect))
+        Dict::start(self.w, self.indirect).typed()
     }
 
     // TODO: Stream.
@@ -335,7 +367,7 @@ pub struct Array<'a> {
 
 impl<'a> Array<'a> {
     fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
-        write!(w, "[");
+        write!(w.buf, "[");
         Self { w, len: 0, indirect }
     }
 
@@ -346,17 +378,10 @@ impl<'a> Array<'a> {
         self.obj().primitive(value);
     }
 
-    /// Write a sequence of primitive item.
-    pub fn items<T: Primitive>(&mut self, values: impl IntoIterator<Item = T>) {
-        for value in values {
-            self.item(value);
-        }
-    }
-
     /// Write any object item.
     pub fn obj(&mut self) -> Object<'_> {
         if self.len != 0 {
-            write!(self.w, " ");
+            write!(self.w.buf, " ");
         }
         self.len += 1;
         Object::new(self.w, false)
@@ -366,18 +391,23 @@ impl<'a> Array<'a> {
     pub fn len(&self) -> i32 {
         self.len
     }
+
+    /// Convert into a typed version.
+    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
+        TypedArray::new(self)
+    }
 }
 
 impl Drop for Array<'_> {
     fn drop(&mut self) {
-        write!(self.w, "]");
+        write!(self.w.buf, "]");
         if self.indirect {
             self.w.end_indirect();
         }
     }
 }
 
-/// Writer for a dictionary with fixed primitive value type.
+/// Writer for an array with fixed primitive value type.
 pub struct TypedArray<'a, T> {
     array: Array<'a>,
     phantom: PhantomData<T>,
@@ -393,6 +423,13 @@ impl<'a, T: Primitive> TypedArray<'a, T> {
     pub fn item(&mut self, value: T) {
         self.array.item(value);
     }
+
+    /// Write a sequence of primitive items.
+    pub fn items(&mut self, values: impl IntoIterator<Item = T>) {
+        for value in values {
+            self.item(value);
+        }
+    }
 }
 
 /// Writer for a dictionary.
@@ -404,7 +441,7 @@ pub struct Dict<'a> {
 
 impl<'a> Dict<'a> {
     fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
-        writeln!(w, "<<");
+        writeln!(w.buf, "<<");
         w.depth += 1;
         Self { w, len: 0, indirect }
     }
@@ -419,12 +456,17 @@ impl<'a> Dict<'a> {
     /// Write a pair with any object as the value.
     pub fn key(&mut self, key: &str) -> Object<'_> {
         if self.len != 0 {
-            writeln!(self.w);
+            writeln!(self.w.buf);
         }
         self.len += 1;
         self.w.write_indent();
-        write!(self.w, "/{} ", key);
+        write!(self.w.buf, "/{} ", key);
         Object::new(self.w, false)
+    }
+
+    /// Convert into a typed version.
+    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
+        TypedDict::new(self)
     }
 }
 
@@ -432,10 +474,10 @@ impl Drop for Dict<'_> {
     fn drop(&mut self) {
         self.w.depth -= 1;
         if self.len != 0 {
-            writeln!(self.w);
+            writeln!(self.w.buf);
         }
         self.w.write_indent();
-        write!(self.w, ">>");
+        write!(self.w.buf, ">>");
         if self.indirect {
             self.w.end_indirect();
         }
@@ -449,7 +491,7 @@ pub struct TypedDict<'a, T> {
 }
 
 impl<'a, T: Primitive> TypedDict<'a, T> {
-    /// Wrap an dictionary to make it type-safe.
+    /// Wrap a dictionary to make it type-safe.
     pub fn new(dict: Dict<'a>) -> Self {
         Self { dict, phantom: PhantomData }
     }
@@ -457,6 +499,56 @@ impl<'a, T: Primitive> TypedDict<'a, T> {
     /// Write a key-value pair.
     pub fn pair(&mut self, key: &str, value: T) {
         self.dict.pair(key, value);
+    }
+}
+
+/// A stream of text operations.
+pub struct TextStream {
+    buf: Vec<u8>,
+}
+
+impl TextStream {
+    /// Create a new, empty text stream.
+    pub fn new() -> Self {
+        let mut buf = vec![];
+        writeln!(buf, "BT");
+        Self { buf }
+    }
+
+    /// `Tf` operator: Select a font by name in the active resource list and set the font
+    /// size as a scale factor.
+    pub fn tf(mut self, font: Name, size: f32) -> Self {
+        writeln!(self.buf, "{} {} Tf", font, size);
+        self
+    }
+
+    /// `Td` operator: Move to the start of the next line, offsetting from the start of
+    /// the current line by an `(x, y)` offset in text space.
+    pub fn td(mut self, x: f32, y: f32) -> Self {
+        writeln!(self.buf, "{} {} Td", x, y);
+        self
+    }
+
+    /// `Tj` operator: Write text.
+    ///
+    /// This function takes raw bytes. The encoding is up to the caller.
+    pub fn tj(mut self, text: &[u8]) -> Self {
+        // TODO: Move to general string formatting.
+        // TODO: Select best encoding.
+        // TODO: Reserve size upfront.
+        write!(self.buf, "<");
+        for &byte in text {
+            write!(self.buf, "{:x}", byte);
+        }
+        write!(self.buf, ">");
+        writeln!(self.buf, " Tj");
+        self
+    }
+
+    /// Return the raw constructed byte stream.
+    pub fn end(mut self) -> Vec<u8> {
+        writeln!(self.buf, "ET");
+        self.buf
     }
 }
 
@@ -557,6 +649,12 @@ impl<'a> Page<'a> {
     /// Start writing a `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
         Resources::new(self.dict.key("Resources"))
+    }
+
+    /// Write the `/Contents` attribute.
+    pub fn contents(&mut self, id: Ref) -> &mut Self {
+        self.dict.pair("Contents", id);
+        self
     }
 }
 
