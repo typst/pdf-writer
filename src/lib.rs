@@ -49,12 +49,6 @@ std::fs::write("target/hello.pdf", writer.end(catalog_id))?;
 
 #![deny(missing_docs)]
 
-use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
-use std::io::Write;
-use std::marker::PhantomData;
-use std::num::NonZeroI32;
-
 macro_rules! write {
     ($buf:expr, $value:expr) => {{
         write!($buf, "{}", $value);
@@ -73,6 +67,18 @@ macro_rules! writeln {
         writeln!($buf);
     }};
 }
+
+mod structure;
+mod text;
+
+pub use structure::*;
+pub use text::*;
+
+use std::convert::TryFrom;
+use std::fmt::{self, Display, Formatter};
+use std::io::Write;
+use std::marker::PhantomData;
+use std::num::NonZeroI32;
 
 /// The root writer.
 pub struct PdfWriter {
@@ -203,6 +209,31 @@ impl PdfWriter {
         for _ in 0 .. width {
             self.buf.push(b' ');
         }
+    }
+
+    /// Start writing the document catalog.
+    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
+        Catalog::start(self.indirect(id))
+    }
+
+    /// Start writing a page tree.
+    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
+        Pages::start(self.indirect(id))
+    }
+
+    /// Start writing a page.
+    pub fn page(&mut self, id: Ref) -> Page<'_> {
+        Page::start(self.indirect(id))
+    }
+
+    /// Start writing a Type-1 font.
+    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
+        Type1Font::start(self.indirect(id))
+    }
+
+    /// Start writing a Type-0 font.
+    pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
+        Type0Font::start(self.indirect(id))
     }
 }
 
@@ -355,6 +386,14 @@ impl<'a> Array<'a> {
         Self { w, len: 0, indirect }
     }
 
+    /// Write an item.
+    ///
+    /// This is a shorthand for `array.obj().primitive(value)`.
+    pub fn item<T: Primitive>(&mut self, value: T) -> &mut Self {
+        self.obj().primitive(value);
+        self
+    }
+
     /// Write any object item.
     pub fn obj(&mut self) -> Object<'_> {
         if self.len != 0 {
@@ -495,194 +534,5 @@ impl<'a, T: Primitive> TypedDict<'a, T> {
     /// The number of written pairs.
     pub fn len(&self) -> i32 {
         self.dict.len()
-    }
-}
-
-/// A stream of text operations.
-pub struct TextStream {
-    buf: Vec<u8>,
-}
-
-impl TextStream {
-    /// Create a new, empty text stream.
-    pub fn new() -> Self {
-        let mut buf = vec![];
-        writeln!(buf, "BT");
-        Self { buf }
-    }
-
-    /// `Tf` operator: Select a font by name in the active resource list and set the font
-    /// size as a scale factor.
-    pub fn tf(mut self, font: Name, size: f32) -> Self {
-        writeln!(self.buf, "{} {} Tf", font, size);
-        self
-    }
-
-    /// `Td` operator: Move to the start of the next line, offsetting from the start of
-    /// the current line by an `(x, y)` offset in text space.
-    pub fn td(mut self, x: f32, y: f32) -> Self {
-        writeln!(self.buf, "{} {} Td", x, y);
-        self
-    }
-
-    /// `Tj` operator: Write text.
-    ///
-    /// This function takes raw bytes. The encoding is up to the caller.
-    pub fn tj(mut self, text: &[u8]) -> Self {
-        // TODO: Move to general string formatting.
-        // TODO: Select best encoding.
-        // TODO: Reserve size upfront.
-        write!(self.buf, "<");
-        for &byte in text {
-            write!(self.buf, "{:x}", byte);
-        }
-        write!(self.buf, ">");
-        writeln!(self.buf, " Tj");
-        self
-    }
-
-    /// Return the raw constructed byte stream.
-    pub fn end(mut self) -> Vec<u8> {
-        writeln!(self.buf, "ET");
-        self.buf
-    }
-}
-
-impl PdfWriter {
-    /// Start writing the document catalog.
-    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
-        Catalog::start(self.indirect(id))
-    }
-
-    /// Start writing a page tree.
-    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        Pages::start(self.indirect(id))
-    }
-
-    /// Start writing a page.
-    pub fn page(&mut self, id: Ref) -> Page<'_> {
-        Page::start(self.indirect(id))
-    }
-
-    /// Start writing a Type-1 font.
-    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        Type1Font::start(self.indirect(id))
-    }
-}
-
-/// Writer for a _document catalog_ dictionary.
-pub struct Catalog<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Catalog<'a> {
-    fn start(obj: Object<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Catalog"));
-        Self { dict }
-    }
-
-    /// Write the `/Pages` attribute pointing to the root page tree.
-    pub fn pages(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair("Pages", id);
-        self
-    }
-}
-
-/// Writer for a _page tree_ dictionary.
-pub struct Pages<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Pages<'a> {
-    fn start(obj: Object<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Pages"));
-        Self { dict }
-    }
-
-    /// Write the `/Parent` attribute.
-    pub fn parent(&mut self, parent: Ref) -> &mut Self {
-        self.dict.pair("Parent", parent);
-        self
-    }
-
-    /// Write the `/Kids` and `/Count` attributes.
-    pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) -> &mut Self {
-        let len = self.dict.key("Kids").array().typed().items(kids).len();
-        self.dict.pair("Count", len);
-        self
-    }
-}
-
-/// Writer for a _page_ dictionary.
-pub struct Page<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Page<'a> {
-    fn start(obj: Object<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Page"));
-        Self { dict }
-    }
-
-    /// Write the `/Parent` attribute.
-    pub fn parent(&mut self, parent: Ref) -> &mut Self {
-        self.dict.pair("Parent", parent);
-        self
-    }
-
-    /// Write the `/MediaBox` attribute.
-    pub fn media_box(&mut self, rect: Rect) -> &mut Self {
-        self.dict.pair("MediaBox", rect);
-        self
-    }
-
-    /// Start writing a `/Resources` dictionary.
-    pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.dict.key("Resources"))
-    }
-
-    /// Write the `/Contents` attribute.
-    pub fn contents(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair("Contents", id);
-        self
-    }
-}
-
-/// Writer for a _resource_ dictionary.
-pub struct Resources<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Resources<'a> {
-    fn new(obj: Object<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-
-    /// Start writing the `/Font` dictionary.
-    pub fn fonts(&mut self) -> TypedDict<Ref> {
-        self.dict.key("Font").dict().typed()
-    }
-}
-
-/// Writer for a _Type-1 font_ dictionary.
-pub struct Type1Font<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Type1Font<'a> {
-    fn start(obj: Object<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Font"));
-        dict.pair("Subtype", Name("Type1"));
-        Self { dict }
-    }
-
-    /// Write the `/BaseFont` attribute.
-    pub fn base_font(&mut self, name: Name) -> &mut Self {
-        self.dict.pair("BaseFont", name);
-        self
     }
 }
