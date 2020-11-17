@@ -56,9 +56,6 @@ use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
 macro_rules! write {
-    ($buf:expr, $fmt:literal) => {{
-        $buf.extend($fmt.as_bytes());
-    }};
     ($buf:expr, $value:expr) => {{
         write!($buf, "{}", $value);
     }};
@@ -94,7 +91,8 @@ impl PdfWriter {
     /// ```
     pub fn new(major: u32, minor: u32) -> Self {
         let mut buf = vec![];
-        writeln!(buf, "%PDF-{}.{}\n", major, minor);
+        writeln!(buf, "%PDF-{}.{}", major, minor);
+        writeln!(buf);
         Self {
             buf,
             offsets: vec![],
@@ -123,9 +121,7 @@ impl PdfWriter {
 
         self.start_indirect(id);
 
-        let mut dict = Dict::start(self, false);
-        dict.pair("Length", len);
-        drop(dict);
+        Dict::start(self, false).pair("Length", len);
 
         writeln!(self.buf, "stream");
         self.buf.extend(data);
@@ -175,10 +171,9 @@ impl PdfWriter {
         // Write the trailer dictionary.
         writeln!(self.buf, "trailer");
 
-        let mut dict = Dict::start(self, false);
-        dict.pair("Size", xref_len);
-        dict.pair("Root", catalog_id);
-        drop(dict);
+        Dict::start(self, false)
+            .pair("Size", xref_len)
+            .pair("Root", catalog_id);
 
         // Write where the cross-reference table starts.
         writeln!(self.buf, "startxref");
@@ -221,7 +216,7 @@ impl Ref {
     /// The provided value must be in the range `1..=i32::MAX`.
     ///
     /// # Panics
-    /// Panics if `id` is zero.
+    /// Panics if `id` is out of the valid range.
     pub fn new(id: i32) -> Ref {
         let val = if id > 0 { NonZeroI32::new(id) } else { None };
         Self(val.expect("indirect reference out of valid range"))
@@ -273,43 +268,43 @@ impl Rect {
 
 /// A basic PDF type.
 pub trait Primitive {
-    #[doc(hidden)]
-    fn write(self, w: &mut PdfWriter);
+    /// Write the primitive into a byte buffer.
+    fn write(self, buf: &mut Vec<u8>);
 }
 
 impl Primitive for bool {
-    fn write(self, w: &mut PdfWriter) {
-        write!(w.buf, self);
+    fn write(self, buf: &mut Vec<u8>) {
+        write!(buf, self);
     }
 }
 
 impl Primitive for i32 {
-    fn write(self, w: &mut PdfWriter) {
-        write!(w.buf, self);
+    fn write(self, buf: &mut Vec<u8>) {
+        write!(buf, self);
     }
 }
 
 impl Primitive for f32 {
-    fn write(self, w: &mut PdfWriter) {
-        write!(w.buf, self);
+    fn write(self, buf: &mut Vec<u8>) {
+        write!(buf, self);
     }
 }
 
 impl Primitive for Ref {
-    fn write(self, w: &mut PdfWriter) {
-        write!(w.buf, "{} R", self);
+    fn write(self, buf: &mut Vec<u8>) {
+        write!(buf, "{} R", self);
     }
 }
 
 impl Primitive for Name<'_> {
-    fn write(self, w: &mut PdfWriter) {
-        write!(w.buf, "{}", self);
+    fn write(self, buf: &mut Vec<u8>) {
+        write!(buf, "{}", self);
     }
 }
 
 impl Primitive for Rect {
-    fn write(self, w: &mut PdfWriter) {
-        write!(w.buf, "[{} {} {} {}]", self.x1, self.y1, self.x2, self.y2);
+    fn write(self, buf: &mut Vec<u8>) {
+        write!(buf, "[{} {} {} {}]", self.x1, self.y1, self.x2, self.y2);
     }
 }
 
@@ -326,13 +321,13 @@ impl<'a> Object<'a> {
 
     /// Write a primitive.
     pub fn primitive<T: Primitive>(self, value: T) {
-        value.write(self.w);
+        value.write(&mut self.w.buf);
         if self.indirect {
             self.w.end_indirect();
         }
     }
 
-    // TODO: String (simple & streaming).
+    // TODO: String (simple & streaming?).
 
     /// Write an array.
     pub fn array(self) -> Array<'a> {
@@ -344,17 +339,6 @@ impl<'a> Object<'a> {
         Dict::start(self.w, self.indirect)
     }
 
-    /// Write a typed array.
-    pub fn typed_array<T: Primitive>(self) -> TypedArray<'a, T> {
-        Array::start(self.w, self.indirect).typed()
-    }
-
-    /// Write a typed dictionary.
-    pub fn typed_dict<T: Primitive>(self) -> TypedDict<'a, T> {
-        Dict::start(self.w, self.indirect).typed()
-    }
-
-    // TODO: Stream.
     // TODO: Null object.
 }
 
@@ -371,13 +355,6 @@ impl<'a> Array<'a> {
         Self { w, len: 0, indirect }
     }
 
-    /// Write a primitive item.
-    ///
-    /// This is a shorthand for `array.obj().primitive(value)`.
-    pub fn item<T: Primitive>(&mut self, value: T) {
-        self.obj().primitive(value);
-    }
-
     /// Write any object item.
     pub fn obj(&mut self) -> Object<'_> {
         if self.len != 0 {
@@ -387,12 +364,12 @@ impl<'a> Array<'a> {
         Object::new(self.w, false)
     }
 
-    /// The number of written elements.
+    /// The number of written items.
     pub fn len(&self) -> i32 {
         self.len
     }
 
-    /// Convert into a typed version.
+    /// Convert into the typed version.
     pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
         TypedArray::new(self)
     }
@@ -420,15 +397,22 @@ impl<'a, T: Primitive> TypedArray<'a, T> {
     }
 
     /// Write an item.
-    pub fn item(&mut self, value: T) {
-        self.array.item(value);
+    pub fn item(&mut self, value: T) -> &mut Self {
+        self.array.obj().primitive(value);
+        self
     }
 
-    /// Write a sequence of primitive items.
-    pub fn items(&mut self, values: impl IntoIterator<Item = T>) {
+    /// Write a sequence of items.
+    pub fn items(&mut self, values: impl IntoIterator<Item = T>) -> &mut Self {
         for value in values {
             self.item(value);
         }
+        self
+    }
+
+    /// The number of written items.
+    pub fn len(&self) -> i32 {
+        self.array.len()
     }
 }
 
@@ -446,11 +430,12 @@ impl<'a> Dict<'a> {
         Self { w, len: 0, indirect }
     }
 
-    /// Write a pair with primitive value.
+    /// Write a pair with a primitive value.
     ///
     /// This is a shorthand for `dict.key(key).primitive(value)`.
-    pub fn pair<T: Primitive>(&mut self, key: &str, value: T) {
+    pub fn pair<T: Primitive>(&mut self, key: &str, value: T) -> &mut Self {
         self.key(key).primitive(value);
+        self
     }
 
     /// Write a pair with any object as the value.
@@ -464,7 +449,12 @@ impl<'a> Dict<'a> {
         Object::new(self.w, false)
     }
 
-    /// Convert into a typed version.
+    /// The number of written pairs.
+    pub fn len(&self) -> i32 {
+        self.len
+    }
+
+    /// Convert into the typed version.
     pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
         TypedDict::new(self)
     }
@@ -497,8 +487,14 @@ impl<'a, T: Primitive> TypedDict<'a, T> {
     }
 
     /// Write a key-value pair.
-    pub fn pair(&mut self, key: &str, value: T) {
+    pub fn pair(&mut self, key: &str, value: T) -> &mut Self {
         self.dict.pair(key, value);
+        self
+    }
+
+    /// The number of written pairs.
+    pub fn len(&self) -> i32 {
+        self.dict.len()
     }
 }
 
@@ -606,19 +602,16 @@ impl<'a> Pages<'a> {
     }
 
     /// Write the `/Parent` attribute.
-    pub fn parent(&mut self, parent: Ref) {
+    pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.dict.pair("Parent", parent);
+        self
     }
 
     /// Write the `/Kids` and `/Count` attributes.
-    pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) {
-        let mut array = self.dict.key("Kids").array();
-        for kid in kids {
-            array.item(kid);
-        }
-        let len = array.len();
-        drop(array);
+    pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) -> &mut Self {
+        let len = self.dict.key("Kids").array().typed().items(kids).len();
         self.dict.pair("Count", len);
+        self
     }
 }
 
@@ -670,7 +663,7 @@ impl<'a> Resources<'a> {
 
     /// Start writing the `/Font` dictionary.
     pub fn fonts(&mut self) -> TypedDict<Ref> {
-        self.dict.key("Font").typed_dict()
+        self.dict.key("Font").dict().typed()
     }
 }
 
@@ -688,7 +681,8 @@ impl<'a> Type1Font<'a> {
     }
 
     /// Write the `/BaseFont` attribute.
-    pub fn base_font(&mut self, name: Name) {
+    pub fn base_font(&mut self, name: Name) -> &mut Self {
         self.dict.pair("BaseFont", name);
+        self
     }
 }
