@@ -49,25 +49,6 @@ std::fs::write("target/hello.pdf", writer.end(catalog_id))?;
 
 #![deny(missing_docs)]
 
-macro_rules! write {
-    ($buf:expr, $value:expr) => {{
-        write!($buf, "{}", $value);
-    }};
-    ($buf:expr, $fmt:literal, $($rest:tt)*) => {{
-        $buf.write_fmt(format_args!($fmt, $($rest)*)).unwrap();
-    }};
-}
-
-macro_rules! writeln {
-    ($buf:expr) => {{
-        $buf.push(b'\n');
-    }};
-    ($buf:expr, $($rest:tt)*) => {{
-        write!($buf, $($rest)*);
-        writeln!($buf);
-    }};
-}
-
 mod structure;
 mod text;
 
@@ -75,8 +56,6 @@ pub use structure::*;
 pub use text::*;
 
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
-use std::io::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -95,10 +74,13 @@ impl PdfWriter {
     /// ```text
     /// %PDF-{major}-{minor}
     /// ```
-    pub fn new(major: u32, minor: u32) -> Self {
-        let mut buf = vec![];
-        writeln!(buf, "%PDF-{}.{}", major, minor);
-        writeln!(buf);
+    pub fn new(major: i32, minor: i32) -> Self {
+        let mut buf = Vec::new();
+        buf.push_bytes(b"%PDF-");
+        buf.push_int(major);
+        buf.push(b'.');
+        buf.push_int(minor);
+        buf.push_bytes(b"\n\n");
         Self {
             buf,
             offsets: vec![],
@@ -129,9 +111,9 @@ impl PdfWriter {
 
         Dict::start(self, false).pair("Length", len);
 
-        writeln!(self.buf, "stream");
-        self.buf.extend(data);
-        writeln!(self.buf, "endstream");
+        self.buf.push_bytes(b"\nstream\n");
+        self.buf.push_bytes(data);
+        self.buf.push_bytes(b"\nendstream");
 
         self.end_indirect();
     }
@@ -151,22 +133,23 @@ impl PdfWriter {
         let xref_len = 1 + offsets.last().map(|p| p.0.get()).unwrap_or(0);
         let xref_offset = self.buf.len();
 
-        writeln!(self.buf, "xref");
-        writeln!(self.buf, "0 {}", xref_len);
+        self.buf.push_bytes(b"xref\n0 ");
+        self.buf.push_int(xref_len);
 
         // Always write the initial entry for unusable id zero.
-        write!(self.buf, "0000000000 65535 f\r\n");
+        self.buf.push_bytes(b"\n0000000000 65535 f\r\n");
         let mut next = 1;
 
-        for (id, offset) in &offsets {
+        for &(id, offset) in &offsets {
             let id = id.get();
             while next < id {
                 // TODO: Form linked list of free items.
-                write!(self.buf, "0000000000 65535 f\r\n");
+                self.buf.push_bytes(b"0000000000 65535 f\r\n");
                 next += 1;
             }
 
-            write!(self.buf, "{:010} 00000 n\r\n", offset);
+            self.buf.push_int_aligned(offset, 10);
+            self.buf.push_bytes(b" 00000 n\r\n");
             next = id + 1;
         }
 
@@ -175,36 +158,35 @@ impl PdfWriter {
 
     fn trailer(&mut self, catalog_id: Ref, xref_len: i32, xref_offset: usize) {
         // Write the trailer dictionary.
-        writeln!(self.buf, "trailer");
+        self.buf.push_bytes(b"trailer\n");
 
         Dict::start(self, false)
             .pair("Size", xref_len)
             .pair("Root", catalog_id);
 
         // Write where the cross-reference table starts.
-        writeln!(self.buf, "startxref");
-        writeln!(self.buf, xref_offset);
+        self.buf.push_bytes(b"\nstartxref\n");
+        self.buf.push_int(xref_offset);
 
         // Write the end of file marker.
-        writeln!(self.buf, "%%EOF");
+        self.buf.push_bytes(b"\n%%EOF");
     }
 
     fn start_indirect(&mut self, id: Ref) {
         assert_eq!(self.depth, 0);
         self.depth += 1;
         self.offsets.push((id, self.buf.len()));
-        writeln!(self.buf, "{} obj", id);
-        self.write_indent();
+        self.buf.push_int(id.0.get());
+        self.buf.push_bytes(b" 0 obj\n");
+        self.push_indent();
     }
 
     fn end_indirect(&mut self) {
         self.depth -= 1;
-        writeln!(self.buf);
-        writeln!(self.buf, "endobj");
-        writeln!(self.buf);
+        self.buf.push_bytes(b"\nendobj\n\n");
     }
 
-    fn write_indent(&mut self) {
+    fn push_indent(&mut self) {
         let width = self.indent * self.depth;
         for _ in 0 .. width {
             self.buf.push(b' ');
@@ -237,6 +219,56 @@ impl PdfWriter {
     }
 }
 
+trait BufExt {
+    fn push_val<T: Primitive>(&mut self, primitive: T);
+    fn push_bytes(&mut self, bytes: &[u8]);
+    fn push_str(&mut self, s: &str);
+    fn push_int<I: itoa::Integer>(&mut self, value: I);
+    fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize);
+    fn push_float<F: ryu::Float>(&mut self, value: F);
+    fn push_hex(&mut self, value: u8);
+}
+
+impl BufExt for Vec<u8> {
+    fn push_val<T: Primitive>(&mut self, primitive: T) {
+        primitive.format(self);
+    }
+
+    fn push_bytes(&mut self, bytes: &[u8]) {
+        self.extend_from_slice(bytes);
+    }
+
+    fn push_str(&mut self, s: &str) {
+        self.push_bytes(s.as_bytes());
+    }
+
+    fn push_int<I: itoa::Integer>(&mut self, value: I) {
+        self.push_str(itoa::Buffer::new().format(value));
+    }
+
+    fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize) {
+        let mut buffer = itoa::Buffer::new();
+        let number = buffer.format(value);
+        for _ in 0 .. align.saturating_sub(number.len()) {
+            self.push(b'0');
+        }
+        self.push_str(number);
+    }
+
+    fn push_float<F: ryu::Float>(&mut self, value: F) {
+        self.push_str(ryu::Buffer::new().format(value));
+    }
+
+    fn push_hex(&mut self, value: u8) {
+        fn hex(b: u8) -> u8 {
+            if b < 10 { b'0' + b } else { b'A' + (b - 10) }
+        }
+
+        self.push(hex(value >> 4));
+        self.push(hex(value & 0xF));
+    }
+}
+
 /// An indirect reference.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Ref(NonZeroI32);
@@ -259,26 +291,12 @@ impl Ref {
     }
 }
 
-impl Display for Ref {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        // We do not use any generations other than zero.
-        std::write!(f, "{} 0", self.0)
-    }
-}
-
 /// A name: `/Thing`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Name<'a>(pub &'a str);
 
-impl Display for Name<'_> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        std::write!(f, "/{}", self.0)
-    }
-}
-
 /// A rectangle, specified by two opposite corners.
 #[derive(Debug, Copy, Clone, PartialEq)]
-#[allow(missing_docs)]
 pub struct Rect {
     /// The x-coordinate of the first (typically, lower-left) corner.
     pub x1: f32,
@@ -299,43 +317,57 @@ impl Rect {
 
 /// A basic PDF type.
 pub trait Primitive {
-    /// Write the primitive into a byte buffer.
-    fn write(self, buf: &mut Vec<u8>);
+    #[doc(hidden)]
+    fn format(self, buf: &mut Vec<u8>);
 }
 
 impl Primitive for bool {
-    fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, self);
+    fn format(self, buf: &mut Vec<u8>) {
+        if self {
+            buf.push_bytes(b"true");
+        } else {
+            buf.push_bytes(b"false");
+        }
     }
 }
 
 impl Primitive for i32 {
-    fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, self);
+    fn format(self, buf: &mut Vec<u8>) {
+        buf.push_int(self);
     }
 }
 
 impl Primitive for f32 {
-    fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, self);
+    fn format(self, buf: &mut Vec<u8>) {
+        buf.push_float(self);
     }
 }
 
 impl Primitive for Ref {
-    fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, "{} R", self);
+    fn format(self, buf: &mut Vec<u8>) {
+        buf.push_int(self.0.get());
+        buf.push_bytes(b" 0 R");
     }
 }
 
 impl Primitive for Name<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, "{}", self);
+    fn format(self, buf: &mut Vec<u8>) {
+        buf.push(b'/');
+        buf.push_str(self.0);
     }
 }
 
 impl Primitive for Rect {
-    fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, "[{} {} {} {}]", self.x1, self.y1, self.x2, self.y2);
+    fn format(self, buf: &mut Vec<u8>) {
+        buf.push(b'[');
+        buf.push_float(self.x1);
+        buf.push(b' ');
+        buf.push_float(self.y1);
+        buf.push(b' ');
+        buf.push_float(self.x2);
+        buf.push(b' ');
+        buf.push_float(self.y2);
+        buf.push(b']');
     }
 }
 
@@ -352,7 +384,7 @@ impl<'a> Object<'a> {
 
     /// Write a primitive.
     pub fn primitive<T: Primitive>(self, value: T) {
-        value.write(&mut self.w.buf);
+        value.format(&mut self.w.buf);
         if self.indirect {
             self.w.end_indirect();
         }
@@ -382,7 +414,7 @@ pub struct Array<'a> {
 
 impl<'a> Array<'a> {
     fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
-        write!(w.buf, "[");
+        w.buf.push(b'[');
         Self { w, len: 0, indirect }
     }
 
@@ -397,7 +429,7 @@ impl<'a> Array<'a> {
     /// Write any object item.
     pub fn obj(&mut self) -> Object<'_> {
         if self.len != 0 {
-            write!(self.w.buf, " ");
+            self.w.buf.push(b' ');
         }
         self.len += 1;
         Object::new(self.w, false)
@@ -416,7 +448,7 @@ impl<'a> Array<'a> {
 
 impl Drop for Array<'_> {
     fn drop(&mut self) {
-        write!(self.w.buf, "]");
+        self.w.buf.push(b']');
         if self.indirect {
             self.w.end_indirect();
         }
@@ -464,7 +496,7 @@ pub struct Dict<'a> {
 
 impl<'a> Dict<'a> {
     fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
-        writeln!(w.buf, "<<");
+        w.buf.push_bytes(b"<<\n");
         w.depth += 1;
         Self { w, len: 0, indirect }
     }
@@ -480,11 +512,13 @@ impl<'a> Dict<'a> {
     /// Write a pair with any object as the value.
     pub fn key(&mut self, key: &str) -> Object<'_> {
         if self.len != 0 {
-            writeln!(self.w.buf);
+            self.w.buf.push(b'\n');
         }
         self.len += 1;
-        self.w.write_indent();
-        write!(self.w.buf, "/{} ", key);
+        self.w.push_indent();
+        self.w.buf.push(b'/');
+        self.w.buf.push_str(key);
+        self.w.buf.push(b' ');
         Object::new(self.w, false)
     }
 
@@ -503,10 +537,10 @@ impl Drop for Dict<'_> {
     fn drop(&mut self) {
         self.w.depth -= 1;
         if self.len != 0 {
-            writeln!(self.w.buf);
+            self.w.buf.push(b'\n');
         }
-        self.w.write_indent();
-        write!(self.w.buf, ">>");
+        self.w.push_indent();
+        self.w.buf.push_bytes(b">>");
         if self.indirect {
             self.w.end_indirect();
         }

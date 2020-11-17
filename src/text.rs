@@ -8,26 +8,43 @@ pub struct TextStream {
 impl TextStream {
     /// Create a new, empty text stream.
     pub fn new() -> Self {
-        let mut buf = vec![];
-        writeln!(buf, "BT");
+        let mut buf = Vec::new();
+        buf.push_bytes(b"BT\n");
         Self { buf }
     }
 
     /// `Tf` operator: Select a font by name and set the font size as a scale factor.
     pub fn tf(mut self, font: Name, size: f32) -> Self {
-        writeln!(self.buf, "{} {} Tf", font, size);
+        self.buf.push_val(font);
+        self.buf.push(b' ');
+        self.buf.push_val(size);
+        self.buf.push_bytes(b" Tf\n");
         self
     }
 
     /// `Td` operator: Move to the start of the next line.
     pub fn td(mut self, x: f32, y: f32) -> Self {
-        writeln!(self.buf, "{} {} Td", x, y);
+        self.buf.push_val(x);
+        self.buf.push(b' ');
+        self.buf.push_val(y);
+        self.buf.push_bytes(b" Td\n");
         self
     }
 
     /// `Tm` operator: Set the text matrix.
     pub fn tm(mut self, a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Self {
-        writeln!(self.buf, "{} {} {} {} {} {} Tm", a, b, c, d, e, f);
+        self.buf.push_val(a);
+        self.buf.push(b' ');
+        self.buf.push_val(b);
+        self.buf.push(b' ');
+        self.buf.push_val(c);
+        self.buf.push(b' ');
+        self.buf.push_val(d);
+        self.buf.push(b' ');
+        self.buf.push_val(e);
+        self.buf.push(b' ');
+        self.buf.push_val(f);
+        self.buf.push_bytes(b" Td\n");
         self
     }
 
@@ -38,18 +55,17 @@ impl TextStream {
         // TODO: Move to general string formatting.
         // TODO: Select best encoding.
         // TODO: Reserve size upfront.
-        write!(self.buf, "<");
+        self.buf.push(b'<');
         for &byte in text {
-            write!(self.buf, "{:x}", byte);
+            self.buf.push_hex(byte);
         }
-        write!(self.buf, ">");
-        writeln!(self.buf, " Tj");
+        self.buf.push_bytes(b"> Tj\n");
         self
     }
 
     /// Return the raw constructed byte stream.
     pub fn end(mut self) -> Vec<u8> {
-        writeln!(self.buf, "ET");
+        self.buf.push_bytes(b"ET");
         self.buf
     }
 }
