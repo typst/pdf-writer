@@ -12,12 +12,7 @@
 //!     // finish with the cross-reference table and file trailer.
 //!     writer.start(1, 7);
 //!     writer.catalog(Ref::new(1)).pages(Ref::new(2));
-//!
-//!     let mut pages = writer.pages(Ref::new(2));
-//!     pages.count(1);
-//!     pages.kids().item().id(Ref::new(3));
-//!     drop(pages);
-//!
+//!     writer.pages(Ref::new(2)).kids(vec![Ref::new(3), Ref::new(4)]);
 //!     writer.end(Ref::new(1));
 //!
 //!     std::fs::write("target/hello.pdf", writer.into_buf())
@@ -188,11 +183,13 @@ impl PdfWriter {
 
     fn start_indirect(&mut self, id: Ref) {
         assert_eq!(self.depth, 0);
+        self.depth += 1;
         self.offsets.push((id, self.buf.len()));
         writeln!(self, "{} obj", id);
     }
 
     fn end_indirect(&mut self) {
+        self.depth -= 1;
         writeln!(self, "endobj");
         writeln!(self);
     }
@@ -261,7 +258,7 @@ impl<'a> Object<'a> {
 pub struct Array<'a> {
     w: &'a mut PdfWriter,
     indirect: bool,
-    len: usize,
+    len: i32,
 }
 
 impl<'a> Array<'a> {
@@ -278,6 +275,11 @@ impl<'a> Array<'a> {
         self.len += 1;
         Object::new(self.w, false)
     }
+
+    /// The number of written elements.
+    pub fn len(&self) -> i32 {
+        self.len
+    }
 }
 
 impl Drop for Array<'_> {
@@ -293,7 +295,7 @@ impl Drop for Array<'_> {
 pub struct Dict<'a> {
     w: &'a mut PdfWriter,
     indirect: bool,
-    len: usize,
+    len: i32,
 }
 
 impl<'a> Dict<'a> {
@@ -373,14 +375,14 @@ impl<'a> Pages<'a> {
         Self { dict }
     }
 
-    /// Write the `/Count` attribute, indicating the number of elements in the `/Kids`
-    /// array.
-    pub fn count(&mut self, count: i32) {
-        self.dict.key("Count").int(count);
-    }
-
-    /// Write the `/Kids` attributes.
-    pub fn kids(&mut self) -> Array<'_> {
-        self.dict.key("Kids").array()
+    /// Write the `/Kids` and `/Count` attributes.
+    pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) {
+        let mut array = self.dict.key("Kids").array();
+        for kid in kids {
+            array.item().id(kid);
+        }
+        let len = array.len();
+        drop(array);
+        self.dict.key("Count").int(len);
     }
 }
