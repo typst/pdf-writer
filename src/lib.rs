@@ -12,7 +12,12 @@
 //!     // finish with the cross-reference table and file trailer.
 //!     writer.start(1, 7);
 //!     writer.catalog(Ref::new(1)).pages(Ref::new(2));
-//!     writer.pages(Ref::new(2)).count(0);
+//!
+//!     let mut pages = writer.pages(Ref::new(2));
+//!     pages.count(1);
+//!     pages.kids().item().id(Ref::new(3));
+//!     drop(pages);
+//!
 //!     writer.end(Ref::new(1));
 //!
 //!     std::fs::write("target/hello.pdf", writer.into_buf())
@@ -21,9 +26,10 @@
 
 #![deny(missing_docs)]
 
+use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::io::Write;
-use std::num::NonZeroU32;
+use std::num::NonZeroI32;
 
 macro_rules! write {
     ($w:expr, $fmt:literal) => {{
@@ -47,29 +53,28 @@ macro_rules! writeln {
     }};
 }
 
-macro_rules! write_pair {
-    ($w:expr, $key:expr, $($rest:tt)*) => {{
-        $w.write_indent();
-        write!($w, "/{} ", $key);
-        writeln!($w, $($rest)*);
-    }};
-}
-
 /// An indirect reference.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Ref(NonZeroU32);
+pub struct Ref(NonZeroI32);
 
 impl Ref {
-    /// Create a new indirect reference. The provided value must be larger than zero.
+    /// Create a new indirect reference.
+    ///
+    /// The provided value must be in the range `1..=i32::MAX`.
     ///
     /// # Panics
     /// Panics if `id` is zero.
     pub fn new(id: u32) -> Ref {
-        Ref(NonZeroU32::new(id).expect("indirect reference must be larger than zero"))
+        Self(
+            id.try_into()
+                .ok()
+                .and_then(NonZeroI32::new)
+                .expect("indirect reference out of valid range"),
+        )
     }
 
     /// Return the underlying number as a primitive type.
-    pub fn get(self) -> u32 {
+    pub fn get(self) -> i32 {
         self.0.get()
     }
 }
@@ -117,14 +122,10 @@ impl PdfWriter {
         writeln!(self, "%PDF-{}.{}\n", major, minor);
     }
 
-    /// Start writing the document catalog.
-    pub fn catalog(&mut self, id: Ref) -> Catalog {
-        Catalog::start(self, id)
-    }
-
-    /// Start writing the page tree.
-    pub fn pages(&mut self, id: Ref) -> Pages {
-        Pages::start(self, id)
+    /// Start writing an arbitrary indirect object.
+    pub fn obj(&mut self, id: Ref) -> Object<'_> {
+        self.start_indirect(id);
+        Object::new(self, true)
     }
 
     /// Write the cross-reference table and file trailer.
@@ -139,7 +140,7 @@ impl PdfWriter {
         self.buf
     }
 
-    fn xref_table(&mut self) -> (u32, usize) {
+    fn xref_table(&mut self) -> (i32, usize) {
         let mut offsets = std::mem::take(&mut self.offsets);
         offsets.sort();
 
@@ -168,16 +169,14 @@ impl PdfWriter {
         (xref_len, xref_offset)
     }
 
-    fn trailer(&mut self, root: Ref, xref_len: u32, xref_offset: usize) {
+    fn trailer(&mut self, root: Ref, xref_len: i32, xref_offset: usize) {
         // Write the trailer dictionary.
         writeln!(self, "trailer");
 
-        self.depth += 1;
-        self.start_dict();
-        write_pair!(self, "Size", xref_len);
-        write_pair!(self, "Root", root);
-        self.end_dict();
-        self.depth -= 1;
+        let mut dict = Dict::start(self, false);
+        dict.key("Size").int(xref_len);
+        dict.key("Root").id(root);
+        drop(dict);
 
         // Write where the cross-reference table starts.
         writeln!(self, "startxref");
@@ -187,91 +186,201 @@ impl PdfWriter {
         writeln!(self, "%%EOF");
     }
 
-    fn start_obj(&mut self, id: Ref) {
-        self.write_indent();
+    fn start_indirect(&mut self, id: Ref) {
+        assert_eq!(self.depth, 0);
         self.offsets.push((id, self.buf.len()));
         writeln!(self, "{} obj", id);
-        self.depth += 1;
     }
 
-    fn start_dict(&mut self) {
-        self.write_indent();
-        writeln!(self, "<<");
-        self.depth += 1;
-    }
-
-    fn end_obj(&mut self) {
-        assert!(self.depth > 0);
-        self.depth -= 1;
-        self.write_indent();
-        writeln!(self, "endobj\n");
-    }
-
-    fn end_dict(&mut self) {
-        assert!(self.depth > 0);
-        self.depth -= 1;
-        self.write_indent();
-        writeln!(self, ">>");
+    fn end_indirect(&mut self) {
+        writeln!(self, "endobj");
+        writeln!(self);
     }
 
     fn write_indent(&mut self) {
         let width = self.indent * self.depth;
-        for _ in 0..width {
+        for _ in 0 .. width {
             self.buf.push(b' ');
         }
     }
 }
 
-/// Writer for the document catalog.
-pub struct Catalog<'a> {
+/// Writer for an arbitrary object.
+pub struct Object<'a> {
     w: &'a mut PdfWriter,
+    indirect: bool,
+}
+
+impl<'a> Object<'a> {
+    fn new(w: &'a mut PdfWriter, indirect: bool) -> Self {
+        Self { w, indirect }
+    }
+
+    /// Write a boolean.
+    pub fn bool(self, value: bool) {
+        write!(self.w, value);
+    }
+
+    /// Write an integer number.
+    pub fn int(self, value: i32) {
+        write!(self.w, value);
+    }
+
+    /// Write a real number.
+    pub fn real(self, value: f32) {
+        write!(self.w, value);
+    }
+
+    // TODO: String (simple & streaming).
+
+    /// Write a name object.
+    pub fn name(self, name: &str) {
+        write!(self.w, "/{}", name);
+    }
+
+    /// Write an array.
+    pub fn array(self) -> Array<'a> {
+        Array::start(self.w, self.indirect)
+    }
+
+    /// Write a dictionary.
+    pub fn dict(self) -> Dict<'a> {
+        Dict::start(self.w, self.indirect)
+    }
+
+    // TODO: Stream.
+    // TODO: Null object.
+
+    /// Write a reference to an indirect object.
+    pub fn id(self, id: Ref) {
+        write!(self.w, "{} R", id);
+    }
+}
+
+/// Writer for an array.
+pub struct Array<'a> {
+    w: &'a mut PdfWriter,
+    indirect: bool,
+    len: usize,
+}
+
+impl<'a> Array<'a> {
+    fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
+        write!(w, "[");
+        Self { w, len: 0, indirect }
+    }
+
+    /// Write an item.
+    pub fn item(&mut self) -> Object<'_> {
+        if self.len != 0 {
+            write!(self.w, " ");
+        }
+        self.len += 1;
+        Object::new(self.w, false)
+    }
+}
+
+impl Drop for Array<'_> {
+    fn drop(&mut self) {
+        write!(self.w, "]");
+        if self.indirect {
+            self.w.end_indirect();
+        }
+    }
+}
+
+/// Writer for a dictionary.
+pub struct Dict<'a> {
+    w: &'a mut PdfWriter,
+    indirect: bool,
+    len: usize,
+}
+
+impl<'a> Dict<'a> {
+    fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
+        w.write_indent();
+        writeln!(w, "<<");
+        w.depth += 1;
+        Self { w, len: 0, indirect }
+    }
+
+    /// Write a key-value pair.
+    pub fn key(&mut self, key: &str) -> Object<'_> {
+        if self.len != 0 {
+            writeln!(self.w);
+        }
+        self.len += 1;
+        self.w.write_indent();
+        write!(self.w, "/{} ", key);
+        Object::new(self.w, false)
+    }
+}
+
+impl Drop for Dict<'_> {
+    fn drop(&mut self) {
+        if self.len != 0 {
+            writeln!(self.w);
+        }
+        self.w.depth -= 1;
+        self.w.write_indent();
+        writeln!(self.w, ">>");
+        if self.indirect {
+            self.w.end_indirect();
+        }
+    }
+}
+
+impl PdfWriter {
+    /// Start writing the document catalog.
+    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
+        Catalog::start(self.obj(id))
+    }
+
+    /// Start writing the page tree.
+    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
+        Pages::start(self.obj(id))
+    }
+}
+
+/// Writer for the _document catalog_.
+pub struct Catalog<'a> {
+    dict: Dict<'a>,
 }
 
 impl<'a> Catalog<'a> {
-    fn start(w: &'a mut PdfWriter, id: Ref) -> Self {
-        w.start_obj(id);
-        w.start_dict();
-        write_pair!(w, "Type", "/Catalog");
-        Self { w }
+    fn start(obj: Object<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.key("Type").name("Catalog");
+        Self { dict }
     }
 
     /// Write the `/Pages` attribute pointing to the page tree.
     pub fn pages(&mut self, id: Ref) -> &mut Self {
-        write_pair!(self.w, "Pages", "{} R", id);
+        self.dict.key("Pages").id(id);
         self
     }
 }
 
-impl Drop for Catalog<'_> {
-    fn drop(&mut self) {
-        self.w.end_dict();
-        self.w.end_obj();
-    }
-}
-
-/// Writer for the page tree.
+/// Writer for the _page tree_.
 pub struct Pages<'a> {
-    w: &'a mut PdfWriter,
+    dict: Dict<'a>,
 }
 
 impl<'a> Pages<'a> {
-    fn start(w: &'a mut PdfWriter, id: Ref) -> Self {
-        w.start_obj(id);
-        w.start_dict();
-        write_pair!(w, "Type", "/Pages");
-        Self { w }
+    fn start(obj: Object<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.key("Type").name("Pages");
+        Self { dict }
     }
 
-    /// Write the `/Count` attribute indicating the number of pages.
-    pub fn count(&mut self, count: u32) -> &mut Self {
-        write_pair!(self.w, "Count", count);
-        self
+    /// Write the `/Count` attribute, indicating the number of elements in the `/Kids`
+    /// array.
+    pub fn count(&mut self, count: i32) {
+        self.dict.key("Count").int(count);
     }
-}
 
-impl Drop for Pages<'_> {
-    fn drop(&mut self) {
-        self.w.end_dict();
-        self.w.end_obj();
+    /// Write the `/Kids` attributes.
+    pub fn kids(&mut self) -> Array<'_> {
+        self.dict.key("Kids").array()
     }
 }
