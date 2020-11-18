@@ -8,31 +8,25 @@ Writing a document with one A4 page containing the text "Hello World from Rust".
 use pdf_writer::{Name, PdfWriter, Rect, Ref, TextStream};
 
 # fn main() -> std::io::Result<()> {
-let catalog_id = Ref::new(1);
-let tree_id = Ref::new(2);
-let page_id = Ref::new(3);
-let font_id = Ref::new(4);
-let text_id = Ref::new(5);
-
-// Write the PDF-1.7 header.
+// Start writing with PDF version 1.7 header.
 let mut writer = PdfWriter::new(1, 7);
 writer.set_indent(2);
 
-// Write the document catalog and a page tree with one page.
-writer.catalog(catalog_id).pages(tree_id);
-writer.pages(tree_id).kids(vec![page_id]);
-writer.page(page_id)
-    .parent(tree_id)
+// The document catalog and a page tree with one page.
+writer.catalog(Ref::new(1)).pages(Ref::new(2));
+writer.pages(Ref::new(2)).kids(vec![Ref::new(3)]);
+writer.page(Ref::new(3))
+    .parent(Ref::new(2))
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
-    .contents(text_id)
+    .contents(Ref::new(5))
     .resources()
     .fonts()
-    .pair("F1", font_id);
+    .pair("F1", Ref::new(4));
 
 // The font we want to use (one of the base-14 fonts) and a line of text.
-writer.type1_font(font_id).base_font(Name("Helvetica"));
+writer.type1_font(Ref::new(4)).base_font(Name("Helvetica"));
 writer.stream(
-    text_id,
+    Ref::new(5),
     TextStream::new()
         .tf(Name("F1"), 14.0)
         .td(108.0, 734.0)
@@ -41,7 +35,7 @@ writer.stream(
 );
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/hello.pdf", writer.end(catalog_id))?;
+std::fs::write("target/hello.pdf", writer.end(Ref::new(1)))?;
 # Ok(())
 # }
 ```
@@ -68,12 +62,11 @@ pub struct PdfWriter {
 }
 
 impl PdfWriter {
-    /// Create a new PDF writer with the default buffer capacity (currently 8 KB).
+    /// Create a new PDF writer with the default buffer capacity (currently 8 KB). The
+    /// buffer will grow as necessary, but you can override this initial value by using
+    /// [`with_capacity`].
     ///
-    /// The buffer will grow as necessary, but you can override this initial value by
-    /// using [`with_capacity`].
-    ///
-    /// This already writes the PDF header containing the version.
+    /// This already writes the PDF header containing the (major, minor) version.
     ///
     /// [`with_capacity`]: #method.with_capacity
     pub fn new(major: i32, minor: i32) -> Self {
@@ -82,7 +75,7 @@ impl PdfWriter {
 
     /// Create a new PDF writer with the specified buffer capacity.
     ///
-    /// This already writes the PDF header containing the version.
+    /// This already writes the PDF header containing the (major, minor) version.
     pub fn with_capacity(capacity: usize, major: i32, minor: i32) -> Self {
         let mut buf = Vec::with_capacity(capacity);
         buf.push_bytes(b"%PDF-");
