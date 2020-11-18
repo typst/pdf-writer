@@ -68,14 +68,23 @@ pub struct PdfWriter {
 }
 
 impl PdfWriter {
-    /// Create a new PDF writer.
+    /// Create a new PDF writer with the default buffer capacity (currently 8 KB).
     ///
-    /// This already writes the PDF header, containing the version, that is:
-    /// ```text
-    /// %PDF-{major}-{minor}
-    /// ```
+    /// The buffer will grow as necessary, but you can override this initial value by
+    /// using [`with_capacity`].
+    ///
+    /// This already writes the PDF header containing the version.
+    ///
+    /// [`with_capacity`]: #method.with_capacity
     pub fn new(major: i32, minor: i32) -> Self {
-        let mut buf = Vec::new();
+        Self::with_capacity(8 * 1024, major, minor)
+    }
+
+    /// Create a new PDF writer with the specified buffer capacity.
+    ///
+    /// This already writes the PDF header containing the version.
+    pub fn with_capacity(capacity: usize, major: i32, minor: i32) -> Self {
+        let mut buf = Vec::with_capacity(capacity);
         buf.push_bytes(b"%PDF-");
         buf.push_int(major);
         buf.push(b'.');
