@@ -231,9 +231,9 @@ impl<'a> FontDescriptor<'a> {
         self
     }
 
-    /// Write the `/FontFlags` attribute.
+    /// Write the `/Flags` attribute.
     pub fn font_flags(&mut self, flags: FontFlags) -> &mut Self {
-        self.dict.pair(Name(b"FontFlags"), flags.bits() as i32);
+        self.dict.pair(Name(b"Flags"), flags.bits() as i32);
         self
     }
 
