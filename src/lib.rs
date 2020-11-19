@@ -27,12 +27,10 @@ std::fs::write("target/empty.pdf", writer.end(Ref::new(1)))?;
 # }
 ```
 
-For more comprehensive examples, check out the [examples directory] in the
-repository and specifically the [hello world example], which creates a document
-with text in it.
+For a more comprehensive overview, check out the [hello world example] in the
+repository, which creates a document with text in it.
 
 [`PdfWriter`]: struct.PdfWriter.html
-[examples directory]: https://github.com/typst/pdf-writer/tree/main/examples
 [hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 */
 

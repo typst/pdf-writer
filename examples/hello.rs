@@ -2,14 +2,14 @@ use pdf_writer::{Name, PdfWriter, Rect, Ref, TextStream};
 
 fn main() -> std::io::Result<()> {
     // Start writing with PDF version 1.7 header. The version is not
-    // semantically important for the writer, but must be present in the output
+    // semantically important to the writer, but must be present in the output
     // document.
     let mut writer = PdfWriter::new(1, 7);
 
     // Make the output more readable by indenting things with 2 spaces.
     writer.set_indent(2);
 
-    // Define some indirect reference ids we want to use.
+    // Define some indirect reference ids we'll to use.
     let catalog_id = Ref::new(1);
     let page_tree_id = Ref::new(2);
     let page_id = Ref::new(3);
@@ -22,13 +22,13 @@ fn main() -> std::io::Result<()> {
     // Write the page tree with a single child page.
     writer.pages(page_tree_id).kids(vec![page_id]);
 
-    // Write the only page.
+    // Write a page.
     //
     // Set the size to A4 (measured in points) using `media_box` and set the
-    // text object we'll write later as the page's content.
+    // text object we'll write later as the page's contents.
     //
     // We also need to specify which resources the page needs, which in our case
-    // is only a font that we name "F1" (can be anything).
+    // is only a font that we name "F1" (the specific name doesn't matter).
     writer
         .page(page_id)
         .parent(page_tree_id)
@@ -60,9 +60,9 @@ fn main() -> std::io::Result<()> {
     );
 
     // Finish writing (this automatically creates the cross-reference table and
-    // trailer) and retrieve the resulting byte buffer.
+    // file trailer) and retrieve the resulting byte buffer.
     let buf: Vec<u8> = writer.end(catalog_id);
 
-    // Write to an output file.
+    // Write the thing to a file.
     std::fs::write("target/hello.pdf", buf)
 }
