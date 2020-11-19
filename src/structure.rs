@@ -6,15 +6,15 @@ pub struct Catalog<'a> {
 }
 
 impl<'a> Catalog<'a> {
-    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Catalog"));
+    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"Catalog"));
         Self { dict }
     }
 
     /// Write the `/Pages` attribute pointing to the root page tree.
     pub fn pages(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair("Pages", id);
+        self.dict.pair(Name(b"Pages"), id);
         self
     }
 }
@@ -25,22 +25,22 @@ pub struct Pages<'a> {
 }
 
 impl<'a> Pages<'a> {
-    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Pages"));
+    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"Pages"));
         Self { dict }
     }
 
     /// Write the `/Parent` attribute.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
-        self.dict.pair("Parent", parent);
+        self.dict.pair(Name(b"Parent"), parent);
         self
     }
 
     /// Write the `/Kids` and `/Count` attributes.
     pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) -> &mut Self {
-        let len = self.dict.key("Kids").array().typed().items(kids).len();
-        self.dict.pair("Count", len);
+        let len = self.dict.key(Name(b"Kids")).array().typed().items(kids).len();
+        self.dict.pair(Name(b"Count"), len);
         self
     }
 }
@@ -51,32 +51,32 @@ pub struct Page<'a> {
 }
 
 impl<'a> Page<'a> {
-    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Page"));
+    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"Page"));
         Self { dict }
     }
 
     /// Write the `/Parent` attribute.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
-        self.dict.pair("Parent", parent);
+        self.dict.pair(Name(b"Parent"), parent);
         self
     }
 
     /// Write the `/MediaBox` attribute.
     pub fn media_box(&mut self, rect: Rect) -> &mut Self {
-        self.dict.pair("MediaBox", rect);
+        self.dict.pair(Name(b"MediaBox"), rect);
         self
     }
 
     /// Start writing a `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.dict.key("Resources"))
+        Resources::new(self.dict.key(Name(b"Resources")))
     }
 
     /// Write the `/Contents` attribute.
     pub fn contents(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair("Contents", id);
+        self.dict.pair(Name(b"Contents"), id);
         self
     }
 }
@@ -87,12 +87,12 @@ pub struct Resources<'a> {
 }
 
 impl<'a> Resources<'a> {
-    fn new(obj: Object<'a>) -> Self {
-        Self { dict: obj.dict() }
+    fn new(any: Any<'a>) -> Self {
+        Self { dict: any.dict() }
     }
 
     /// Start writing the `/Font` dictionary.
     pub fn fonts(&mut self) -> TypedDict<Ref> {
-        self.dict.key("Font").dict().typed()
+        self.dict.key(Name(b"Font")).dict().typed()
     }
 }

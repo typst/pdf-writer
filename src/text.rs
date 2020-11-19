@@ -74,16 +74,16 @@ pub struct Type1Font<'a> {
 }
 
 impl<'a> Type1Font<'a> {
-    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Font"));
-        dict.pair("Subtype", Name("Type1"));
+    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"Font"));
+        dict.pair(Name(b"Subtype"), Name(b"Type1"));
         Self { dict }
     }
 
     /// Write the `/BaseFont` attribute.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
-        self.dict.pair("BaseFont", name);
+        self.dict.pair(Name(b"BaseFont"), name);
         self
     }
 }
@@ -94,57 +94,67 @@ pub struct Type0Font<'a> {
 }
 
 impl<'a> Type0Font<'a> {
-    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair("Type", Name("Font"));
-        dict.pair("Subtype", Name("Type0"));
+    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"Font"));
+        dict.pair(Name(b"Subtype"), Name(b"Type0"));
         Self { dict }
     }
 
     /// Write the `/BaseFont` attribute.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
-        self.dict.pair("BaseFont", name);
+        self.dict.pair(Name(b"BaseFont"), name);
         self
     }
 
     /// Start writing the `/Encoding` attribute.
     pub fn encoding(&mut self) -> Encoding<'_> {
-        Encoding::new(self.dict.key("Encoding"))
+        Encoding::new(self.dict.key(Name(b"Encoding")))
     }
 
     /// Write the `/DescendantFonts` attribute as a one-element array containing a
     /// reference to a character map.
     pub fn descendant_font(&mut self, cid_font: Ref) -> &mut Self {
-        self.dict.key("DescendantFonts").array().item(cid_font);
+        self.dict.key(Name(b"DescendantFonts")).array().item(cid_font);
         self
     }
 
     /// Write the `/ToUnicode` attribute as a reference to a character map stream.
     pub fn to_unicode(&mut self, cmap: Ref) -> &mut Self {
-        self.dict.pair("ToUnicode", cmap);
+        self.dict.pair(Name(b"ToUnicode"), cmap);
         self
     }
 }
 
 /// Writer for an _encoding_.
 pub struct Encoding<'a> {
-    obj: Object<'a>,
+    any: Any<'a>,
 }
 
 impl<'a> Encoding<'a> {
-    fn new(obj: Object<'a>) -> Self {
-        Self { obj }
+    fn new(any: Any<'a>) -> Self {
+        Self { any }
     }
 
     /// Write a predefined encoding name.
     pub fn predefined(self, encoding: Name) {
-        self.obj.primitive(encoding);
+        self.any.obj(encoding);
     }
 
     /// Write a reference to a character map stream.
     pub fn cmap(self, cmap: Ref) {
-        self.obj.primitive(cmap);
+        self.any.obj(cmap);
     }
+}
+
+/// Specifics about a character collection.
+pub struct SystemInfo<'a> {
+    /// The issuer of the collection.
+    pub registry: Str<'a>,
+    /// A unique name of the collection within the registry.
+    pub ordering: Str<'a>,
+    /// The supplement number (i.e. the version).
+    pub supplement: i32,
 }
 
 /// Writer a character map object.
@@ -155,9 +165,7 @@ pub(crate) fn write_cmap(
     w: &mut PdfWriter,
     id: Ref,
     name: Name,
-    registry: &str,
-    ordering: &str,
-    supplement: i32,
+    info: SystemInfo,
     mapping: impl ExactSizeIterator<Item = (u16, char)>,
 ) {
     let mut buf = Vec::new();
@@ -169,16 +177,16 @@ pub(crate) fn write_cmap(
 
     // Dynamic header.
     buf.push_bytes(b"%%BeginResource: CMap ");
-    buf.push_str(name.0);
+    buf.push_bytes(name.0);
     buf.push(b'\n');
     buf.push_bytes(b"%%Title: (");
-    buf.push_str(name.0);
+    buf.push_bytes(name.0);
     buf.push(b' ');
-    buf.push_str(registry);
+    buf.push_bytes(info.registry.0);
     buf.push(b' ');
-    buf.push_str(ordering);
+    buf.push_bytes(info.ordering.0);
     buf.push(b' ');
-    buf.push_val(supplement);
+    buf.push_int(info.supplement);
     buf.push_bytes(b")\n");
     buf.push_bytes(b"%%Version: 1\n");
     buf.push_bytes(b"%%EndComments\n");
@@ -189,13 +197,13 @@ pub(crate) fn write_cmap(
     buf.push_bytes(b"begincmap\n");
     buf.push_bytes(b"/CIDSystemInfo 3 dict dup begin\n");
     buf.push_bytes(b"    /Registry ");
-    buf.push_val(registry);
+    buf.push_val(info.registry);
     buf.push_bytes(b" def\n");
     buf.push_bytes(b"    /Ordering ");
-    buf.push_val(ordering);
+    buf.push_val(info.ordering);
     buf.push_bytes(b" def\n");
     buf.push_bytes(b"    /Supplement ");
-    buf.push_val(supplement);
+    buf.push_val(info.supplement);
     buf.push_bytes(b" def\n");
     buf.push_bytes(b"end def\n");
     buf.push_bytes(b"/CMapName /");
@@ -236,11 +244,11 @@ pub(crate) fn write_cmap(
     buf.push_bytes(b"%%EOF");
 
     w.stream(id, &buf)
-        .pair("Type", Name("CMap"))
-        .pair("CMapName", name)
-        .key("CIDSystemInfo")
+        .pair(Name(b"Type"), Name(b"CMap"))
+        .pair(Name(b"CMapName"), name)
+        .key(Name(b"CIDSystemInfo"))
         .dict()
-        .pair("Registry", registry)
-        .pair("Ordering", ordering)
-        .pair("Supplement", supplement);
+        .pair(Name(b"Registry"), info.registry)
+        .pair(Name(b"Ordering"), info.ordering)
+        .pair(Name(b"Supplement"), info.supplement);
 }

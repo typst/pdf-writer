@@ -1,44 +1,39 @@
 /*!
-A PDF writer.
+A step-by-step PDF writer.
 
-# Example
+The entry point into the API is the main [`PdfWriter`].
 
-Writing a document with one A4 page containing the text "Hello World from Rust".
+# Minimal example
+The following example creates a PDF with a single empty A4 page.
+
 ```
-use pdf_writer::{Name, PdfWriter, Rect, Ref, TextStream};
+use pdf_writer::{PdfWriter, Rect, Ref};
 
 # fn main() -> std::io::Result<()> {
 // Start writing with PDF version 1.7 header.
 let mut writer = PdfWriter::new(1, 7);
-writer.set_indent(2);
 
-// The document catalog and a page tree with one page.
+// The document catalog and a page tree with one A4 page that uses no resources.
 writer.catalog(Ref::new(1)).pages(Ref::new(2));
 writer.pages(Ref::new(2)).kids(vec![Ref::new(3)]);
 writer.page(Ref::new(3))
     .parent(Ref::new(2))
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
-    .contents(Ref::new(5))
-    .resources()
-    .fonts()
-    .pair("F1", Ref::new(4));
-
-// The font we want to use (one of the base-14 fonts) and a line of text.
-writer.type1_font(Ref::new(4)).base_font(Name("Helvetica"));
-writer.stream(
-    Ref::new(5),
-    &TextStream::new()
-        .tf(Name("F1"), 14.0)
-        .td(108.0, 734.0)
-        .tj(b"Hello World from Rust!")
-        .end(),
-);
+    .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/hello.pdf", writer.end(Ref::new(1)))?;
+std::fs::write("target/empty.pdf", writer.end(Ref::new(1)))?;
 # Ok(())
 # }
 ```
+
+For more comprehensive examples, check out the [examples directory] in the
+repository and specifically the [hello world example], which creates a document
+with text in it.
+
+[`PdfWriter`]: struct.PdfWriter.html
+[examples directory]: https://github.com/typst/pdf-writer/tree/main/examples
+[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 */
 
 #![deny(missing_docs)]
@@ -46,12 +41,20 @@ std::fs::write("target/hello.pdf", writer.end(Ref::new(1)))?;
 mod structure;
 mod text;
 
-pub use structure::*;
-pub use text::*;
+/// Writers for specific PDF structures.
+pub mod writers {
+    pub use super::structure::{Catalog, Page, Pages, Resources};
+    pub use super::text::{Encoding, Type0Font, Type1Font};
+}
+
+pub use text::{SystemInfo, TextStream};
 
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
+
+use structure::*;
+use text::*;
 
 /// The root writer.
 pub struct PdfWriter {
@@ -99,9 +102,9 @@ impl PdfWriter {
     }
 
     /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Object<'_, Indirect> {
+    pub fn indirect(&mut self, id: Ref) -> Any<'_, Indirect> {
         let indirect = Indirect::start(self, id, ());
-        Object::new(self, indirect)
+        Any::new(self, indirect)
     }
 
     /// Write an indirectly referenceable stream.
@@ -122,7 +125,7 @@ impl PdfWriter {
         let stream = Stream::new(data, indirect);
 
         let mut dict = Dict::start(self, stream);
-        dict.pair("Length", len);
+        dict.pair(Name(b"Length"), len);
         dict
     }
 
@@ -170,7 +173,9 @@ impl PdfWriter {
         // Write the trailer dictionary.
         self.buf.push_bytes(b"trailer\n");
 
-        Dict::start(self, ()).pair("Size", xref_len).pair("Root", catalog_id);
+        Dict::start(self, ())
+            .pair(Name(b"Size"), xref_len)
+            .pair(Name(b"Root"), catalog_id);
 
         // Write where the cross-reference table starts.
         self.buf.push_bytes(b"\nstartxref\n");
@@ -217,19 +222,16 @@ impl PdfWriter {
         &mut self,
         id: Ref,
         name: Name,
-        registry: &str,
-        ordering: &str,
-        supplement: i32,
+        info: SystemInfo,
         mapping: impl ExactSizeIterator<Item = (u16, char)>,
     ) {
-        write_cmap(self, id, name, registry, ordering, supplement, mapping);
+        write_cmap(self, id, name, info, mapping);
     }
 }
 
 trait BufExt {
-    fn push_val<T: Primitive>(&mut self, primitive: T);
+    fn push_val<T: Object>(&mut self, value: T);
     fn push_bytes(&mut self, bytes: &[u8]);
-    fn push_str(&mut self, s: &str);
     fn push_int<I: itoa::Integer>(&mut self, value: I);
     fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize);
     fn push_float<F: ryu::Float>(&mut self, value: F);
@@ -238,20 +240,16 @@ trait BufExt {
 }
 
 impl BufExt for Vec<u8> {
-    fn push_val<T: Primitive>(&mut self, primitive: T) {
-        primitive.format(self);
+    fn push_val<T: Object>(&mut self, value: T) {
+        value.write(self);
     }
 
     fn push_bytes(&mut self, bytes: &[u8]) {
         self.extend_from_slice(bytes);
     }
 
-    fn push_str(&mut self, s: &str) {
-        self.push_bytes(s.as_bytes());
-    }
-
     fn push_int<I: itoa::Integer>(&mut self, value: I) {
-        self.push_str(itoa::Buffer::new().format(value));
+        self.push_bytes(itoa::Buffer::new().format(value).as_bytes());
     }
 
     fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize) {
@@ -260,11 +258,11 @@ impl BufExt for Vec<u8> {
         for _ in 0 .. align.saturating_sub(number.len()) {
             self.push(b'0');
         }
-        self.push_str(number);
+        self.push_bytes(number.as_bytes());
     }
 
     fn push_float<F: ryu::Float>(&mut self, value: F) {
-        self.push_str(ryu::Buffer::new().format(value));
+        self.push_bytes(ryu::Buffer::new().format(value).as_bytes());
     }
 
     fn push_hex(&mut self, value: u8) {
@@ -304,9 +302,17 @@ impl Ref {
     }
 }
 
-/// A name: `/Thing`.
+/// A PDF name object.
+///
+/// Written as `/Thing` in a file.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Name<'a>(pub &'a str);
+pub struct Name<'a>(pub &'a [u8]);
+
+/// A PDF string object (any byte sequence).
+///
+/// Written as `(Thing)` in a file.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Str<'a>(pub &'a [u8]);
 
 /// A rectangle, specified by two opposite corners.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -328,14 +334,14 @@ impl Rect {
     }
 }
 
-/// A basic PDF type.
-pub trait Primitive {
-    #[doc(hidden)]
-    fn format(self, buf: &mut Vec<u8>);
+/// A PDF object.
+pub trait Object {
+    /// Write the object into a buffer.
+    fn write(self, buf: &mut Vec<u8>);
 }
 
-impl Primitive for bool {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for bool {
+    fn write(self, buf: &mut Vec<u8>) {
         if self {
             buf.push_bytes(b"true");
         } else {
@@ -344,74 +350,71 @@ impl Primitive for bool {
     }
 }
 
-impl Primitive for i32 {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for i32 {
+    fn write(self, buf: &mut Vec<u8>) {
         buf.push_int(self);
     }
 }
 
-impl Primitive for f32 {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for f32 {
+    fn write(self, buf: &mut Vec<u8>) {
         buf.push_float(self);
     }
 }
 
-impl Primitive for &'_ [u8] {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for Str<'_> {
+    fn write(self, buf: &mut Vec<u8>) {
         // TODO: Escape when necessary, select best encoding, reserve size upfront.
         buf.push(b'(');
-        buf.push_bytes(self);
+        buf.push_bytes(self.0);
         buf.push(b')');
     }
 }
 
-impl Primitive for &'_ str {
-    fn format(self, buf: &mut Vec<u8>) {
-        self.as_bytes().format(buf);
-    }
-}
-
-impl Primitive for Name<'_> {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for Name<'_> {
+    fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
-        buf.push_str(self.0);
+        buf.push_bytes(self.0);
     }
 }
 
-impl Primitive for Ref {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for Ref {
+    fn write(self, buf: &mut Vec<u8>) {
         buf.push_int(self.0.get());
         buf.push_bytes(b" 0 R");
     }
 }
 
-impl Primitive for Rect {
-    fn format(self, buf: &mut Vec<u8>) {
+impl Object for Rect {
+    fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'[');
-        buf.push_float(self.x1);
+        buf.push_val(self.x1);
         buf.push(b' ');
-        buf.push_float(self.y1);
+        buf.push_val(self.y1);
         buf.push(b' ');
-        buf.push_float(self.x2);
+        buf.push_val(self.x2);
         buf.push(b' ');
-        buf.push_float(self.y2);
+        buf.push_val(self.y2);
         buf.push(b']');
     }
 }
 
 /// Finishes an entity when released.
 ///
-/// This is mostly an implementation detail that you shouldn't need to worry about.
+/// This is an implementation detail that you shouldn't need to worry about.
 pub trait Guard {
     #[doc(hidden)]
     fn end(&self, writer: &mut PdfWriter);
 }
 
 impl Guard for () {
+    #[doc(hidden)]
     fn end(&self, _: &mut PdfWriter) {}
 }
 
-/// Finishes an indirect object when released.
+/// A guard that finishes an indirect object when released.
+///
+/// This is an implementation detail that you shouldn't need to worry about.
 pub struct Indirect<G: Guard = ()> {
     guard: G,
 }
@@ -429,6 +432,7 @@ impl<G: Guard> Indirect<G> {
 }
 
 impl<G: Guard> Guard for Indirect<G> {
+    #[doc(hidden)]
     fn end(&self, w: &mut PdfWriter) {
         w.depth -= 1;
         w.buf.push_bytes(b"\nendobj\n\n");
@@ -436,7 +440,9 @@ impl<G: Guard> Guard for Indirect<G> {
     }
 }
 
-/// Finishes a stream when released.
+/// A guard that finishes a stream when released.
+///
+/// This is an implementation detail that you shouldn't need to worry about.
 pub struct Stream<'a, G: Guard = ()> {
     data: &'a [u8],
     guard: G,
@@ -449,6 +455,7 @@ impl<'a, G: Guard> Stream<'a, G> {
 }
 
 impl<G: Guard> Guard for Stream<'_, G> {
+    #[doc(hidden)]
     fn end(&self, w: &mut PdfWriter) {
         w.buf.push_bytes(b"\nstream\n");
         w.buf.push_bytes(self.data);
@@ -458,22 +465,20 @@ impl<G: Guard> Guard for Stream<'_, G> {
 }
 
 /// Writer for an arbitrary object.
-pub struct Object<'a, G: Guard = ()> {
+pub struct Any<'a, G: Guard = ()> {
     w: &'a mut PdfWriter,
     guard: G,
 }
 
-impl<'a, G: Guard> Object<'a, G> {
+impl<'a, G: Guard> Any<'a, G> {
     fn new(w: &'a mut PdfWriter, guard: G) -> Self {
         Self { w, guard }
     }
 
-    /// Write a primitive.
-    pub fn primitive<T: Primitive>(self, value: T) {
-        value.format(&mut self.w.buf);
+    /// Write a basic object.
+    pub fn obj<T: Object>(self, object: T) {
+        object.write(&mut self.w.buf);
     }
-
-    // TODO: String (simple & streaming?).
 
     /// Write an array.
     pub fn array(self) -> Array<'a, G> {
@@ -484,8 +489,6 @@ impl<'a, G: Guard> Object<'a, G> {
     pub fn dict(self) -> Dict<'a, G> {
         Dict::start(self.w, self.guard)
     }
-
-    // TODO: Null object.
 }
 
 /// Writer for an array.
@@ -501,21 +504,21 @@ impl<'a, G: Guard> Array<'a, G> {
         Self { w, len: 0, guard }
     }
 
-    /// Write an item.
+    /// Write an item with a basic object value.
     ///
-    /// This is a shorthand for `array.obj().primitive(value)`.
-    pub fn item<T: Primitive>(&mut self, value: T) -> &mut Self {
-        self.obj().primitive(value);
+    /// This is a shorthand for `array.any().obj(value)`.
+    pub fn item<T: Object>(&mut self, object: T) -> &mut Self {
+        self.any().obj(object);
         self
     }
 
     /// Write any object item.
-    pub fn obj(&mut self) -> Object<'_> {
+    pub fn any(&mut self) -> Any<'_> {
         if self.len != 0 {
             self.w.buf.push(b' ');
         }
         self.len += 1;
-        Object::new(self.w, ())
+        Any::new(self.w, ())
     }
 
     /// The number of written items.
@@ -524,7 +527,7 @@ impl<'a, G: Guard> Array<'a, G> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T, G> {
+    pub fn typed<T: Object>(self) -> TypedArray<'a, T, G> {
         TypedArray::new(self)
     }
 }
@@ -542,7 +545,7 @@ pub struct TypedArray<'a, T, G: Guard = ()> {
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Primitive, G: Guard> TypedArray<'a, T, G> {
+impl<'a, T: Object, G: Guard> TypedArray<'a, T, G> {
     /// Wrap an array to make it type-safe.
     pub fn new(array: Array<'a, G>) -> Self {
         Self { array, phantom: PhantomData }
@@ -550,7 +553,7 @@ impl<'a, T: Primitive, G: Guard> TypedArray<'a, T, G> {
 
     /// Write an item.
     pub fn item(&mut self, value: T) -> &mut Self {
-        self.array.obj().primitive(value);
+        self.array.any().obj(value);
         self
     }
 
@@ -582,25 +585,24 @@ impl<'a, G: Guard> Dict<'a, G> {
         Self { w, len: 0, guard }
     }
 
-    /// Write a pair with a primitive value.
+    /// Write a pair with a basic object value.
     ///
-    /// This is a shorthand for `dict.key(key).primitive(value)`.
-    pub fn pair<T: Primitive>(&mut self, key: &str, value: T) -> &mut Self {
-        self.key(key).primitive(value);
+    /// This is a shorthand for `dict.key(key).obj(value)`.
+    pub fn pair<T: Object>(&mut self, key: Name, object: T) -> &mut Self {
+        self.key(key).obj(object);
         self
     }
 
     /// Write a pair with any object as the value.
-    pub fn key(&mut self, key: &str) -> Object<'_> {
+    pub fn key(&mut self, key: Name) -> Any<'_> {
         if self.len != 0 {
             self.w.buf.push(b'\n');
         }
         self.len += 1;
         self.w.push_indent();
-        self.w.buf.push(b'/');
-        self.w.buf.push_str(key);
+        self.w.buf.push_val(key);
         self.w.buf.push(b' ');
-        Object::new(self.w, ())
+        Any::new(self.w, ())
     }
 
     /// The number of written pairs.
@@ -609,7 +611,7 @@ impl<'a, G: Guard> Dict<'a, G> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T, G> {
+    pub fn typed<T: Object>(self) -> TypedDict<'a, T, G> {
         TypedDict::new(self)
     }
 }
@@ -632,14 +634,14 @@ pub struct TypedDict<'a, T, G: Guard = ()> {
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Primitive, G: Guard> TypedDict<'a, T, G> {
+impl<'a, T: Object, G: Guard> TypedDict<'a, T, G> {
     /// Wrap a dictionary to make it type-safe.
     pub fn new(dict: Dict<'a, G>) -> Self {
         Self { dict, phantom: PhantomData }
     }
 
     /// Write a key-value pair.
-    pub fn pair(&mut self, key: &str, value: T) -> &mut Self {
+    pub fn pair(&mut self, key: Name, value: T) -> &mut Self {
         self.dict.pair(key, value);
         self
     }
