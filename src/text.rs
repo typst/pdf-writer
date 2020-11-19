@@ -53,8 +53,6 @@ impl TextStream {
     /// This function takes raw bytes. The encoding is up to the caller.
     pub fn tj(mut self, text: &[u8]) -> Self {
         // TODO: Move to general string formatting.
-        // TODO: Select best encoding.
-        // TODO: Reserve size upfront.
         self.buf.push(b'<');
         for &byte in text {
             self.buf.push_hex(byte);
@@ -72,11 +70,11 @@ impl TextStream {
 
 /// Writer for a _Type-1 font_ dictionary.
 pub struct Type1Font<'a> {
-    dict: Dict<'a>,
+    dict: Dict<'a, Indirect>,
 }
 
 impl<'a> Type1Font<'a> {
-    pub(crate) fn start(obj: Object<'a>) -> Self {
+    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
         let mut dict = obj.dict();
         dict.pair("Type", Name("Font"));
         dict.pair("Subtype", Name("Type1"));
@@ -92,11 +90,11 @@ impl<'a> Type1Font<'a> {
 
 /// Writer for a _Type-0 (composite) font_ dictionary.
 pub struct Type0Font<'a> {
-    dict: Dict<'a>,
+    dict: Dict<'a, Indirect>,
 }
 
 impl<'a> Type0Font<'a> {
-    pub(crate) fn start(obj: Object<'a>) -> Self {
+    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
         let mut dict = obj.dict();
         dict.pair("Type", Name("Font"));
         dict.pair("Subtype", Name("Type0"));
@@ -109,16 +107,9 @@ impl<'a> Type0Font<'a> {
         self
     }
 
-    /// Write the `/Encoding` attribute as a predefined encoding name.
-    pub fn encoding_predefined(&mut self, encoding: Name) -> &mut Self {
-        self.dict.pair("Encoding", encoding);
-        self
-    }
-
-    /// Write the `/Encoding` attribute as a reference to a character map stream.
-    pub fn encoding_cmap(&mut self, cmap: Ref) -> &mut Self {
-        self.dict.pair("Encoding", cmap);
-        self
+    /// Start writing the `/Encoding` attribute.
+    pub fn encoding(&mut self) -> Encoding<'_> {
+        Encoding::new(self.dict.key("Encoding"))
     }
 
     /// Write the `/DescendantFonts` attribute as a one-element array containing a
@@ -133,4 +124,123 @@ impl<'a> Type0Font<'a> {
         self.dict.pair("ToUnicode", cmap);
         self
     }
+}
+
+/// Writer for an _encoding_.
+pub struct Encoding<'a> {
+    obj: Object<'a>,
+}
+
+impl<'a> Encoding<'a> {
+    fn new(obj: Object<'a>) -> Self {
+        Self { obj }
+    }
+
+    /// Write a predefined encoding name.
+    pub fn predefined(self, encoding: Name) {
+        self.obj.primitive(encoding);
+    }
+
+    /// Write a reference to a character map stream.
+    pub fn cmap(self, cmap: Ref) {
+        self.obj.primitive(cmap);
+    }
+}
+
+/// Writer a character map object.
+///
+/// Defined here:
+/// https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
+pub(crate) fn write_cmap(
+    w: &mut PdfWriter,
+    id: Ref,
+    name: Name,
+    registry: &str,
+    ordering: &str,
+    supplement: i32,
+    mapping: impl ExactSizeIterator<Item = (u16, char)>,
+) {
+    let mut buf = Vec::new();
+
+    // Static header.
+    buf.push_bytes(b"%!PS-Adobe-3.0 Resource-CMap\n");
+    buf.push_bytes(b"%%DocumentNeededResources: procset CIDInit\n");
+    buf.push_bytes(b"%%IncludeResource: procset CIDInit\n");
+
+    // Dynamic header.
+    buf.push_bytes(b"%%BeginResource: CMap ");
+    buf.push_str(name.0);
+    buf.push(b'\n');
+    buf.push_bytes(b"%%Title: (");
+    buf.push_str(name.0);
+    buf.push(b' ');
+    buf.push_str(registry);
+    buf.push(b' ');
+    buf.push_str(ordering);
+    buf.push(b' ');
+    buf.push_val(supplement);
+    buf.push_bytes(b")\n");
+    buf.push_bytes(b"%%Version: 1\n");
+    buf.push_bytes(b"%%EndComments\n");
+
+    // General body.
+    buf.push_bytes(b"/CIDInit /ProcSet findresource begin\n");
+    buf.push_bytes(b"9 dict begin\n");
+    buf.push_bytes(b"begincmap\n");
+    buf.push_bytes(b"/CIDSystemInfo 3 dict dup begin\n");
+    buf.push_bytes(b"    /Registry ");
+    buf.push_val(registry);
+    buf.push_bytes(b" def\n");
+    buf.push_bytes(b"    /Ordering ");
+    buf.push_val(ordering);
+    buf.push_bytes(b" def\n");
+    buf.push_bytes(b"    /Supplement ");
+    buf.push_val(supplement);
+    buf.push_bytes(b" def\n");
+    buf.push_bytes(b"end def\n");
+    buf.push_bytes(b"/CMapName /");
+    buf.push_val(name);
+    buf.push_bytes(b"def\n");
+    buf.push_bytes(b"/CMapVersion 1 def\n");
+    buf.push_bytes(b"/CMapType 0 def\n");
+
+    // We just cover the whole unicode codespace.
+    buf.push_bytes(b"1 begincodespacerange\n");
+    buf.push_bytes(b"<0000> <ffff>\n");
+    buf.push_bytes(b"endcodespacerange\n");
+
+    // The mappings.
+    buf.push_int(mapping.len());
+    buf.push_bytes(b" beginbfchar\n");
+
+    for (cid, c) in mapping {
+        buf.push(b'<');
+        buf.push_hex_u16(cid);
+        buf.push_bytes(b"> <");
+
+        let mut utf16 = [0u16; 2];
+        for &mut part in c.encode_utf16(&mut utf16) {
+            buf.push_hex_u16(part);
+        }
+
+        buf.push_bytes(b">\n");
+    }
+    buf.push_bytes(b"endbfchar\n");
+
+    // End of body.
+    buf.push_bytes(b"endcmap\n");
+    buf.push_bytes(b"CMapName currentdict /CMap defineresource pop\n");
+    buf.push_bytes(b"end\n");
+    buf.push_bytes(b"end\n");
+    buf.push_bytes(b"%%EndResource\n");
+    buf.push_bytes(b"%%EOF");
+
+    w.stream(id, &buf)
+        .pair("Type", Name("CMap"))
+        .pair("CMapName", name)
+        .key("CIDSystemInfo")
+        .dict()
+        .pair("Registry", registry)
+        .pair("Ordering", ordering)
+        .pair("Supplement", supplement);
 }

@@ -27,7 +27,7 @@ writer.page(Ref::new(3))
 writer.type1_font(Ref::new(4)).base_font(Name("Helvetica"));
 writer.stream(
     Ref::new(5),
-    TextStream::new()
+    &TextStream::new()
         .tf(Name("F1"), 14.0)
         .td(108.0, 734.0)
         .tj(b"Hello World from Rust!")
@@ -99,25 +99,31 @@ impl PdfWriter {
     }
 
     /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Object<'_> {
-        self.start_indirect(id);
-        Object::new(self, true)
+    pub fn indirect(&mut self, id: Ref) -> Object<'_, Indirect> {
+        let indirect = Indirect::start(self, id, ());
+        Object::new(self, indirect)
     }
 
     /// Write an indirectly referenceable stream.
-    pub fn stream(&mut self, id: Ref, data: impl AsRef<[u8]>) {
+    ///
+    /// The `/Length` field is added to the stream's dictionary automatically. You can add
+    /// additional key-value pairs with the returned writer.
+    pub fn stream<'a>(
+        &mut self,
+        id: Ref,
+        data: &'a [u8],
+    ) -> Dict<'_, Stream<'a, Indirect>> {
         let data = data.as_ref();
-        let len = i32::try_from(data.len()).expect("data is too long");
+        let len = i32::try_from(data.len()).unwrap_or_else(|_| {
+            panic!("data length (is `{}`) must be < i32::MAX");
+        });
 
-        self.start_indirect(id);
+        let indirect = Indirect::start(self, id, ());
+        let stream = Stream::new(data, indirect);
 
-        Dict::start(self, false).pair("Length", len);
-
-        self.buf.push_bytes(b"\nstream\n");
-        self.buf.push_bytes(data);
-        self.buf.push_bytes(b"\nendstream");
-
-        self.end_indirect();
+        let mut dict = Dict::start(self, stream);
+        dict.pair("Length", len);
+        dict
     }
 
     /// Write the cross-reference table and file trailer and return the underlying buffer.
@@ -127,7 +133,9 @@ impl PdfWriter {
         self.trailer(catalog_id, xref_len, xref_offset);
         self.buf
     }
+}
 
+impl PdfWriter {
     fn xref_table(&mut self) -> (i32, usize) {
         let mut offsets = std::mem::take(&mut self.offsets);
         offsets.sort();
@@ -162,9 +170,7 @@ impl PdfWriter {
         // Write the trailer dictionary.
         self.buf.push_bytes(b"trailer\n");
 
-        Dict::start(self, false)
-            .pair("Size", xref_len)
-            .pair("Root", catalog_id);
+        Dict::start(self, ()).pair("Size", xref_len).pair("Root", catalog_id);
 
         // Write where the cross-reference table starts.
         self.buf.push_bytes(b"\nstartxref\n");
@@ -172,20 +178,6 @@ impl PdfWriter {
 
         // Write the end of file marker.
         self.buf.push_bytes(b"\n%%EOF");
-    }
-
-    fn start_indirect(&mut self, id: Ref) {
-        assert_eq!(self.depth, 0);
-        self.depth += 1;
-        self.offsets.push((id, self.buf.len()));
-        self.buf.push_int(id.0.get());
-        self.buf.push_bytes(b" 0 obj\n");
-        self.push_indent();
-    }
-
-    fn end_indirect(&mut self) {
-        self.depth -= 1;
-        self.buf.push_bytes(b"\nendobj\n\n");
     }
 
     fn push_indent(&mut self) {
@@ -219,6 +211,19 @@ impl PdfWriter {
     pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
         Type0Font::start(self.indirect(id))
     }
+
+    /// Write a character map stream.
+    pub fn char_map(
+        &mut self,
+        id: Ref,
+        name: Name,
+        registry: &str,
+        ordering: &str,
+        supplement: i32,
+        mapping: impl ExactSizeIterator<Item = (u16, char)>,
+    ) {
+        write_cmap(self, id, name, registry, ordering, supplement, mapping);
+    }
 }
 
 trait BufExt {
@@ -229,6 +234,7 @@ trait BufExt {
     fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize);
     fn push_float<F: ryu::Float>(&mut self, value: F);
     fn push_hex(&mut self, value: u8);
+    fn push_hex_u16(&mut self, value: u16);
 }
 
 impl BufExt for Vec<u8> {
@@ -268,6 +274,11 @@ impl BufExt for Vec<u8> {
 
         self.push(hex(value >> 4));
         self.push(hex(value & 0xF));
+    }
+
+    fn push_hex_u16(&mut self, value: u16) {
+        self.push_hex((value << 8) as u8);
+        self.push_hex(value as u8);
     }
 }
 
@@ -345,10 +356,18 @@ impl Primitive for f32 {
     }
 }
 
-impl Primitive for Ref {
+impl Primitive for &'_ [u8] {
     fn format(self, buf: &mut Vec<u8>) {
-        buf.push_int(self.0.get());
-        buf.push_bytes(b" 0 R");
+        // TODO: Escape when necessary, select best encoding, reserve size upfront.
+        buf.push(b'(');
+        buf.push_bytes(self);
+        buf.push(b')');
+    }
+}
+
+impl Primitive for &'_ str {
+    fn format(self, buf: &mut Vec<u8>) {
+        self.as_bytes().format(buf);
     }
 }
 
@@ -356,6 +375,13 @@ impl Primitive for Name<'_> {
     fn format(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         buf.push_str(self.0);
+    }
+}
+
+impl Primitive for Ref {
+    fn format(self, buf: &mut Vec<u8>) {
+        buf.push_int(self.0.get());
+        buf.push_bytes(b" 0 R");
     }
 }
 
@@ -373,51 +399,106 @@ impl Primitive for Rect {
     }
 }
 
-/// Writer for an arbitrary object.
-pub struct Object<'a> {
-    w: &'a mut PdfWriter,
-    indirect: bool,
+/// Finishes an entity when released.
+///
+/// This is mostly an implementation detail that you shouldn't need to worry about.
+pub trait Guard {
+    #[doc(hidden)]
+    fn end(&self, writer: &mut PdfWriter);
 }
 
-impl<'a> Object<'a> {
-    fn new(w: &'a mut PdfWriter, indirect: bool) -> Self {
-        Self { w, indirect }
+impl Guard for () {
+    fn end(&self, _: &mut PdfWriter) {}
+}
+
+/// Finishes an indirect object when released.
+pub struct Indirect<G: Guard = ()> {
+    guard: G,
+}
+
+impl<G: Guard> Indirect<G> {
+    fn start(w: &mut PdfWriter, id: Ref, guard: G) -> Self {
+        assert_eq!(w.depth, 0);
+        w.depth += 1;
+        w.offsets.push((id, w.buf.len()));
+        w.buf.push_int(id.0.get());
+        w.buf.push_bytes(b" 0 obj\n");
+        w.push_indent();
+        Self { guard }
+    }
+}
+
+impl<G: Guard> Guard for Indirect<G> {
+    fn end(&self, w: &mut PdfWriter) {
+        w.depth -= 1;
+        w.buf.push_bytes(b"\nendobj\n\n");
+        self.guard.end(w);
+    }
+}
+
+/// Finishes a stream when released.
+pub struct Stream<'a, G: Guard = ()> {
+    data: &'a [u8],
+    guard: G,
+}
+
+impl<'a, G: Guard> Stream<'a, G> {
+    fn new(data: &'a [u8], guard: G) -> Self {
+        Self { data, guard }
+    }
+}
+
+impl<G: Guard> Guard for Stream<'_, G> {
+    fn end(&self, w: &mut PdfWriter) {
+        w.buf.push_bytes(b"\nstream\n");
+        w.buf.push_bytes(self.data);
+        w.buf.push_bytes(b"\nendstream");
+        self.guard.end(w);
+    }
+}
+
+/// Writer for an arbitrary object.
+pub struct Object<'a, G: Guard = ()> {
+    w: &'a mut PdfWriter,
+    guard: G,
+}
+
+impl<'a, G: Guard> Object<'a, G> {
+    fn new(w: &'a mut PdfWriter, guard: G) -> Self {
+        Self { w, guard }
     }
 
     /// Write a primitive.
     pub fn primitive<T: Primitive>(self, value: T) {
         value.format(&mut self.w.buf);
-        if self.indirect {
-            self.w.end_indirect();
-        }
     }
 
     // TODO: String (simple & streaming?).
 
     /// Write an array.
-    pub fn array(self) -> Array<'a> {
-        Array::start(self.w, self.indirect)
+    pub fn array(self) -> Array<'a, G> {
+        Array::start(self.w, self.guard)
     }
 
     /// Write a dictionary.
-    pub fn dict(self) -> Dict<'a> {
-        Dict::start(self.w, self.indirect)
+    pub fn dict(self) -> Dict<'a, G> {
+        Dict::start(self.w, self.guard)
     }
 
     // TODO: Null object.
 }
 
 /// Writer for an array.
-pub struct Array<'a> {
+pub struct Array<'a, G: Guard = ()> {
     w: &'a mut PdfWriter,
-    indirect: bool,
     len: i32,
+    guard: G,
 }
 
-impl<'a> Array<'a> {
-    fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
+impl<'a, G: Guard> Array<'a, G> {
+    fn start(w: &'a mut PdfWriter, guard: G) -> Self {
         w.buf.push(b'[');
-        Self { w, len: 0, indirect }
+        Self { w, len: 0, guard }
     }
 
     /// Write an item.
@@ -434,7 +515,7 @@ impl<'a> Array<'a> {
             self.w.buf.push(b' ');
         }
         self.len += 1;
-        Object::new(self.w, false)
+        Object::new(self.w, ())
     }
 
     /// The number of written items.
@@ -443,29 +524,27 @@ impl<'a> Array<'a> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
+    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T, G> {
         TypedArray::new(self)
     }
 }
 
-impl Drop for Array<'_> {
+impl<G: Guard> Drop for Array<'_, G> {
     fn drop(&mut self) {
         self.w.buf.push(b']');
-        if self.indirect {
-            self.w.end_indirect();
-        }
+        self.guard.end(self.w);
     }
 }
 
 /// Writer for an array with fixed primitive value type.
-pub struct TypedArray<'a, T> {
-    array: Array<'a>,
+pub struct TypedArray<'a, T, G: Guard = ()> {
+    array: Array<'a, G>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Primitive> TypedArray<'a, T> {
+impl<'a, T: Primitive, G: Guard> TypedArray<'a, T, G> {
     /// Wrap an array to make it type-safe.
-    pub fn new(array: Array<'a>) -> Self {
+    pub fn new(array: Array<'a, G>) -> Self {
         Self { array, phantom: PhantomData }
     }
 
@@ -490,17 +569,17 @@ impl<'a, T: Primitive> TypedArray<'a, T> {
 }
 
 /// Writer for a dictionary.
-pub struct Dict<'a> {
+pub struct Dict<'a, G: Guard = ()> {
     w: &'a mut PdfWriter,
-    indirect: bool,
     len: i32,
+    guard: G,
 }
 
-impl<'a> Dict<'a> {
-    fn start(w: &'a mut PdfWriter, indirect: bool) -> Self {
+impl<'a, G: Guard> Dict<'a, G> {
+    fn start(w: &'a mut PdfWriter, guard: G) -> Self {
         w.buf.push_bytes(b"<<\n");
         w.depth += 1;
-        Self { w, len: 0, indirect }
+        Self { w, len: 0, guard }
     }
 
     /// Write a pair with a primitive value.
@@ -521,7 +600,7 @@ impl<'a> Dict<'a> {
         self.w.buf.push(b'/');
         self.w.buf.push_str(key);
         self.w.buf.push(b' ');
-        Object::new(self.w, false)
+        Object::new(self.w, ())
     }
 
     /// The number of written pairs.
@@ -530,12 +609,12 @@ impl<'a> Dict<'a> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
+    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T, G> {
         TypedDict::new(self)
     }
 }
 
-impl Drop for Dict<'_> {
+impl<G: Guard> Drop for Dict<'_, G> {
     fn drop(&mut self) {
         self.w.depth -= 1;
         if self.len != 0 {
@@ -543,21 +622,19 @@ impl Drop for Dict<'_> {
         }
         self.w.push_indent();
         self.w.buf.push_bytes(b">>");
-        if self.indirect {
-            self.w.end_indirect();
-        }
+        self.guard.end(self.w);
     }
 }
 
 /// Writer for a dictionary with fixed primitive value type.
-pub struct TypedDict<'a, T> {
-    dict: Dict<'a>,
+pub struct TypedDict<'a, T, G: Guard = ()> {
+    dict: Dict<'a, G>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Primitive> TypedDict<'a, T> {
+impl<'a, T: Primitive, G: Guard> TypedDict<'a, T, G> {
     /// Wrap a dictionary to make it type-safe.
-    pub fn new(dict: Dict<'a>) -> Self {
+    pub fn new(dict: Dict<'a, G>) -> Self {
         Self { dict, phantom: PhantomData }
     }
 

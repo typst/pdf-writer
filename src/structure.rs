@@ -2,11 +2,11 @@ use super::*;
 
 /// Writer for a _document catalog_ dictionary.
 pub struct Catalog<'a> {
-    dict: Dict<'a>,
+    dict: Dict<'a, Indirect>,
 }
 
 impl<'a> Catalog<'a> {
-    pub(crate) fn start(obj: Object<'a>) -> Self {
+    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
         let mut dict = obj.dict();
         dict.pair("Type", Name("Catalog"));
         Self { dict }
@@ -21,11 +21,11 @@ impl<'a> Catalog<'a> {
 
 /// Writer for a _page tree_ dictionary.
 pub struct Pages<'a> {
-    dict: Dict<'a>,
+    dict: Dict<'a, Indirect>,
 }
 
 impl<'a> Pages<'a> {
-    pub(crate) fn start(obj: Object<'a>) -> Self {
+    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
         let mut dict = obj.dict();
         dict.pair("Type", Name("Pages"));
         Self { dict }
@@ -47,11 +47,11 @@ impl<'a> Pages<'a> {
 
 /// Writer for a _page_ dictionary.
 pub struct Page<'a> {
-    dict: Dict<'a>,
+    dict: Dict<'a, Indirect>,
 }
 
 impl<'a> Page<'a> {
-    pub(crate) fn start(obj: Object<'a>) -> Self {
+    pub(crate) fn start(obj: Object<'a, Indirect>) -> Self {
         let mut dict = obj.dict();
         dict.pair("Type", Name("Page"));
         Self { dict }
