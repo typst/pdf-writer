@@ -44,7 +44,7 @@ impl TextStream {
         self.buf.push_val(e);
         self.buf.push(b' ');
         self.buf.push_val(f);
-        self.buf.push_bytes(b" Td\n");
+        self.buf.push_bytes(b" Tm\n");
         self
     }
 
@@ -68,13 +68,13 @@ impl TextStream {
     }
 }
 
-/// Writer for a _Type-1 font_ dictionary.
+/// Writer for a _Type-1 font_.
 pub struct Type1Font<'a> {
-    dict: Dict<'a, Indirect>,
+    dict: Dict<'a, IndirectGuard>,
 }
 
 impl<'a> Type1Font<'a> {
-    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
         let mut dict = any.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type1"));
@@ -88,13 +88,13 @@ impl<'a> Type1Font<'a> {
     }
 }
 
-/// Writer for a _Type-0 (composite) font_ dictionary.
+/// Writer for a _Type-0 (composite) font_.
 pub struct Type0Font<'a> {
-    dict: Dict<'a, Indirect>,
+    dict: Dict<'a, IndirectGuard>,
 }
 
 impl<'a> Type0Font<'a> {
-    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
         let mut dict = any.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type0"));
@@ -107,47 +107,220 @@ impl<'a> Type0Font<'a> {
         self
     }
 
-    /// Start writing the `/Encoding` attribute.
-    pub fn encoding(&mut self) -> Encoding<'_> {
-        Encoding::new(self.dict.key(Name(b"Encoding")))
+    /// Write the `/Encoding` attribute as a predefined encoding.
+    pub fn encoding_predefined(&mut self, encoding: Name) -> &mut Self {
+        self.dict.pair(Name(b"Encoding"), encoding);
+        self
+    }
+
+    /// Write the `/Encoding` attribute as a reference to a [character map stream].
+    ///
+    /// [character map stream]: ../struct.PdfWriter.html#method.char_map
+    pub fn encoding_cmap(&mut self, cmap: Ref) -> &mut Self {
+        self.dict.pair(Name(b"Encoding"), cmap);
+        self
     }
 
     /// Write the `/DescendantFonts` attribute as a one-element array containing a
-    /// reference to a character map.
+    /// reference to a [CID font].
+    ///
+    /// [CID font]: struct.CIDFont.html
     pub fn descendant_font(&mut self, cid_font: Ref) -> &mut Self {
         self.dict.key(Name(b"DescendantFonts")).array().item(cid_font);
         self
     }
 
-    /// Write the `/ToUnicode` attribute as a reference to a character map stream.
+    /// Write the `/ToUnicode` attribute as a reference to a [character map stream].
+    ///
+    /// [character map stream]: ../struct.PdfWriter.html#method.char_map
     pub fn to_unicode(&mut self, cmap: Ref) -> &mut Self {
         self.dict.pair(Name(b"ToUnicode"), cmap);
         self
     }
 }
 
-/// Writer for an _encoding_.
-pub struct Encoding<'a> {
-    any: Any<'a>,
+/// Writer for a _CID font_, a descendant of a [Type 0 font].
+///
+/// [Type 0 font]: struct.Type0Font.html
+pub struct CIDFont<'a> {
+    dict: Dict<'a, IndirectGuard>,
 }
 
-impl<'a> Encoding<'a> {
-    fn new(any: Any<'a>) -> Self {
-        Self { any }
+impl<'a> CIDFont<'a> {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>, subtype: CIDFontType) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"Font"));
+        dict.pair(Name(b"Subtype"), subtype.name());
+        Self { dict }
     }
 
-    /// Write a predefined encoding name.
-    pub fn predefined(self, encoding: Name) {
-        self.any.obj(encoding);
+    /// Write the `/BaseFont` attribute.
+    pub fn base_font(&mut self, name: Name) -> &mut Self {
+        self.dict.pair(Name(b"BaseFont"), name);
+        self
     }
 
-    /// Write a reference to a character map stream.
-    pub fn cmap(self, cmap: Ref) {
-        self.any.obj(cmap);
+    /// Write the `/CIDSystemInfo` dictionary.
+    pub fn system_info(&mut self, info: SystemInfo) -> &mut Self {
+        info.write(self.dict.key(Name(b"CIDSystemInfo")));
+        self
+    }
+
+    /// Write the `/FontDescriptor` attribute as a reference to a font descriptor.
+    pub fn font_descriptor(&mut self, cid_font: Ref) -> &mut Self {
+        self.dict.pair(Name(b"FontDescriptor"), cid_font);
+        self
+    }
+
+    /// Start writing the `/W` (widths) array.
+    pub fn widths(&mut self) -> Widths<'_> {
+        Widths::start(self.dict.key(Name(b"W")))
+    }
+}
+
+/// Writer for the _width array_ in a [CID font].
+///
+/// [CID font]: struct.CIDFont.html
+pub struct Widths<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> Widths<'a> {
+    pub(crate) fn start(any: Any<'a>) -> Self {
+        Self { array: any.array() }
+    }
+
+    /// Specifies individual widths for a range of CIDs starting at `start`.
+    pub fn individual(
+        &mut self,
+        start: u16,
+        widths: impl IntoIterator<Item = f32>,
+    ) -> &mut Self {
+        self.array.item(i32::from(start));
+        self.array.any().array().typed().items(widths);
+        self
+    }
+
+    /// Specifies the same width for all CIDs in the (inclusive) range from `first` to
+    /// `last`.
+    pub fn same(&mut self, first: u16, last: u16, width: f32) -> &mut Self {
+        self.array.item(i32::from(first));
+        self.array.item(i32::from(last));
+        self.array.item(width);
+        self
+    }
+}
+
+/// Writer for a _font descriptor_.
+///
+/// [Type 0 font]: struct.Type0Font.html
+pub struct FontDescriptor<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> FontDescriptor<'a> {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
+        let mut dict = any.dict();
+        dict.pair(Name(b"Type"), Name(b"FontDescriptor"));
+        Self { dict }
+    }
+
+    /// Write the `/FontName` attribute.
+    pub fn font_name(&mut self, name: Name) -> &mut Self {
+        self.dict.pair(Name(b"FontName"), name);
+        self
+    }
+
+    /// Write the `/FontFlags` attribute.
+    pub fn font_flags(&mut self, flags: FontFlags) -> &mut Self {
+        self.dict.pair(Name(b"FontFlags"), flags.bits() as i32);
+        self
+    }
+
+    /// Write the `/FontBBox` attribute.
+    pub fn font_bbox(&mut self, bbox: Rect) -> &mut Self {
+        self.dict.pair(Name(b"FontBBox"), bbox);
+        self
+    }
+
+    /// Write the `/ItalicAngle` attribute.
+    pub fn italic_angle(&mut self, angle: f32) -> &mut Self {
+        self.dict.pair(Name(b"ItalicAngle"), angle);
+        self
+    }
+
+    /// Write the `/Ascent` attribute.
+    pub fn ascent(&mut self, ascent: f32) -> &mut Self {
+        self.dict.pair(Name(b"Ascent"), ascent);
+        self
+    }
+
+    /// Write the `/Descent` attribute.
+    pub fn descent(&mut self, descent: f32) -> &mut Self {
+        self.dict.pair(Name(b"Descent"), descent);
+        self
+    }
+
+    /// Write the `/CapHeight` attribute.
+    pub fn cap_height(&mut self, cap_height: f32) -> &mut Self {
+        self.dict.pair(Name(b"CapHeight"), cap_height);
+        self
+    }
+
+    /// Write the `/StemV` attribute.
+    pub fn stem_v(&mut self, stem_v: f32) -> &mut Self {
+        self.dict.pair(Name(b"StemV"), stem_v);
+        self
+    }
+
+    /// Write the `/FontFile2` attribute as a reference to a stream containing a TrueType
+    /// font program.
+    pub fn font_file2(&mut self, true_type_stream: Ref) -> &mut Self {
+        self.dict.pair(Name(b"FontFile2"), true_type_stream);
+        self
+    }
+}
+
+/// The subtype of a CID font.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum CIDFontType {
+    /// A CID font containing CFF glyph descriptions.
+    Type0,
+    /// A CID font containing TrueType glyph descriptions.
+    Type2,
+}
+
+impl CIDFontType {
+    fn name(self) -> Name<'static> {
+        match self {
+            Self::Type0 => Name(b"CIDFontType0"),
+            Self::Type2 => Name(b"CIDFontType2"),
+        }
+    }
+}
+
+pub use flags::*;
+
+#[allow(missing_docs)]
+mod flags {
+    bitflags::bitflags! {
+        /// Bitflags describing various characteristics of fonts.
+        pub struct FontFlags: u32 {
+            const FIXED_PITCH = 1 << 0;
+            const SERIF = 1 << 1;
+            const SYMBOLIC = 1 << 2;
+            const SCRIPT = 1 << 3;
+            const NON_SYMBOLIC = 1 << 5;
+            const ITALIC = 1 << 6;
+            const ALL_CAP = 1 << 16;
+            const SMALL_CAP = 1 << 17;
+            const FORCE_BOLD = 1 << 18;
+        }
     }
 }
 
 /// Specifics about a character collection.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct SystemInfo<'a> {
     /// The issuer of the collection.
     pub registry: Str<'a>,
@@ -155,6 +328,15 @@ pub struct SystemInfo<'a> {
     pub ordering: Str<'a>,
     /// The supplement number (i.e. the version).
     pub supplement: i32,
+}
+
+impl SystemInfo<'_> {
+    fn write(&self, any: Any<'_>) {
+        any.dict()
+            .pair(Name(b"Registry"), self.registry)
+            .pair(Name(b"Ordering"), self.ordering)
+            .pair(Name(b"Supplement"), self.supplement);
+    }
 }
 
 /// Writer a character map object.
@@ -206,9 +388,9 @@ pub(crate) fn write_cmap(
     buf.push_val(info.supplement);
     buf.push_bytes(b" def\n");
     buf.push_bytes(b"end def\n");
-    buf.push_bytes(b"/CMapName /");
+    buf.push_bytes(b"/CMapName ");
     buf.push_val(name);
-    buf.push_bytes(b"def\n");
+    buf.push_bytes(b" def\n");
     buf.push_bytes(b"/CMapVersion 1 def\n");
     buf.push_bytes(b"/CMapType 0 def\n");
 
@@ -243,12 +425,8 @@ pub(crate) fn write_cmap(
     buf.push_bytes(b"%%EndResource\n");
     buf.push_bytes(b"%%EOF");
 
-    w.stream(id, &buf)
-        .pair(Name(b"Type"), Name(b"CMap"))
-        .pair(Name(b"CMapName"), name)
-        .key(Name(b"CIDSystemInfo"))
-        .dict()
-        .pair(Name(b"Registry"), info.registry)
-        .pair(Name(b"Ordering"), info.ordering)
-        .pair(Name(b"Supplement"), info.supplement);
+    let mut dict = w.stream(id, &buf);
+    dict.pair(Name(b"Type"), Name(b"CMap"));
+    dict.pair(Name(b"CMapName"), name);
+    info.write(dict.key(Name(b"CIDSystemInfo")));
 }

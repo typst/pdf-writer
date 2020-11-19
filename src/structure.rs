@@ -1,12 +1,12 @@
 use super::*;
 
-/// Writer for a _document catalog_ dictionary.
+/// Writer for a _document catalog_.
 pub struct Catalog<'a> {
-    dict: Dict<'a, Indirect>,
+    dict: Dict<'a, IndirectGuard>,
 }
 
 impl<'a> Catalog<'a> {
-    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
         let mut dict = any.dict();
         dict.pair(Name(b"Type"), Name(b"Catalog"));
         Self { dict }
@@ -19,13 +19,13 @@ impl<'a> Catalog<'a> {
     }
 }
 
-/// Writer for a _page tree_ dictionary.
+/// Writer for a _page tree_.
 pub struct Pages<'a> {
-    dict: Dict<'a, Indirect>,
+    dict: Dict<'a, IndirectGuard>,
 }
 
 impl<'a> Pages<'a> {
-    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
         let mut dict = any.dict();
         dict.pair(Name(b"Type"), Name(b"Pages"));
         Self { dict }
@@ -43,15 +43,26 @@ impl<'a> Pages<'a> {
         self.dict.pair(Name(b"Count"), len);
         self
     }
+
+    /// Write the `/MediaBox` attribute.
+    pub fn media_box(&mut self, rect: Rect) -> &mut Self {
+        self.dict.pair(Name(b"MediaBox"), rect);
+        self
+    }
+
+    /// Start writing the `/Resources` dictionary.
+    pub fn resources(&mut self) -> Resources<'_> {
+        Resources::new(self.dict.key(Name(b"Resources")))
+    }
 }
 
-/// Writer for a _page_ dictionary.
+/// Writer for a _page_.
 pub struct Page<'a> {
-    dict: Dict<'a, Indirect>,
+    dict: Dict<'a, IndirectGuard>,
 }
 
 impl<'a> Page<'a> {
-    pub(crate) fn start(any: Any<'a, Indirect>) -> Self {
+    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
         let mut dict = any.dict();
         dict.pair(Name(b"Type"), Name(b"Page"));
         Self { dict }
@@ -69,7 +80,7 @@ impl<'a> Page<'a> {
         self
     }
 
-    /// Start writing a `/Resources` dictionary.
+    /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
         Resources::new(self.dict.key(Name(b"Resources")))
     }
@@ -81,7 +92,7 @@ impl<'a> Page<'a> {
     }
 }
 
-/// Writer for a _resource_ dictionary.
+/// Writer for a _resource dictionary_.
 pub struct Resources<'a> {
     dict: Dict<'a>,
 }

@@ -42,10 +42,10 @@ mod text;
 /// Writers for specific PDF structures.
 pub mod writers {
     pub use super::structure::{Catalog, Page, Pages, Resources};
-    pub use super::text::{Encoding, Type0Font, Type1Font};
+    pub use super::text::{CIDFont, FontDescriptor, Type0Font, Type1Font, Widths};
 }
 
-pub use text::{SystemInfo, TextStream};
+pub use text::{CIDFontType, FontFlags, SystemInfo, TextStream};
 
 use std::convert::TryFrom;
 use std::marker::PhantomData;
@@ -100,8 +100,8 @@ impl PdfWriter {
     }
 
     /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Any<'_, Indirect> {
-        let indirect = Indirect::start(self, id, ());
+    pub fn indirect(&mut self, id: Ref) -> Any<'_, IndirectGuard> {
+        let indirect = IndirectGuard::start(self, id, ());
         Any::new(self, indirect)
     }
 
@@ -113,14 +113,14 @@ impl PdfWriter {
         &mut self,
         id: Ref,
         data: &'a [u8],
-    ) -> Dict<'_, Stream<'a, Indirect>> {
+    ) -> Dict<'_, StreamGuard<'a, IndirectGuard>> {
         let data = data.as_ref();
         let len = i32::try_from(data.len()).unwrap_or_else(|_| {
             panic!("data length (is `{}`) must be < i32::MAX");
         });
 
-        let indirect = Indirect::start(self, id, ());
-        let stream = Stream::new(data, indirect);
+        let indirect = IndirectGuard::start(self, id, ());
+        let stream = StreamGuard::new(data, indirect);
 
         let mut dict = Dict::start(self, stream);
         dict.pair(Name(b"Length"), len);
@@ -190,7 +190,7 @@ impl PdfWriter {
         }
     }
 
-    /// Start writing the document catalog.
+    /// Start writing a document catalog.
     pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
         Catalog::start(self.indirect(id))
     }
@@ -215,15 +215,23 @@ impl PdfWriter {
         Type0Font::start(self.indirect(id))
     }
 
+    /// Start writing a CID font.
+    pub fn cid_font(&mut self, id: Ref, subtype: CIDFontType) -> CIDFont<'_> {
+        CIDFont::start(self.indirect(id), subtype)
+    }
+
+    /// Start writing a font descriptor.
+    pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
+        FontDescriptor::start(self.indirect(id))
+    }
+
     /// Write a character map stream.
-    pub fn char_map(
-        &mut self,
-        id: Ref,
-        name: Name,
-        info: SystemInfo,
-        mapping: impl ExactSizeIterator<Item = (u16, char)>,
-    ) {
-        write_cmap(self, id, name, info, mapping);
+    pub fn cmap<I>(&mut self, id: Ref, name: Name, info: SystemInfo, mapping: I)
+    where
+        I: IntoIterator<Item = (u16, char)>,
+        I::IntoIter: ExactSizeIterator<Item = (u16, char)>,
+    {
+        write_cmap(self, id, name, info, mapping.into_iter());
     }
 }
 
@@ -232,7 +240,7 @@ trait BufExt {
     fn push_bytes(&mut self, bytes: &[u8]);
     fn push_int<I: itoa::Integer>(&mut self, value: I);
     fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize);
-    fn push_float<F: ryu::Float>(&mut self, value: F);
+    fn push_float(&mut self, value: f32);
     fn push_hex(&mut self, value: u8);
     fn push_hex_u16(&mut self, value: u16);
 }
@@ -259,8 +267,13 @@ impl BufExt for Vec<u8> {
         self.push_bytes(number.as_bytes());
     }
 
-    fn push_float<F: ryu::Float>(&mut self, value: F) {
-        self.push_bytes(ryu::Buffer::new().format(value).as_bytes());
+    fn push_float(&mut self, value: f32) {
+        let int = value as i32;
+        if int as f32 == value {
+            self.push_int(int);
+        } else {
+            self.push_bytes(ryu::Buffer::new().format(value).as_bytes());
+        }
     }
 
     fn push_hex(&mut self, value: u8) {
@@ -413,11 +426,11 @@ impl Guard for () {
 /// A guard that finishes an indirect object when released.
 ///
 /// This is an implementation detail that you shouldn't need to worry about.
-pub struct Indirect<G: Guard = ()> {
+pub struct IndirectGuard<G: Guard = ()> {
     guard: G,
 }
 
-impl<G: Guard> Indirect<G> {
+impl<G: Guard> IndirectGuard<G> {
     fn start(w: &mut PdfWriter, id: Ref, guard: G) -> Self {
         assert_eq!(w.depth, 0);
         w.depth += 1;
@@ -429,7 +442,7 @@ impl<G: Guard> Indirect<G> {
     }
 }
 
-impl<G: Guard> Guard for Indirect<G> {
+impl<G: Guard> Guard for IndirectGuard<G> {
     #[doc(hidden)]
     fn end(&self, w: &mut PdfWriter) {
         w.depth -= 1;
@@ -441,18 +454,18 @@ impl<G: Guard> Guard for Indirect<G> {
 /// A guard that finishes a stream when released.
 ///
 /// This is an implementation detail that you shouldn't need to worry about.
-pub struct Stream<'a, G: Guard = ()> {
+pub struct StreamGuard<'a, G: Guard = ()> {
     data: &'a [u8],
     guard: G,
 }
 
-impl<'a, G: Guard> Stream<'a, G> {
+impl<'a, G: Guard> StreamGuard<'a, G> {
     fn new(data: &'a [u8], guard: G) -> Self {
         Self { data, guard }
     }
 }
 
-impl<G: Guard> Guard for Stream<'_, G> {
+impl<G: Guard> Guard for StreamGuard<'_, G> {
     #[doc(hidden)]
     fn end(&self, w: &mut PdfWriter) {
         w.buf.push_bytes(b"\nstream\n");
