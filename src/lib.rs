@@ -30,7 +30,6 @@ std::fs::write("target/empty.pdf", writer.end(Ref::new(1)))?;
 For a more comprehensive overview, check out the [hello world example] in the
 repository, which creates a document with text in it.
 
-[`PdfWriter`]: struct.PdfWriter.html
 [hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 */
 
@@ -42,10 +41,12 @@ mod text;
 /// Writers for specific PDF structures.
 pub mod writers {
     pub use super::structure::{Catalog, Page, Pages, Resources};
-    pub use super::text::{CIDFont, FontDescriptor, Type0Font, Type1Font, Widths};
+    pub use super::text::{
+        CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths,
+    };
 }
 
-pub use text::{CIDFontType, FontFlags, SystemInfo, TextStream};
+pub use text::{CidFontType, FontFlags, SystemInfo, TextStream, UnicodeCmap};
 
 use std::convert::TryFrom;
 use std::marker::PhantomData;
@@ -63,20 +64,20 @@ pub struct PdfWriter {
 }
 
 impl PdfWriter {
-    /// Create a new PDF writer with the default buffer capacity (currently 8 KB). The
-    /// buffer will grow as necessary, but you can override this initial value by using
-    /// [`with_capacity`].
+    /// Create a new PDF writer with the default buffer capacity (currently 8
+    /// KB). The buffer will grow as necessary, but you can override this
+    /// initial value by using [`with_capacity`](Self::with_capacity).
     ///
-    /// This already writes the PDF header containing the (major, minor) version.
-    ///
-    /// [`with_capacity`]: #method.with_capacity
+    /// This already writes the PDF header containing the (major, minor)
+    /// version.
     pub fn new(major: i32, minor: i32) -> Self {
         Self::with_capacity(8 * 1024, major, minor)
     }
 
     /// Create a new PDF writer with the specified buffer capacity.
     ///
-    /// This already writes the PDF header containing the (major, minor) version.
+    /// This already writes the PDF header containing the (major, minor)
+    /// version.
     pub fn with_capacity(capacity: usize, major: i32, minor: i32) -> Self {
         let mut buf = Vec::with_capacity(capacity);
         buf.push_bytes(b"%PDF-");
@@ -105,15 +106,51 @@ impl PdfWriter {
         Any::new(self, indirect)
     }
 
-    /// Write an indirectly referenceable stream.
+    /// Start writing a document catalog.
+    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
+        Catalog::start(self.indirect(id))
+    }
+
+    /// Start writing a page tree.
+    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
+        Pages::start(self.indirect(id))
+    }
+
+    /// Start writing a page.
+    pub fn page(&mut self, id: Ref) -> Page<'_> {
+        Page::start(self.indirect(id))
+    }
+
+    /// Start writing a Type-1 font.
+    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
+        Type1Font::start(self.indirect(id))
+    }
+
+    /// Start writing a Type-0 font.
+    pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
+        Type0Font::start(self.indirect(id))
+    }
+
+    /// Start writing a CID font.
+    pub fn cid_font(&mut self, id: Ref, subtype: CidFontType) -> CidFont<'_> {
+        CidFont::start(self.indirect(id), subtype)
+    }
+
+    /// Start writing a font descriptor.
+    pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
+        FontDescriptor::start(self.indirect(id))
+    }
+
+    /// Start writing an indirectly referenceable stream.
     ///
-    /// The `/Length` field is added to the stream's dictionary automatically. You can add
-    /// additional key-value pairs with the returned writer.
+    /// The `/Length` field is added to the stream's dictionary automatically.
+    /// You can add additional key-value pairs with the returned dictionary
+    /// writer. The stream data is written once the dictionary is dropped.
     pub fn stream<'a>(
-        &mut self,
+        &'a mut self,
         id: Ref,
         data: &'a [u8],
-    ) -> Dict<'_, StreamGuard<'a, IndirectGuard>> {
+    ) -> Dict<'a, StreamGuard<'a, IndirectGuard>> {
         let data = data.as_ref();
         let len = i32::try_from(data.len()).unwrap_or_else(|_| {
             panic!("data length (is `{}`) must be < i32::MAX");
@@ -127,16 +164,23 @@ impl PdfWriter {
         dict
     }
 
-    /// Write the cross-reference table and file trailer and return the underlying buffer.
+    /// Start writing a character map stream.
+    ///
+    /// If you want to use this for a `/ToUnicode` CMap, you can construct the
+    /// data with the [`UnicodeCmap`] builder.
+    pub fn cmap_stream<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> CmapStream<'a> {
+        CmapStream::start(self.stream(id, cmap))
+    }
+
+    /// Write the cross-reference table and file trailer and return the
+    /// underlying buffer.
     pub fn end(mut self, catalog_id: Ref) -> Vec<u8> {
         assert_eq!(self.depth, 0);
         let (xref_len, xref_offset) = self.xref_table();
         self.trailer(catalog_id, xref_len, xref_offset);
         self.buf
     }
-}
 
-impl PdfWriter {
     fn xref_table(&mut self) -> (i32, usize) {
         let mut offsets = std::mem::take(&mut self.offsets);
         offsets.sort();
@@ -188,50 +232,6 @@ impl PdfWriter {
         for _ in 0 .. width {
             self.buf.push(b' ');
         }
-    }
-
-    /// Start writing a document catalog.
-    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
-        Catalog::start(self.indirect(id))
-    }
-
-    /// Start writing a page tree.
-    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        Pages::start(self.indirect(id))
-    }
-
-    /// Start writing a page.
-    pub fn page(&mut self, id: Ref) -> Page<'_> {
-        Page::start(self.indirect(id))
-    }
-
-    /// Start writing a Type-1 font.
-    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        Type1Font::start(self.indirect(id))
-    }
-
-    /// Start writing a Type-0 font.
-    pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
-        Type0Font::start(self.indirect(id))
-    }
-
-    /// Start writing a CID font.
-    pub fn cid_font(&mut self, id: Ref, subtype: CIDFontType) -> CIDFont<'_> {
-        CIDFont::start(self.indirect(id), subtype)
-    }
-
-    /// Start writing a font descriptor.
-    pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
-        FontDescriptor::start(self.indirect(id))
-    }
-
-    /// Write a character map stream.
-    pub fn cmap<I>(&mut self, id: Ref, name: Name, info: SystemInfo, mapping: I)
-    where
-        I: IntoIterator<Item = (u16, char)>,
-        I::IntoIter: ExactSizeIterator<Item = (u16, char)>,
-    {
-        write_cmap(self, id, name, info, mapping.into_iter());
     }
 }
 
@@ -286,62 +286,8 @@ impl BufExt for Vec<u8> {
     }
 
     fn push_hex_u16(&mut self, value: u16) {
-        self.push_hex((value << 8) as u8);
+        self.push_hex((value >> 8) as u8);
         self.push_hex(value as u8);
-    }
-}
-
-/// An indirect reference.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Ref(NonZeroI32);
-
-impl Ref {
-    /// Create a new indirect reference.
-    ///
-    /// The provided value must be in the range `1..=i32::MAX`.
-    ///
-    /// # Panics
-    /// Panics if `id` is out of the valid range.
-    pub fn new(id: i32) -> Ref {
-        let val = if id > 0 { NonZeroI32::new(id) } else { None };
-        Self(val.expect("indirect reference out of valid range"))
-    }
-
-    /// Return the underlying number as a primitive type.
-    pub fn get(self) -> i32 {
-        self.0.get()
-    }
-}
-
-/// A PDF name object.
-///
-/// Written as `/Thing` in a file.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Name<'a>(pub &'a [u8]);
-
-/// A PDF string object (any byte sequence).
-///
-/// Written as `(Thing)` in a file.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Str<'a>(pub &'a [u8]);
-
-/// A rectangle, specified by two opposite corners.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Rect {
-    /// The x-coordinate of the first (typically, lower-left) corner.
-    pub x1: f32,
-    /// The y-coordinate of the first (typically, lower-left) corner.
-    pub y1: f32,
-    /// The x-coordinate of the second (typically, upper-right) corner.
-    pub x2: f32,
-    /// The y-coordinate of the second (typically, upper-right) corner.
-    pub y2: f32,
-}
-
-impl Rect {
-    /// Create a new rectangle from four coordinate values.
-    pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
-        Self { x1, y1, x2, y2 }
     }
 }
 
@@ -373,14 +319,27 @@ impl Object for f32 {
     }
 }
 
+/// A PDF string object (any byte sequence).
+///
+/// Written as `(Thing)` in a file.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Str<'a>(pub &'a [u8]);
+
 impl Object for Str<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        // TODO: Escape when necessary, select best encoding, reserve size upfront.
+        // TODO: Escape when necessary, select best encoding, reserve size
+        // upfront.
         buf.push(b'(');
         buf.push_bytes(self.0);
         buf.push(b')');
     }
 }
+
+/// A PDF name object.
+///
+/// Written as `/Thing` in a file.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Name<'a>(pub &'a [u8]);
 
 impl Object for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
@@ -389,10 +348,52 @@ impl Object for Name<'_> {
     }
 }
 
+/// An indirect reference.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Ref(NonZeroI32);
+
+impl Ref {
+    /// Create a new indirect reference.
+    ///
+    /// The provided value must be in the range `1..=i32::MAX`.
+    ///
+    /// # Panics
+    /// Panics if `id` is out of the valid range.
+    pub fn new(id: i32) -> Ref {
+        let val = if id > 0 { NonZeroI32::new(id) } else { None };
+        Self(val.expect("indirect reference out of valid range"))
+    }
+
+    /// Return the underlying number as a primitive type.
+    pub fn get(self) -> i32 {
+        self.0.get()
+    }
+}
+
 impl Object for Ref {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push_int(self.0.get());
         buf.push_bytes(b" 0 R");
+    }
+}
+
+/// A rectangle, specified by two opposite corners.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Rect {
+    /// The x-coordinate of the first (typically, lower-left) corner.
+    pub x1: f32,
+    /// The y-coordinate of the first (typically, lower-left) corner.
+    pub y1: f32,
+    /// The x-coordinate of the second (typically, upper-right) corner.
+    pub x2: f32,
+    /// The y-coordinate of the second (typically, upper-right) corner.
+    pub y2: f32,
+}
+
+impl Rect {
+    /// Create a new rectangle from four coordinate values.
+    pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
+        Self { x1, y1, x2, y2 }
     }
 }
 
@@ -414,12 +415,11 @@ impl Object for Rect {
 ///
 /// This is an implementation detail that you shouldn't need to worry about.
 pub trait Guard {
-    #[doc(hidden)]
+    /// Finish the entity.
     fn end(&self, writer: &mut PdfWriter);
 }
 
 impl Guard for () {
-    #[doc(hidden)]
     fn end(&self, _: &mut PdfWriter) {}
 }
 
@@ -443,7 +443,6 @@ impl<G: Guard> IndirectGuard<G> {
 }
 
 impl<G: Guard> Guard for IndirectGuard<G> {
-    #[doc(hidden)]
     fn end(&self, w: &mut PdfWriter) {
         w.depth -= 1;
         w.buf.push_bytes(b"\nendobj\n\n");
@@ -466,7 +465,6 @@ impl<'a, G: Guard> StreamGuard<'a, G> {
 }
 
 impl<G: Guard> Guard for StreamGuard<'_, G> {
-    #[doc(hidden)]
     fn end(&self, w: &mut PdfWriter) {
         w.buf.push_bytes(b"\nstream\n");
         w.buf.push_bytes(self.data);

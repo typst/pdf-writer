@@ -102,8 +102,13 @@ impl<'a> Resources<'a> {
         Self { dict: any.dict() }
     }
 
+    /// Start writing the `/XObject` dictionary.
+    pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
+        self.dict.key(Name(b"XObject")).dict().typed()
+    }
+
     /// Start writing the `/Font` dictionary.
-    pub fn fonts(&mut self) -> TypedDict<Ref> {
+    pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
         self.dict.key(Name(b"Font")).dict().typed()
     }
 }
