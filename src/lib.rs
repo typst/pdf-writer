@@ -22,7 +22,7 @@ writer.page(Ref::new(3))
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/empty.pdf", writer.end(Ref::new(1)))?;
+std::fs::write("target/empty.pdf", writer.finish(Ref::new(1)))?;
 # Ok(())
 # }
 ```
@@ -35,25 +35,26 @@ repository, which creates a document with text in it.
 
 #![deny(missing_docs)]
 
+mod content;
+mod font;
 mod structure;
-mod text;
 
 /// Writers for specific PDF structures.
 pub mod writers {
-    pub use super::structure::{Catalog, Page, Pages, Resources};
-    pub use super::text::{
-        CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths,
-    };
+    use super::*;
+    pub use content::{ImageStream, Text};
+    pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
+    pub use structure::{Catalog, Page, Pages, Resources};
 }
 
-pub use text::{CidFontType, FontFlags, SystemInfo, TextStream, UnicodeCmap};
+pub use content::{ColorSpace, Content};
+pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
-use structure::*;
-use text::*;
+use writers::*;
 
 /// The root writer.
 pub struct PdfWriter {
@@ -64,9 +65,8 @@ pub struct PdfWriter {
 }
 
 impl PdfWriter {
-    /// Create a new PDF writer with the default buffer capacity (currently 8
-    /// KB). The buffer will grow as necessary, but you can override this
-    /// initial value by using [`with_capacity`](Self::with_capacity).
+    /// Create a new PDF writer with the default buffer capacity
+    /// (currently 8 KB).
     ///
     /// This already writes the PDF header containing the (major, minor)
     /// version.
@@ -74,7 +74,7 @@ impl PdfWriter {
         Self::with_capacity(8 * 1024, major, minor)
     }
 
-    /// Create a new PDF writer with the specified buffer capacity.
+    /// Create a new PDF writer with the specified initial buffer capacity.
     ///
     /// This already writes the PDF header containing the (major, minor)
     /// version.
@@ -172,9 +172,14 @@ impl PdfWriter {
         CmapStream::start(self.stream(id, cmap))
     }
 
+    /// Start writing an XObject image stream.
+    pub fn image_stream<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> ImageStream<'a> {
+        ImageStream::start(self.stream(id, samples))
+    }
+
     /// Write the cross-reference table and file trailer and return the
     /// underlying buffer.
-    pub fn end(mut self, catalog_id: Ref) -> Vec<u8> {
+    pub fn finish(mut self, catalog_id: Ref) -> Vec<u8> {
         assert_eq!(self.depth, 0);
         let (xref_len, xref_offset) = self.xref_table();
         self.trailer(catalog_id, xref_len, xref_offset);
@@ -355,7 +360,7 @@ pub struct Ref(NonZeroI32);
 impl Ref {
     /// Create a new indirect reference.
     ///
-    /// The provided value must be in the range `1..=i32::MAX`.
+    /// The provided value must be greater than zero.
     ///
     /// # Panics
     /// Panics if `id` is out of the valid range.
@@ -416,11 +421,11 @@ impl Object for Rect {
 /// This is an implementation detail that you shouldn't need to worry about.
 pub trait Guard {
     /// Finish the entity.
-    fn end(&self, writer: &mut PdfWriter);
+    fn finish(&self, writer: &mut PdfWriter);
 }
 
 impl Guard for () {
-    fn end(&self, _: &mut PdfWriter) {}
+    fn finish(&self, _: &mut PdfWriter) {}
 }
 
 /// A guard that finishes an indirect object when released.
@@ -443,10 +448,10 @@ impl<G: Guard> IndirectGuard<G> {
 }
 
 impl<G: Guard> Guard for IndirectGuard<G> {
-    fn end(&self, w: &mut PdfWriter) {
+    fn finish(&self, w: &mut PdfWriter) {
         w.depth -= 1;
         w.buf.push_bytes(b"\nendobj\n\n");
-        self.guard.end(w);
+        self.guard.finish(w);
     }
 }
 
@@ -465,11 +470,11 @@ impl<'a, G: Guard> StreamGuard<'a, G> {
 }
 
 impl<G: Guard> Guard for StreamGuard<'_, G> {
-    fn end(&self, w: &mut PdfWriter) {
+    fn finish(&self, w: &mut PdfWriter) {
         w.buf.push_bytes(b"\nstream\n");
         w.buf.push_bytes(self.data);
         w.buf.push_bytes(b"\nendstream");
-        self.guard.end(w);
+        self.guard.finish(w);
     }
 }
 
@@ -544,7 +549,7 @@ impl<'a, G: Guard> Array<'a, G> {
 impl<G: Guard> Drop for Array<'_, G> {
     fn drop(&mut self) {
         self.w.buf.push(b']');
-        self.guard.end(self.w);
+        self.guard.finish(self.w);
     }
 }
 
@@ -633,7 +638,7 @@ impl<G: Guard> Drop for Dict<'_, G> {
         }
         self.w.push_indent();
         self.w.buf.push_bytes(b">>");
-        self.guard.end(self.w);
+        self.guard.finish(self.w);
     }
 }
 

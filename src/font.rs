@@ -1,74 +1,5 @@
 use super::*;
 
-/// Builder for a text stream.
-pub struct TextStream {
-    buf: Vec<u8>,
-}
-
-impl TextStream {
-    /// Create a new, empty text stream.
-    pub fn new() -> Self {
-        let mut buf = Vec::new();
-        buf.push_bytes(b"BT\n");
-        Self { buf }
-    }
-
-    /// `Tf` operator: Select a font by name and set the font size as a scale
-    /// factor.
-    pub fn tf(mut self, font: Name, size: f32) -> Self {
-        self.buf.push_val(font);
-        self.buf.push(b' ');
-        self.buf.push_val(size);
-        self.buf.push_bytes(b" Tf\n");
-        self
-    }
-
-    /// `Td` operator: Move to the start of the next line.
-    pub fn td(mut self, x: f32, y: f32) -> Self {
-        self.buf.push_val(x);
-        self.buf.push(b' ');
-        self.buf.push_val(y);
-        self.buf.push_bytes(b" Td\n");
-        self
-    }
-
-    /// `Tm` operator: Set the text matrix.
-    pub fn tm(mut self, a: f32, b: f32, c: f32, d: f32, e: f32, f: f32) -> Self {
-        self.buf.push_val(a);
-        self.buf.push(b' ');
-        self.buf.push_val(b);
-        self.buf.push(b' ');
-        self.buf.push_val(c);
-        self.buf.push(b' ');
-        self.buf.push_val(d);
-        self.buf.push(b' ');
-        self.buf.push_val(e);
-        self.buf.push(b' ');
-        self.buf.push_val(f);
-        self.buf.push_bytes(b" Tm\n");
-        self
-    }
-
-    /// `Tj` operator: Write text.
-    ///
-    /// This function takes raw bytes. The encoding is up to you.
-    pub fn tj(mut self, text: &[u8]) -> Self {
-        // TODO: Move to general string formatting.
-        self.buf.push(b'<');
-        for &byte in text {
-            self.buf.push_hex(byte);
-        }
-        self.buf.push_bytes(b"> Tj\n");
-        self
-    }
-
-    /// Return the raw constructed byte stream.
-    pub fn end(mut self) -> Vec<u8> {
-        self.buf.push_bytes(b"ET");
-        self.buf
-    }
-}
-
 /// Writer for a _Type-1 font_.
 pub struct Type1Font<'a> {
     dict: Dict<'a, IndirectGuard>,
@@ -128,10 +59,9 @@ impl<'a> Type0Font<'a> {
         self
     }
 
-    /// Write the `/ToUnicode` attribute as a reference to a
-    /// [character map stream](crate::PdfWriter::cmap_stream).
+    /// Write the `/ToUnicode` attribute.
     ///
-    /// Such a character map can be built with [`UnicodeCmap`].
+    /// A suitable character map can be built with [`UnicodeCmap`].
     pub fn to_unicode(&mut self, cmap: Ref) -> &mut Self {
         self.dict.pair(Name(b"ToUnicode"), cmap);
         self
@@ -163,10 +93,9 @@ impl<'a> CidFont<'a> {
         self
     }
 
-    /// Write the `/FontDescriptor` attribute as a reference to a font
-    /// descriptor.
-    pub fn font_descriptor(&mut self, cid_font: Ref) -> &mut Self {
-        self.dict.pair(Name(b"FontDescriptor"), cid_font);
+    /// Write the `/FontDescriptor` attribute.
+    pub fn font_descriptor(&mut self, descriptor: Ref) -> &mut Self {
+        self.dict.pair(Name(b"FontDescriptor"), descriptor);
         self
     }
 
@@ -266,8 +195,7 @@ impl<'a> FontDescriptor<'a> {
         self
     }
 
-    /// Write the `/FontFile2` attribute as a reference to a
-    /// [stream](crate::PdfWriter::stream) containing a TrueType font program.
+    /// Write the `/FontFile2` attribute.
     pub fn font_file2(&mut self, true_type_stream: Ref) -> &mut Self {
         self.dict.pair(Name(b"FontFile2"), true_type_stream);
         self
@@ -356,7 +284,7 @@ impl<'a> CmapStream<'a> {
     }
 }
 
-/// Builder for a `/ToUnicode` character map.
+/// Builder for a `/ToUnicode` character map stream.
 pub struct UnicodeCmap {
     buf: Vec<u8>,
     mappings: Vec<u8>,
@@ -441,7 +369,7 @@ impl UnicodeCmap {
     }
 
     /// Finish building the character map.
-    pub fn end(mut self) -> Vec<u8> {
+    pub fn finish(mut self) -> Vec<u8> {
         // Flush the in-progress range.
         self.flush_range();
 

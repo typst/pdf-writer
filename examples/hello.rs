@@ -1,4 +1,4 @@
-use pdf_writer::{Name, PdfWriter, Rect, Ref, TextStream};
+use pdf_writer::{Content, Name, PdfWriter, Rect, Ref};
 
 fn main() -> std::io::Result<()> {
     // Start writing with PDF version 1.7 header. The version is not
@@ -50,18 +50,18 @@ fn main() -> std::io::Result<()> {
     // Because we haven't specified any encoding when writing the Type 1 font,
     // the standard encoding is used which happens to work with most ASCII
     // characters.
-    writer.stream(
-        text_id,
-        &TextStream::new()
-            .tf(Name(b"F1"), 14.0)
-            .td(108.0, 734.0)
-            .tj(b"Hello World from Rust!")
-            .end(),
-    );
+    let mut content = Content::new();
+    content
+        .text()
+        .font(Name(b"F1"), 14.0)
+        .next_line(108.0, 734.0)
+        .show(b"Hello World from Rust!");
+
+    writer.stream(text_id, &content.finish());
 
     // Finish writing (this automatically creates the cross-reference table and
     // file trailer) and retrieve the resulting byte buffer.
-    let buf: Vec<u8> = writer.end(catalog_id);
+    let buf: Vec<u8> = writer.finish(catalog_id);
 
     // Write the thing to a file.
     std::fs::write("target/hello.pdf", buf)
