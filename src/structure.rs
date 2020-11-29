@@ -1,6 +1,8 @@
 use super::*;
 
 /// Writer for a _document catalog_.
+///
+/// This struct is created by [`PdfWriter::catalog`].
 pub struct Catalog<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -20,6 +22,8 @@ impl<'a> Catalog<'a> {
 }
 
 /// Writer for a _page tree_.
+///
+/// This struct is created by [`PdfWriter::pages`].
 pub struct Pages<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -57,6 +61,8 @@ impl<'a> Pages<'a> {
 }
 
 /// Writer for a _page_.
+///
+/// This struct is created by [`PdfWriter::page`].
 pub struct Page<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -93,6 +99,8 @@ impl<'a> Page<'a> {
 }
 
 /// Writer for a _resource dictionary_.
+///
+/// This struct is created by [`Pages::resources`] and [`Page::resources`].
 pub struct Resources<'a> {
     dict: Dict<'a>,
 }

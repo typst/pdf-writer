@@ -1,6 +1,8 @@
 use super::*;
 
 /// Writer for a _Type-1 font_.
+///
+/// This struct is created by [`PdfWriter::type1_font`].
 pub struct Type1Font<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -21,6 +23,8 @@ impl<'a> Type1Font<'a> {
 }
 
 /// Writer for a _Type-0 (composite) font_.
+///
+/// This struct is created by [`PdfWriter::type0_font`].
 pub struct Type0Font<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -45,8 +49,7 @@ impl<'a> Type0Font<'a> {
         self
     }
 
-    /// Write the `/Encoding` attribute as a reference to a
-    /// [character map stream](crate::PdfWriter::cmap_stream).
+    /// Write the `/Encoding` attribute as a reference to a character map.
     pub fn encoding_cmap(&mut self, cmap: Ref) -> &mut Self {
         self.dict.pair(Name(b"Encoding"), cmap);
         self
@@ -69,6 +72,8 @@ impl<'a> Type0Font<'a> {
 }
 
 /// Writer for a _CID font_, a descendant of a [`Type0Font`].
+///
+/// This struct is created by [`PdfWriter::cid_font`].
 pub struct CidFont<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -105,7 +110,27 @@ impl<'a> CidFont<'a> {
     }
 }
 
+/// The subtype of a CID font.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum CidFontType {
+    /// A CID font containing CFF glyph descriptions.
+    Type0,
+    /// A CID font containing TrueType glyph descriptions.
+    Type2,
+}
+
+impl CidFontType {
+    fn name(self) -> Name<'static> {
+        match self {
+            Self::Type0 => Name(b"CIDFontType0"),
+            Self::Type2 => Name(b"CIDFontType2"),
+        }
+    }
+}
+
 /// Writer for the _width array_ in a [`CidFont`].
+///
+/// This struct is created by [`CidFont::widths`].
 pub struct Widths<'a> {
     array: Array<'a>,
 }
@@ -136,6 +161,8 @@ impl<'a> Widths<'a> {
 }
 
 /// Writer for a _font descriptor_.
+///
+/// This struct is created by [`PdfWriter::font_descriptor`].
 pub struct FontDescriptor<'a> {
     dict: Dict<'a, IndirectGuard>,
 }
@@ -202,28 +229,9 @@ impl<'a> FontDescriptor<'a> {
     }
 }
 
-/// The subtype of a CID font.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum CidFontType {
-    /// A CID font containing CFF glyph descriptions.
-    Type0,
-    /// A CID font containing TrueType glyph descriptions.
-    Type2,
-}
-
-impl CidFontType {
-    fn name(self) -> Name<'static> {
-        match self {
-            Self::Type0 => Name(b"CIDFontType0"),
-            Self::Type2 => Name(b"CIDFontType2"),
-        }
-    }
-}
-
 pub use flags::*;
-
-#[allow(missing_docs)]
 mod flags {
+    #![allow(missing_docs)]
     bitflags::bitflags! {
         /// Bitflags describing various characteristics of fonts.
         pub struct FontFlags: u32 {
@@ -240,47 +248,34 @@ mod flags {
     }
 }
 
-/// Specifics about a character collection.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct SystemInfo<'a> {
-    /// The issuer of the collection.
-    pub registry: Str<'a>,
-    /// A unique name of the collection within the registry.
-    pub ordering: Str<'a>,
-    /// The supplement number (i.e. the version).
-    pub supplement: i32,
-}
-
-impl SystemInfo<'_> {
-    fn write(&self, any: Any<'_>) {
-        any.dict()
-            .pair(Name(b"Registry"), self.registry)
-            .pair(Name(b"Ordering"), self.ordering)
-            .pair(Name(b"Supplement"), self.supplement);
-    }
-}
-
-/// Writer for a _character map stream_.
+/// Writer for a _character map_.
+///
+/// This struct is created by [`PdfWriter::cmap`].
 pub struct CmapStream<'a> {
-    dict: Dict<'a, StreamGuard<'a, IndirectGuard>>,
+    stream: Stream<'a>,
 }
 
 impl<'a> CmapStream<'a> {
-    pub(crate) fn start(mut dict: Dict<'a, StreamGuard<'a, IndirectGuard>>) -> Self {
-        dict.pair(Name(b"Type"), Name(b"CMap"));
-        Self { dict }
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+        stream.inner().pair(Name(b"Type"), Name(b"CMap"));
+        Self { stream }
     }
 
     /// Write the `/CMapName` attribute.
     pub fn name(&mut self, name: Name) -> &mut Self {
-        self.dict.pair(Name(b"CMapName"), name);
+        self.stream.inner().pair(Name(b"CMapName"), name);
         self
     }
 
     /// Write the `/CIDSystemInfo` attribute.
     pub fn system_info(&mut self, info: SystemInfo) -> &mut Self {
-        info.write(self.dict.key(Name(b"CIDSystemInfo")));
+        info.write(self.stream.inner().key(Name(b"CIDSystemInfo")));
         self
+    }
+
+    /// Access the underlying stream writer.
+    pub fn inner(&mut self) -> &mut Stream<'a> {
+        &mut self.stream
     }
 }
 
@@ -395,5 +390,25 @@ impl UnicodeCmap {
 
         self.count = 0;
         self.mappings.clear();
+    }
+}
+
+/// Specifics about a character collection.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct SystemInfo<'a> {
+    /// The issuer of the collection.
+    pub registry: Str<'a>,
+    /// A unique name of the collection within the registry.
+    pub ordering: Str<'a>,
+    /// The supplement number (i.e. the version).
+    pub supplement: i32,
+}
+
+impl SystemInfo<'_> {
+    fn write(&self, any: Any<'_>) {
+        any.dict()
+            .pair(Name(b"Registry"), self.registry)
+            .pair(Name(b"Ordering"), self.ordering)
+            .pair(Name(b"Supplement"), self.supplement);
     }
 }

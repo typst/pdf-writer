@@ -75,7 +75,9 @@ impl Content {
     }
 }
 
-/// Writer for a text object.
+/// Writer for a _text object_.
+///
+/// This struct is created by [`Content::text`].
 pub struct Text<'a> {
     buf: &'a mut Vec<u8>,
 }
@@ -150,46 +152,53 @@ impl Drop for Text<'_> {
     }
 }
 
-/// Writer for an _image XObject stream_.
+/// Writer for an _image XObject_.
+///
+/// This struct is created by [`PdfWriter::image`].
 pub struct ImageStream<'a> {
-    dict: Dict<'a, StreamGuard<'a, IndirectGuard>>,
+    stream: Stream<'a>,
 }
 
 impl<'a> ImageStream<'a> {
-    pub(crate) fn start(mut dict: Dict<'a, StreamGuard<'a, IndirectGuard>>) -> Self {
-        dict.pair(Name(b"Type"), Name(b"XObject"));
-        dict.pair(Name(b"Subtype"), Name(b"Image"));
-        Self { dict }
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+        stream.inner().pair(Name(b"Type"), Name(b"XObject"));
+        stream.inner().pair(Name(b"Subtype"), Name(b"Image"));
+        Self { stream }
     }
 
     /// Write the `/Width` attribute.
     pub fn width(&mut self, width: i32) -> &mut Self {
-        self.dict.pair(Name(b"Width"), width);
+        self.stream.inner().pair(Name(b"Width"), width);
         self
     }
 
     /// Write the `/Height` attribute.
     pub fn height(&mut self, height: i32) -> &mut Self {
-        self.dict.pair(Name(b"Height"), height);
+        self.stream.inner().pair(Name(b"Height"), height);
         self
     }
 
     /// Write the `/ColorSpace` attribute.
     pub fn color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.dict.pair(Name(b"ColorSpace"), space.name());
+        self.stream.inner().pair(Name(b"ColorSpace"), space.name());
         self
     }
 
     /// Write the `/BitsPerComponent` attribute.
     pub fn bits_per_component(&mut self, bits: i32) -> &mut Self {
-        self.dict.pair(Name(b"BitsPerComponent"), bits);
+        self.stream.inner().pair(Name(b"BitsPerComponent"), bits);
         self
     }
 
     /// Write the `/SMask` attribute.
     pub fn s_mask(&mut self, x_object: Ref) -> &mut Self {
-        self.dict.pair(Name(b"SMask"), x_object);
+        self.stream.inner().pair(Name(b"SMask"), x_object);
         self
+    }
+
+    /// Access the underlying stream writer.
+    pub fn inner(&mut self) -> &mut Stream<'a> {
+        &mut self.stream
     }
 }
 
@@ -198,12 +207,12 @@ impl<'a> ImageStream<'a> {
 #[allow(missing_docs)]
 pub enum ColorSpace {
     DeviceGray,
-    DeviceRGB,
-    DeviceCMYK,
+    DeviceRgb,
+    DeviceCmyk,
     CalGray,
-    CalRGB,
+    CalRgb,
     Lab,
-    ICCBased,
+    IccBased,
     Indexed,
     Pattern,
     Separation,
@@ -214,12 +223,12 @@ impl ColorSpace {
     fn name(self) -> Name<'static> {
         match self {
             Self::DeviceGray => Name(b"DeviceGray"),
-            Self::DeviceRGB => Name(b"DeviceRGB"),
-            Self::DeviceCMYK => Name(b"DeviceCMYK"),
+            Self::DeviceRgb => Name(b"DeviceRGB"),
+            Self::DeviceCmyk => Name(b"DeviceCMYK"),
             Self::CalGray => Name(b"CalGray"),
-            Self::CalRGB => Name(b"CalRGB"),
+            Self::CalRgb => Name(b"CalRGB"),
             Self::Lab => Name(b"Lab"),
-            Self::ICCBased => Name(b"ICCBased"),
+            Self::IccBased => Name(b"ICCBased"),
             Self::Indexed => Name(b"Indexed"),
             Self::Pattern => Name(b"Pattern"),
             Self::Separation => Name(b"Separation"),

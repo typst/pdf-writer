@@ -4,13 +4,13 @@ A step-by-step PDF writer.
 The entry point into the API is the main [`PdfWriter`].
 
 # Minimal example
-The following example creates a PDF with a single empty A4 page.
+The following example creates a PDF with a single, empty A4 page.
 
 ```
 use pdf_writer::{PdfWriter, Rect, Ref};
 
 # fn main() -> std::io::Result<()> {
-// Start writing with PDF version 1.7 header.
+// Start writing with the PDF version 1.7 header.
 let mut writer = PdfWriter::new(1, 7);
 
 // The document catalog and a page tree with one A4 page that uses no resources.
@@ -51,6 +51,7 @@ pub use content::{ColorSpace, Content};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 
 use std::convert::TryFrom;
+use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -64,6 +65,7 @@ pub struct PdfWriter {
     indent: usize,
 }
 
+/// Core methods.
 impl PdfWriter {
     /// Create a new PDF writer with the default buffer capacity
     /// (currently 8 KB).
@@ -98,83 +100,6 @@ impl PdfWriter {
     /// _Default value_: 0.
     pub fn set_indent(&mut self, indent: usize) {
         self.indent = indent;
-    }
-
-    /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Any<'_, IndirectGuard> {
-        let indirect = IndirectGuard::start(self, id, ());
-        Any::new(self, indirect)
-    }
-
-    /// Start writing a document catalog.
-    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
-        Catalog::start(self.indirect(id))
-    }
-
-    /// Start writing a page tree.
-    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        Pages::start(self.indirect(id))
-    }
-
-    /// Start writing a page.
-    pub fn page(&mut self, id: Ref) -> Page<'_> {
-        Page::start(self.indirect(id))
-    }
-
-    /// Start writing a Type-1 font.
-    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        Type1Font::start(self.indirect(id))
-    }
-
-    /// Start writing a Type-0 font.
-    pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
-        Type0Font::start(self.indirect(id))
-    }
-
-    /// Start writing a CID font.
-    pub fn cid_font(&mut self, id: Ref, subtype: CidFontType) -> CidFont<'_> {
-        CidFont::start(self.indirect(id), subtype)
-    }
-
-    /// Start writing a font descriptor.
-    pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
-        FontDescriptor::start(self.indirect(id))
-    }
-
-    /// Start writing an indirectly referenceable stream.
-    ///
-    /// The `/Length` field is added to the stream's dictionary automatically.
-    /// You can add additional key-value pairs with the returned dictionary
-    /// writer. The stream data is written once the dictionary is dropped.
-    pub fn stream<'a>(
-        &'a mut self,
-        id: Ref,
-        data: &'a [u8],
-    ) -> Dict<'a, StreamGuard<'a, IndirectGuard>> {
-        let data = data.as_ref();
-        let len = i32::try_from(data.len()).unwrap_or_else(|_| {
-            panic!("data length (is `{}`) must be < i32::MAX");
-        });
-
-        let indirect = IndirectGuard::start(self, id, ());
-        let stream = StreamGuard::new(data, indirect);
-
-        let mut dict = Dict::start(self, stream);
-        dict.pair(Name(b"Length"), len);
-        dict
-    }
-
-    /// Start writing a character map stream.
-    ///
-    /// If you want to use this for a `/ToUnicode` CMap, you can construct the
-    /// data with the [`UnicodeCmap`] builder.
-    pub fn cmap_stream<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> CmapStream<'a> {
-        CmapStream::start(self.stream(id, cmap))
-    }
-
-    /// Start writing an XObject image stream.
-    pub fn image_stream<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> ImageStream<'a> {
-        ImageStream::start(self.stream(id, samples))
     }
 
     /// Write the cross-reference table and file trailer and return the
@@ -237,6 +162,82 @@ impl PdfWriter {
         for _ in 0 .. width {
             self.buf.push(b' ');
         }
+    }
+}
+
+/// Indirect objects.
+impl PdfWriter {
+    /// Start writing an indirectly referenceable object.
+    pub fn indirect(&mut self, id: Ref) -> Any<'_, IndirectGuard> {
+        let indirect = IndirectGuard::start(self, id);
+        Any::new(self, indirect)
+    }
+
+    /// Start writing a document catalog.
+    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
+        Catalog::start(self.indirect(id))
+    }
+
+    /// Start writing a page tree.
+    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
+        Pages::start(self.indirect(id))
+    }
+
+    /// Start writing a page.
+    pub fn page(&mut self, id: Ref) -> Page<'_> {
+        Page::start(self.indirect(id))
+    }
+
+    /// Start writing a Type-1 font.
+    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
+        Type1Font::start(self.indirect(id))
+    }
+
+    /// Start writing a Type-0 font.
+    pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
+        Type0Font::start(self.indirect(id))
+    }
+
+    /// Start writing a CID font.
+    pub fn cid_font(&mut self, id: Ref, subtype: CidFontType) -> CidFont<'_> {
+        CidFont::start(self.indirect(id), subtype)
+    }
+
+    /// Start writing a font descriptor.
+    pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
+        FontDescriptor::start(self.indirect(id))
+    }
+}
+
+/// Streams.
+impl PdfWriter {
+    /// Start writing an indirectly referenceable stream.
+    ///
+    /// The stream data and the `/Length` field are written automatically. You
+    /// can add additional key-value pairs to the stream dictionary with the
+    /// returned stream writer.
+    pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
+        let indirect = IndirectGuard::start(self, id);
+        Stream::start(self, data, indirect)
+    }
+
+    /// Start writing a character map stream.
+    ///
+    /// If you want to use this for a `/ToUnicode` CMap, you can use the
+    /// [`UnicodeCmap`] builder to construct the data.
+    pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> CmapStream<'a> {
+        CmapStream::start(self.stream(id, cmap))
+    }
+
+    /// Start writing an XObject image stream.
+    pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> ImageStream<'a> {
+        ImageStream::start(self.stream(id, samples))
+    }
+}
+
+impl Debug for PdfWriter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.pad("PdfWriter(..)")
     }
 }
 
@@ -324,7 +325,7 @@ impl Object for f32 {
     }
 }
 
-/// A PDF string object (any byte sequence).
+/// A string object (any byte sequence).
 ///
 /// Written as `(Thing)` in a file.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -340,7 +341,7 @@ impl Object for Str<'_> {
     }
 }
 
-/// A PDF name object.
+/// A name object.
 ///
 /// Written as `/Thing` in a file.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -413,68 +414,6 @@ impl Object for Rect {
         buf.push(b' ');
         buf.push_val(self.y2);
         buf.push(b']');
-    }
-}
-
-/// Finishes an entity when released.
-///
-/// This is an implementation detail that you shouldn't need to worry about.
-pub trait Guard {
-    /// Finish the entity.
-    fn finish(&self, writer: &mut PdfWriter);
-}
-
-impl Guard for () {
-    fn finish(&self, _: &mut PdfWriter) {}
-}
-
-/// A guard that finishes an indirect object when released.
-///
-/// This is an implementation detail that you shouldn't need to worry about.
-pub struct IndirectGuard<G: Guard = ()> {
-    guard: G,
-}
-
-impl<G: Guard> IndirectGuard<G> {
-    fn start(w: &mut PdfWriter, id: Ref, guard: G) -> Self {
-        assert_eq!(w.depth, 0);
-        w.depth += 1;
-        w.offsets.push((id, w.buf.len()));
-        w.buf.push_int(id.0.get());
-        w.buf.push_bytes(b" 0 obj\n");
-        w.push_indent();
-        Self { guard }
-    }
-}
-
-impl<G: Guard> Guard for IndirectGuard<G> {
-    fn finish(&self, w: &mut PdfWriter) {
-        w.depth -= 1;
-        w.buf.push_bytes(b"\nendobj\n\n");
-        self.guard.finish(w);
-    }
-}
-
-/// A guard that finishes a stream when released.
-///
-/// This is an implementation detail that you shouldn't need to worry about.
-pub struct StreamGuard<'a, G: Guard = ()> {
-    data: &'a [u8],
-    guard: G,
-}
-
-impl<'a, G: Guard> StreamGuard<'a, G> {
-    fn new(data: &'a [u8], guard: G) -> Self {
-        Self { data, guard }
-    }
-}
-
-impl<G: Guard> Guard for StreamGuard<'_, G> {
-    fn finish(&self, w: &mut PdfWriter) {
-        w.buf.push_bytes(b"\nstream\n");
-        w.buf.push_bytes(self.data);
-        w.buf.push_bytes(b"\nendstream");
-        self.guard.finish(w);
     }
 }
 
@@ -663,5 +602,129 @@ impl<'a, T: Object, G: Guard> TypedDict<'a, T, G> {
     /// The number of written pairs.
     pub fn len(&self) -> i32 {
         self.dict.len()
+    }
+}
+
+/// Finishes an entity when released.
+///
+/// This is an implementation detail that you shouldn't need to worry about.
+pub trait Guard {
+    /// Finish the entity.
+    fn finish(&self, writer: &mut PdfWriter);
+}
+
+impl Guard for () {
+    fn finish(&self, _: &mut PdfWriter) {}
+}
+
+/// A guard that finishes an indirect object when released.
+///
+/// This is an implementation detail that you shouldn't need to worry about.
+pub struct IndirectGuard;
+
+impl IndirectGuard {
+    fn start(w: &mut PdfWriter, id: Ref) -> Self {
+        assert_eq!(w.depth, 0);
+        w.depth += 1;
+        w.offsets.push((id, w.buf.len()));
+        w.buf.push_int(id.0.get());
+        w.buf.push_bytes(b" 0 obj\n");
+        w.push_indent();
+        Self
+    }
+}
+
+impl Guard for IndirectGuard {
+    fn finish(&self, w: &mut PdfWriter) {
+        w.depth -= 1;
+        w.buf.push_bytes(b"\nendobj\n\n");
+    }
+}
+
+/// Writer for a stream dictionary.
+pub struct Stream<'a> {
+    dict: Dict<'a, StreamGuard<'a>>,
+}
+
+impl<'a> Stream<'a> {
+    fn start(w: &'a mut PdfWriter, data: &'a [u8], indirect: IndirectGuard) -> Self {
+        let stream = StreamGuard::new(data, indirect);
+
+        let mut dict = Dict::start(w, stream);
+        dict.pair(
+            Name(b"Length"),
+            i32::try_from(data.len()).unwrap_or_else(|_| {
+                panic!("data length (is `{}`) must be <= i32::MAX");
+            }),
+        );
+
+        Self { dict }
+    }
+
+    /// Write the `/Filter` attribute.
+    pub fn filter(&mut self, filter: Filter) -> &mut Self {
+        self.dict.pair(Name(b"Filter"), filter.name());
+        self
+    }
+
+    /// Access the underlying dictionary.
+    pub fn inner(&mut self) -> &mut Dict<'a, StreamGuard<'a>> {
+        &mut self.dict
+    }
+}
+
+/// A guard that finishes a stream when released.
+///
+/// This is an implementation detail that you shouldn't need to worry about.
+pub struct StreamGuard<'a> {
+    indirect: IndirectGuard,
+    data: &'a [u8],
+}
+
+impl<'a> StreamGuard<'a> {
+    fn new(data: &'a [u8], indirect: IndirectGuard) -> Self {
+        Self { indirect, data }
+    }
+}
+
+impl Guard for StreamGuard<'_> {
+    fn finish(&self, w: &mut PdfWriter) {
+        w.buf.push_bytes(b"\nstream\n");
+        w.buf.push_bytes(self.data);
+        w.buf.push_bytes(b"\nendstream");
+        self.indirect.finish(w);
+    }
+}
+
+/// A compression filter.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum Filter {
+    AsciiHexDecode,
+    Ascii85Decode,
+    LzwDecode,
+    FlateDecode,
+    RunLengthDecode,
+    CcittFaxDecode,
+    Jbig2Decode,
+    DctDecode,
+    JpxDecode,
+    Crypt,
+}
+
+impl Filter {
+    fn name(self) -> Name<'static> {
+        match self {
+            Self::AsciiHexDecode => Name(b"ASCIIHexDecode"),
+            Self::Ascii85Decode => Name(b"ASCII85Decode"),
+            Self::LzwDecode => Name(b"LZWDecode"),
+            Self::FlateDecode => Name(b"FlateDecode"),
+            Self::RunLengthDecode => Name(b"RunLengthDecode"),
+            Self::CcittFaxDecode => Name(b"CCITTFaxDecode"),
+            Self::Jbig2Decode => Name(b"JBIG2Decode"),
+            Self::DctDecode => Name(b"DCTDecode"),
+            Self::JpxDecode => Name(b"JPXDecode"),
+            Self::Crypt => Name(b"Crypt"),
+        }
     }
 }
