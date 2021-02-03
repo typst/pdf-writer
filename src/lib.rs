@@ -42,12 +42,12 @@ mod structure;
 /// Writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use content::{ImageStream, Text};
+    pub use content::{ImageStream, Path, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use structure::{Catalog, Page, Pages, Resources};
 }
 
-pub use content::{ColorSpace, Content};
+pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 
 use std::convert::TryFrom;

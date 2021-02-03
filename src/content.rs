@@ -59,7 +59,7 @@ impl Content {
     /// Panics if width is negative.
     pub fn line_width(&mut self, width: f32) -> &mut Self {
         if width < 0.0 {
-            panic!("width parameter must be positive");
+            panic!("width must be positive");
         }
 
         self.buf.push_val(width);
@@ -83,7 +83,6 @@ impl Content {
         self.buf.push(b' ');
         self.buf.push_val(b);
         self.buf.push_bytes(b" rg\n");
-
         self
     }
 
@@ -96,7 +95,6 @@ impl Content {
         self.buf.push(b' ');
         self.buf.push_val(b);
         self.buf.push_bytes(b" RG\n");
-
         self
     }
 
@@ -111,7 +109,6 @@ impl Content {
         self.buf.push(b' ');
         self.buf.push_val(k);
         self.buf.push_bytes(b" k\n");
-
         self
     }
 
@@ -126,7 +123,6 @@ impl Content {
         self.buf.push(b' ');
         self.buf.push_val(k);
         self.buf.push_bytes(b" K\n");
-
         self
     }
 
@@ -268,13 +264,7 @@ pub struct Path<'a> {
 
 impl<'a> Path<'a> {
     /// `m`: Create a new path at the current point.
-    fn start(
-        content: &'a mut Content,
-        x: f32,
-        y: f32,
-        stroke: bool,
-        fill: bool,
-    ) -> Self {
+    fn start(content: &'a mut Content, x: f32, y: f32, stroke: bool, fill: bool) -> Self {
         let buf = &mut content.buf;
         buf.push_val(x);
         buf.push(b' ');
@@ -289,7 +279,6 @@ impl<'a> Path<'a> {
         self.buf.push(b' ');
         self.buf.push_val(y);
         self.buf.push_bytes(b" l\n");
-
         self
     }
 
@@ -316,19 +305,12 @@ impl<'a> Path<'a> {
         self.buf.push(b' ');
         self.buf.push_val(y3);
         self.buf.push_bytes(b" c\n");
-
         self
     }
 
     /// `v`: Create a cubic Bézier segment to (x3, y3) with (x2, y2)
     /// as control point.
-    pub fn cubic_to_initial(
-        &mut self,
-        x2: f32,
-        y2: f32,
-        x3: f32,
-        y3: f32,
-    ) -> &mut Self {
+    pub fn cubic_to_initial(&mut self, x2: f32, y2: f32, x3: f32, y3: f32) -> &mut Self {
         self.buf.push_val(x2);
         self.buf.push(b' ');
         self.buf.push_val(y2);
@@ -337,19 +319,12 @@ impl<'a> Path<'a> {
         self.buf.push(b' ');
         self.buf.push_val(y3);
         self.buf.push_bytes(b" v\n");
-
         self
     }
 
     /// `y`: Create a cubic Bézier segment to (x3, y3) with (x1, y1)
     /// as control point.
-    pub fn cubic_to_final(
-        &mut self,
-        x1: f32,
-        y1: f32,
-        x3: f32,
-        y3: f32,
-    ) -> &mut Self {
+    pub fn cubic_to_final(&mut self, x1: f32, y1: f32, x3: f32, y3: f32) -> &mut Self {
         self.buf.push_val(x1);
         self.buf.push(b' ');
         self.buf.push_val(y1);
@@ -358,7 +333,6 @@ impl<'a> Path<'a> {
         self.buf.push(b' ');
         self.buf.push_val(y3);
         self.buf.push_bytes(b" y\n");
-
         self
     }
 
