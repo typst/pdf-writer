@@ -54,36 +54,29 @@ impl Content {
         self
     }
 
-    /// `w`: Set the stroke line with.
+    /// `w`: Set the stroke line width.
     ///
     /// Panics if width is negative.
     pub fn line_width(&mut self, width: f32) -> &mut Self {
         if width < 0.0 {
-            panic!("Width parameter must be positive");
+            panic!("width parameter must be positive");
         }
 
         self.buf.push_val(width);
         self.buf.push_bytes(b" w\n");
-
         self
     }
 
     /// `J`: Set the line cap style.
     pub fn line_cap(&mut self, cap: LineCapStyle) -> &mut Self {
-        self.buf.push_val(cap.int());
+        self.buf.push_val(cap.to_int());
         self.buf.push_bytes(b" J\n");
-
         self
     }
 
     /// `rg`: Set the fill color to the parameter and the color space to
     /// `DeviceRGB`.
-    pub fn color_rgb(
-        &mut self,
-        r: f32,
-        g: f32,
-        b: f32,
-    ) -> &mut Self {
+    pub fn fill_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.buf.push_val(r);
         self.buf.push(b' ');
         self.buf.push_val(g);
@@ -94,14 +87,9 @@ impl Content {
         self
     }
 
-    /// `RG`: Set the fill color to the parameter and the color space to
+    /// `RG`: Set the stroke color to the parameter and the color space to
     /// `DeviceRGB`.
-    pub fn color_stroke_rgb(
-        &mut self,
-        r: f32,
-        g: f32,
-        b: f32,
-    ) -> &mut Self {
+    pub fn stroke_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.buf.push_val(r);
         self.buf.push(b' ');
         self.buf.push_val(g);
@@ -114,13 +102,7 @@ impl Content {
 
     /// `k`: Set the fill color to the parameter and the color space to
     /// `DeviceCMYK`.
-    pub fn color_cmyk(
-        &mut self,
-        c: f32,
-        m: f32,
-        y: f32,
-        k: f32
-    ) -> &mut Self {
+    pub fn fill_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
         self.buf.push_val(c);
         self.buf.push(b' ');
         self.buf.push_val(m);
@@ -133,15 +115,9 @@ impl Content {
         self
     }
 
-    /// `K`: Set the fill color to the parameter and the color space to
+    /// `K`: Set the stroke color to the parameter and the color space to
     /// `DeviceCMYK`.
-    pub fn color_stroke_cmyk(
-        &mut self,
-        c: f32,
-        m: f32,
-        y: f32,
-        k: f32
-    ) -> &mut Self {
+    pub fn stroke_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
         self.buf.push_val(c);
         self.buf.push(b' ');
         self.buf.push_val(m);
@@ -155,7 +131,15 @@ impl Content {
     }
 
     /// `re`: Draws a rectangle.
-    pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32, stroke: bool, fill: bool) -> &mut Self {
+    pub fn rect(
+        &mut self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        stroke: bool,
+        fill: bool,
+    ) -> &mut Self {
         self.buf.push_val(x);
         self.buf.push(b' ');
         self.buf.push_val(y);
@@ -165,13 +149,7 @@ impl Content {
         self.buf.push_val(height);
         self.buf.push_bytes(b" re\n");
 
-        if stroke && fill {
-            self.buf.push_bytes(b"B\n");
-        } else if stroke {
-            self.buf.push_bytes(b"S\n");
-        } else if fill {
-            self.buf.push_bytes(b"f\n");
-        }
+        terminate_path(&mut self.buf, stroke, fill);
 
         self
     }
@@ -290,7 +268,13 @@ pub struct Path<'a> {
 
 impl<'a> Path<'a> {
     /// `m`: Create a new path at the current point.
-    pub fn start(content: &'a mut Content, x: f32, y: f32, stroke: bool, fill: bool) -> Self {
+    fn start(
+        content: &'a mut Content,
+        x: f32,
+        y: f32,
+        stroke: bool,
+        fill: bool,
+    ) -> Self {
         let buf = &mut content.buf;
         buf.push_val(x);
         buf.push(b' ');
@@ -311,7 +295,15 @@ impl<'a> Path<'a> {
 
     /// `c`: Create a cubic Bézier segment to (x3, y3) with (x1, y1), (x2, y2)
     /// as control points.
-    pub fn cubic_bezier_3cp(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32) -> &mut Self {
+    pub fn cubic_to(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        x3: f32,
+        y3: f32,
+    ) -> &mut Self {
         self.buf.push_val(x1);
         self.buf.push(b' ');
         self.buf.push_val(y1);
@@ -330,7 +322,13 @@ impl<'a> Path<'a> {
 
     /// `v`: Create a cubic Bézier segment to (x3, y3) with (x2, y2)
     /// as control point.
-    pub fn cubic_bezier_2cp_a(&mut self, x2: f32, y2: f32, x3: f32, y3: f32) -> &mut Self {
+    pub fn cubic_to_initial(
+        &mut self,
+        x2: f32,
+        y2: f32,
+        x3: f32,
+        y3: f32,
+    ) -> &mut Self {
         self.buf.push_val(x2);
         self.buf.push(b' ');
         self.buf.push_val(y2);
@@ -345,7 +343,13 @@ impl<'a> Path<'a> {
 
     /// `y`: Create a cubic Bézier segment to (x3, y3) with (x1, y1)
     /// as control point.
-    pub fn cubic_bezier_2cp_b(&mut self, x1: f32, y1: f32, x3: f32, y3: f32) -> &mut Self {
+    pub fn cubic_to_final(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x3: f32,
+        y3: f32,
+    ) -> &mut Self {
         self.buf.push_val(x1);
         self.buf.push(b' ');
         self.buf.push_val(y1);
@@ -361,20 +365,25 @@ impl<'a> Path<'a> {
     /// `h`: Closes the path with a straight line.
     pub fn close_path(&mut self) -> &mut Self {
         self.buf.push_bytes(b"h\n");
-
         self
     }
 }
 
 impl Drop for Path<'_> {
     fn drop(&mut self) {
-        if self.stroke && self.fill {
-            self.buf.push_bytes(b"B\n");
-        } else if self.stroke {
-            self.buf.push_bytes(b"S\n");
-        } else if self.fill {
-            self.buf.push_bytes(b"f\n");
-        }
+        terminate_path(self.buf, self.stroke, self.fill);
+    }
+}
+
+fn terminate_path(buf: &mut Vec<u8>, stroke: bool, fill: bool) {
+    if stroke && fill {
+        buf.push_bytes(b"B\n");
+    } else if stroke {
+        buf.push_bytes(b"S\n");
+    } else if fill {
+        buf.push_bytes(b"f\n");
+    } else {
+        buf.push_bytes(b"n\n");
     }
 }
 
@@ -406,7 +415,7 @@ impl<'a> ImageStream<'a> {
 
     /// Write the `/ColorSpace` attribute.
     pub fn color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.stream.inner().pair(Name(b"ColorSpace"), space.name());
+        self.stream.inner().pair(Name(b"ColorSpace"), space.to_name());
         self
     }
 
@@ -446,7 +455,7 @@ pub enum ColorSpace {
 }
 
 impl ColorSpace {
-    fn name(self) -> Name<'static> {
+    fn to_name(self) -> Name<'static> {
         match self {
             Self::DeviceGray => Name(b"DeviceGray"),
             Self::DeviceRgb => Name(b"DeviceRGB"),
@@ -471,13 +480,13 @@ pub enum LineCapStyle {
     /// Round the line off at its end with a semicircular arc as wide as the
     /// stroke.
     RoundCap,
-    /// End the line with a square cap that prodtrudes by half the width of the
+    /// End the line with a square cap that protrudes by half the width of the
     /// stroke.
     ProjectingSquareCap,
 }
 
 impl LineCapStyle {
-    fn int(self) -> i32 {
+    fn to_int(self) -> i32 {
         match self {
             Self::ButtCap => 0,
             Self::RoundCap => 1,
