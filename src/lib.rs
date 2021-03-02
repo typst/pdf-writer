@@ -52,6 +52,7 @@ pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 
 use std::convert::TryFrom;
 use std::fmt::{self, Debug, Formatter};
+use std::io::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -133,8 +134,7 @@ impl PdfWriter {
                 next += 1;
             }
 
-            self.buf.push_int_aligned(offset, 10);
-            self.buf.push_bytes(b" 00000 n\r\n");
+            write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
             next = id + 1;
         }
 
@@ -151,7 +151,7 @@ impl PdfWriter {
 
         // Write where the cross-reference table starts.
         self.buf.push_bytes(b"\nstartxref\n");
-        self.buf.push_int(xref_offset);
+        write!(self.buf, "{}", xref_offset).unwrap();
 
         // Write the end of file marker.
         self.buf.push_bytes(b"\n%%EOF");
@@ -244,8 +244,7 @@ impl Debug for PdfWriter {
 trait BufExt {
     fn push_val<T: Object>(&mut self, value: T);
     fn push_bytes(&mut self, bytes: &[u8]);
-    fn push_int<I: itoa::Integer>(&mut self, value: I);
-    fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize);
+    fn push_int(&mut self, value: i32);
     fn push_float(&mut self, value: f32);
     fn push_hex(&mut self, value: u8);
     fn push_hex_u16(&mut self, value: u16);
@@ -260,26 +259,12 @@ impl BufExt for Vec<u8> {
         self.extend_from_slice(bytes);
     }
 
-    fn push_int<I: itoa::Integer>(&mut self, value: I) {
-        self.push_bytes(itoa::Buffer::new().format(value).as_bytes());
-    }
-
-    fn push_int_aligned<I: itoa::Integer>(&mut self, value: I, align: usize) {
-        let mut buffer = itoa::Buffer::new();
-        let number = buffer.format(value);
-        for _ in 0 .. align.saturating_sub(number.len()) {
-            self.push(b'0');
-        }
-        self.push_bytes(number.as_bytes());
+    fn push_int(&mut self, value: i32) {
+        write!(self, "{}", value).unwrap();
     }
 
     fn push_float(&mut self, value: f32) {
-        let int = value as i32;
-        if int as f32 == value {
-            self.push_int(int);
-        } else {
-            self.push_bytes(ryu::Buffer::new().format(value).as_bytes());
-        }
+        write!(self, "{}", value).unwrap();
     }
 
     fn push_hex(&mut self, value: u8) {
@@ -649,12 +634,13 @@ pub struct Stream<'a> {
 impl<'a> Stream<'a> {
     fn start(w: &'a mut PdfWriter, data: &'a [u8], indirect: IndirectGuard) -> Self {
         let stream = StreamGuard::new(data, indirect);
+        let len = data.len();
 
         let mut dict = Dict::start(w, stream);
         dict.pair(
             Name(b"Length"),
-            i32::try_from(data.len()).unwrap_or_else(|_| {
-                panic!("data length (is `{}`) must be <= i32::MAX");
+            i32::try_from(len).unwrap_or_else(|_| {
+                panic!("data length (is `{}`) must be <= i32::MAX", len);
             }),
         );
 

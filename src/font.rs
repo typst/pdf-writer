@@ -283,7 +283,7 @@ impl<'a> CmapStream<'a> {
 pub struct UnicodeCmap {
     buf: Vec<u8>,
     mappings: Vec<u8>,
-    count: usize,
+    count: i32,
 }
 
 impl UnicodeCmap {
