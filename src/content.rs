@@ -126,7 +126,7 @@ impl Content {
         self
     }
 
-    /// `re`: Draws a rectangle.
+    /// `re`: Draw a rectangle.
     pub fn rect(
         &mut self,
         x: f32,
@@ -150,9 +150,9 @@ impl Content {
         self
     }
 
-    /// `m ... h / S / f / B`: Start drawing a path at (x, y).
-    pub fn path(&mut self, x: f32, y: f32, stroke: bool, fill: bool) -> Path<'_> {
-        Path::start(self, x, y, stroke, fill)
+    /// `... h / S / f / B`: Start drawing a bezier path.
+    pub fn path(&mut self, stroke: bool, fill: bool) -> Path<'_> {
+        Path::start(self, stroke, fill)
     }
 
     /// `BT ... ET`: Start writing a text object.
@@ -263,14 +263,18 @@ pub struct Path<'a> {
 }
 
 impl<'a> Path<'a> {
-    /// `m`: Create a new path at the current point.
-    fn start(content: &'a mut Content, x: f32, y: f32, stroke: bool, fill: bool) -> Self {
-        let buf = &mut content.buf;
-        buf.push_val(x);
-        buf.push(b' ');
-        buf.push_val(y);
-        buf.push_bytes(b" m\n");
-        Self { buf, stroke, fill }
+    /// Create a new path.
+    fn start(content: &'a mut Content, stroke: bool, fill: bool) -> Self {
+        Self { buf: &mut content.buf, stroke, fill }
+    }
+
+    /// `m`: Move to (x, y).
+    pub fn move_to(&mut self, x: f32, y: f32) -> &mut Self {
+        self.buf.push_val(x);
+        self.buf.push(b' ');
+        self.buf.push_val(y);
+        self.buf.push_bytes(b" m\n");
+        self
     }
 
     /// `l`: Draw a straight line to (x, y).
