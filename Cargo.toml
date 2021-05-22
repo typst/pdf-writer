@@ -3,6 +3,12 @@ name = "pdf-writer"
 version = "0.1.0"
 authors = ["Laurenz <laurmaedje@gmail.com>"]
 edition = "2018"
+description = "A step-by-step PDF writer."
+repository = "https://github.com/typst/pdf-writer"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+categories = ["encoding", "multimedia"]
+keywords = ["pdf", "writer"]
 
 [dependencies]
 bitflags = "1.2"

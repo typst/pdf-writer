@@ -1,7 +1,8 @@
 /*!
 A step-by-step PDF writer.
 
-The entry point into the API is the main [`PdfWriter`].
+The entry point into the API is the main [`PdfWriter`]. The document is written
+into one big internal buffer, but otherwise the API is largely non-allocating.
 
 # Minimal example
 The following example creates a PDF with a single, empty A4 page.
