@@ -107,7 +107,7 @@ impl PdfWriter {
     /// Write the cross-reference table and file trailer and return the
     /// underlying buffer.
     pub fn finish(mut self, catalog_id: Ref) -> Vec<u8> {
-        assert_eq!(self.depth, 0);
+        assert_eq!(self.depth, 0, "unfinished object");
         let (xref_len, xref_offset) = self.xref_table();
         self.trailer(catalog_id, xref_len, xref_offset);
         self.buf
@@ -414,6 +414,7 @@ impl Object for Rect {
 }
 
 /// Writer for an arbitrary object.
+#[must_use = "not consuming this leaves the writer in an inconsistent state"]
 pub struct Any<'a, G: Guard = ()> {
     w: &'a mut PdfWriter,
     guard: G,
@@ -427,6 +428,7 @@ impl<'a, G: Guard> Any<'a, G> {
     /// Write a basic object.
     pub fn obj<T: Object>(self, object: T) {
         object.write(&mut self.w.buf);
+        self.guard.finish(self.w);
     }
 
     /// Write an array.
