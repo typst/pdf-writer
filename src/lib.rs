@@ -113,6 +113,11 @@ impl PdfWriter {
         self.buf
     }
 
+    /// The number of bytes that were written so far.
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
     fn xref_table(&mut self) -> (i32, usize) {
         let mut offsets = std::mem::take(&mut self.offsets);
         offsets.sort();
