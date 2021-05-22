@@ -1,4 +1,4 @@
-use pdf_writer::{Content, Name, PdfWriter, Rect, Ref};
+use pdf_writer::{Content, Name, PdfWriter, Rect, Ref, Str};
 
 fn main() -> std::io::Result<()> {
     // Start writing with PDF version 1.7 header. The version is not
@@ -55,7 +55,7 @@ fn main() -> std::io::Result<()> {
         .text()
         .font(Name(b"F1"), 14.0)
         .next_line(108.0, 734.0)
-        .show(b"Hello World from Rust!");
+        .show(Str(b"Hello World from Rust!"));
 
     writer.stream(text_id, &content.finish());
 

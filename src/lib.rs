@@ -318,30 +318,46 @@ impl Primitive for f32 {
 
 /// A string object (any byte sequence).
 ///
-/// Written as `(Thing)` in a file.
+/// This is usually written as `(Thing)`. However, it falls back to hexadecimal
+/// form (e.g. `<2829>` for the string `"()"`) if the byte sequence contains any
+/// of the three ASCII characters `\`, `(` or `)`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Str<'a>(pub &'a [u8]);
 
 impl Primitive for Str<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        // TODO: Escape when necessary, select best encoding, reserve size
-        // upfront.
-        buf.push(b'(');
-        buf.push_bytes(self.0);
-        buf.push(b')');
+        if self.0.iter().any(|b| matches!(b, b'\\' | b'(' | b')')) {
+            buf.reserve(2 + 2 * self.0.len());
+            buf.push(b'<');
+            for &byte in self.0 {
+                buf.push_hex(byte);
+            }
+            buf.push(b'>');
+        } else {
+            buf.push(b'(');
+            buf.push_bytes(self.0);
+            buf.push(b')');
+        }
     }
 }
 
 /// A name object.
 ///
-/// Written as `/Thing` in a file.
+/// Written as `/Thing`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
-        buf.push_bytes(self.0);
+        for &byte in self.0 {
+            if matches!(byte, b'!' ..= b'~') && byte != b'#' {
+                buf.push(byte);
+            } else {
+                buf.push(b'#');
+                buf.push_hex(byte);
+            }
+        }
     }
 }
 

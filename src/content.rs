@@ -235,14 +235,10 @@ impl<'a> Text<'a> {
 
     /// `Tj`: Show text.
     ///
-    /// This function takes raw bytes. The encoding is up to you.
-    pub fn show(&mut self, text: &[u8]) -> &mut Self {
-        // TODO: Move to general string formatting.
-        self.buf.push(b'<');
-        for &byte in text {
-            self.buf.push_hex(byte);
-        }
-        self.buf.push_bytes(b"> Tj\n");
+    /// The encoding of the text is up to you.
+    pub fn show(&mut self, text: Str) -> &mut Self {
+        self.buf.push_val(text);
+        self.buf.push_bytes(b" Tj\n");
         self
     }
 }

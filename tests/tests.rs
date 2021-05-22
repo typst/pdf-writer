@@ -69,14 +69,26 @@ fn test_object_unused() {
 
 #[test]
 fn test_primitive_objects() {
+    // Test really simple objects.
     test_primitive!(true, "true");
     test_primitive!(false, "false");
     test_primitive!(78, "78");
     test_primitive!(4.22, "4.22");
-    test_primitive!(Str(b"hello"), "(hello)");
-    test_primitive!(Name(b"Filter"), "/Filter");
     test_primitive!(Ref::new(7), "7 0 R");
     test_primitive!(Null, "null");
+
+    // Test strings.
+    test_primitive!(Str(b"Hello, World!"), "(Hello, World!)");
+    test_primitive!(Str(b"()"), "<2829>");
+    test_primitive!(Str(br"\"), "<5C>");
+    test_primitive!(Str(br"\n"), "<5C6E>");
+
+    // Test names.
+    test_primitive!(Name(b"Filter"), "/Filter");
+    test_primitive!(Name(b"A B"), r"/A#20B");
+    test_primitive!(Name(b"~+c"), r"/~+c");
+    test_primitive!(Name(b"#"), r"/#23");
+    test_primitive!(Name(b"\n"), r"/#0A");
 }
 
 #[test]
