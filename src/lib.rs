@@ -174,9 +174,9 @@ impl PdfWriter {
 /// Indirect objects.
 impl PdfWriter {
     /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Any<'_, IndirectGuard> {
+    pub fn indirect(&mut self, id: Ref) -> Obj<'_, IndirectGuard> {
         let indirect = IndirectGuard::start(self, id);
-        Any::new(self, indirect)
+        Obj::new(self, indirect)
     }
 
     /// Start writing a document catalog.
@@ -248,7 +248,7 @@ impl Debug for PdfWriter {
 }
 
 trait BufExt {
-    fn push_val<T: Object>(&mut self, value: T);
+    fn push_val<T: Primitive>(&mut self, value: T);
     fn push_bytes(&mut self, bytes: &[u8]);
     fn push_int(&mut self, value: i32);
     fn push_float(&mut self, value: f32);
@@ -257,7 +257,7 @@ trait BufExt {
 }
 
 impl BufExt for Vec<u8> {
-    fn push_val<T: Object>(&mut self, value: T) {
+    fn push_val<T: Primitive>(&mut self, value: T) {
         value.write(self);
     }
 
@@ -288,13 +288,13 @@ impl BufExt for Vec<u8> {
     }
 }
 
-/// A PDF object.
-pub trait Object {
+/// A primitive PDF object.
+pub trait Primitive {
     /// Write the object into a buffer.
     fn write(self, buf: &mut Vec<u8>);
 }
 
-impl Object for bool {
+impl Primitive for bool {
     fn write(self, buf: &mut Vec<u8>) {
         if self {
             buf.push_bytes(b"true");
@@ -304,13 +304,13 @@ impl Object for bool {
     }
 }
 
-impl Object for i32 {
+impl Primitive for i32 {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push_int(self);
     }
 }
 
-impl Object for f32 {
+impl Primitive for f32 {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push_float(self);
     }
@@ -322,7 +322,7 @@ impl Object for f32 {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Str<'a>(pub &'a [u8]);
 
-impl Object for Str<'_> {
+impl Primitive for Str<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         // TODO: Escape when necessary, select best encoding, reserve size
         // upfront.
@@ -338,7 +338,7 @@ impl Object for Str<'_> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Name<'a>(pub &'a [u8]);
 
-impl Object for Name<'_> {
+impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         buf.push_bytes(self.0);
@@ -349,7 +349,7 @@ impl Object for Name<'_> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Null;
 
-impl Object for Null {
+impl Primitive for Null {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push_bytes(b"null");
     }
@@ -377,7 +377,7 @@ impl Ref {
     }
 }
 
-impl Object for Ref {
+impl Primitive for Ref {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push_int(self.0.get());
         buf.push_bytes(b" 0 R");
@@ -404,7 +404,7 @@ impl Rect {
     }
 }
 
-impl Object for Rect {
+impl Primitive for Rect {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'[');
         buf.push_val(self.x1);
@@ -420,19 +420,19 @@ impl Object for Rect {
 
 /// Writer for an arbitrary object.
 #[must_use = "not consuming this leaves the writer in an inconsistent state"]
-pub struct Any<'a, G: Guard = ()> {
+pub struct Obj<'a, G: Guard = ()> {
     w: &'a mut PdfWriter,
     guard: G,
 }
 
-impl<'a, G: Guard> Any<'a, G> {
+impl<'a, G: Guard> Obj<'a, G> {
     fn new(w: &'a mut PdfWriter, guard: G) -> Self {
         Self { w, guard }
     }
 
-    /// Write a basic object.
-    pub fn obj<T: Object>(self, object: T) {
-        object.write(&mut self.w.buf);
+    /// Write a primitive object.
+    pub fn primitive<T: Primitive>(self, value: T) {
+        value.write(&mut self.w.buf);
         self.guard.finish(self.w);
     }
 
@@ -460,21 +460,21 @@ impl<'a, G: Guard> Array<'a, G> {
         Self { w, len: 0, guard }
     }
 
-    /// Write an item with a basic object value.
+    /// Write an item with a primitive object value.
     ///
-    /// This is a shorthand for `array.any().obj(value)`.
-    pub fn item<T: Object>(&mut self, object: T) -> &mut Self {
-        self.any().obj(object);
+    /// This is a shorthand for `array.obj().primitive(value)`.
+    pub fn item<T: Primitive>(&mut self, value: T) -> &mut Self {
+        self.obj().primitive(value);
         self
     }
 
-    /// Write any object item.
-    pub fn any(&mut self) -> Any<'_> {
+    /// Write an item with an arbitrary object value.
+    pub fn obj(&mut self) -> Obj<'_> {
         if self.len != 0 {
             self.w.buf.push(b' ');
         }
         self.len += 1;
-        Any::new(self.w, ())
+        Obj::new(self.w, ())
     }
 
     /// The number of written items.
@@ -483,7 +483,7 @@ impl<'a, G: Guard> Array<'a, G> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Object>(self) -> TypedArray<'a, T, G> {
+    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T, G> {
         TypedArray::new(self)
     }
 }
@@ -501,7 +501,7 @@ pub struct TypedArray<'a, T, G: Guard = ()> {
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Object, G: Guard> TypedArray<'a, T, G> {
+impl<'a, T: Primitive, G: Guard> TypedArray<'a, T, G> {
     /// Wrap an array to make it type-safe.
     pub fn new(array: Array<'a, G>) -> Self {
         Self { array, phantom: PhantomData }
@@ -509,7 +509,7 @@ impl<'a, T: Object, G: Guard> TypedArray<'a, T, G> {
 
     /// Write an item.
     pub fn item(&mut self, value: T) -> &mut Self {
-        self.array.any().obj(value);
+        self.array.obj().primitive(value);
         self
     }
 
@@ -541,16 +541,16 @@ impl<'a, G: Guard> Dict<'a, G> {
         Self { w, len: 0, guard }
     }
 
-    /// Write a pair with a basic object value.
+    /// Write a pair with a primitive object value.
     ///
-    /// This is a shorthand for `dict.key(key).obj(value)`.
-    pub fn pair<T: Object>(&mut self, key: Name, object: T) -> &mut Self {
-        self.key(key).obj(object);
+    /// This is a shorthand for `dict.key(key).primitive(value)`.
+    pub fn pair<T: Primitive>(&mut self, key: Name, value: T) -> &mut Self {
+        self.key(key).primitive(value);
         self
     }
 
-    /// Write a pair with any object as the value.
-    pub fn key(&mut self, key: Name) -> Any<'_> {
+    /// Write a pair with an arbitrary object value.
+    pub fn key(&mut self, key: Name) -> Obj<'_> {
         if self.len != 0 {
             self.w.buf.push(b'\n');
         }
@@ -558,7 +558,7 @@ impl<'a, G: Guard> Dict<'a, G> {
         self.w.push_indent();
         self.w.buf.push_val(key);
         self.w.buf.push(b' ');
-        Any::new(self.w, ())
+        Obj::new(self.w, ())
     }
 
     /// The number of written pairs.
@@ -567,7 +567,7 @@ impl<'a, G: Guard> Dict<'a, G> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Object>(self) -> TypedDict<'a, T, G> {
+    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T, G> {
         TypedDict::new(self)
     }
 }
@@ -590,7 +590,7 @@ pub struct TypedDict<'a, T, G: Guard = ()> {
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Object, G: Guard> TypedDict<'a, T, G> {
+impl<'a, T: Primitive, G: Guard> TypedDict<'a, T, G> {
     /// Wrap a dictionary to make it type-safe.
     pub fn new(dict: Dict<'a, G>) -> Self {
         Self { dict, phantom: PhantomData }

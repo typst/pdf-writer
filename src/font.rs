@@ -8,8 +8,8 @@ pub struct Type1Font<'a> {
 }
 
 impl<'a> Type1Font<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type1"));
         Self { dict }
@@ -30,8 +30,8 @@ pub struct Type0Font<'a> {
 }
 
 impl<'a> Type0Font<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type0"));
         Self { dict }
@@ -79,8 +79,8 @@ pub struct CidFont<'a> {
 }
 
 impl<'a> CidFont<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>, subtype: CidFontType) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>, subtype: CidFontType) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), subtype.name());
         Self { dict }
@@ -136,8 +136,8 @@ pub struct Widths<'a> {
 }
 
 impl<'a> Widths<'a> {
-    pub(crate) fn start(any: Any<'a>) -> Self {
-        Self { array: any.array() }
+    pub(crate) fn start(obj: Obj<'a>) -> Self {
+        Self { array: obj.array() }
     }
 
     /// Specifies individual widths for a range of CIDs starting at `start`.
@@ -147,7 +147,7 @@ impl<'a> Widths<'a> {
         widths: impl IntoIterator<Item = f32>,
     ) -> &mut Self {
         self.array.item(i32::from(start));
-        self.array.any().array().typed().items(widths);
+        self.array.obj().array().typed().items(widths);
         self
     }
 
@@ -168,8 +168,8 @@ pub struct FontDescriptor<'a> {
 }
 
 impl<'a> FontDescriptor<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"FontDescriptor"));
         Self { dict }
     }
@@ -405,8 +405,8 @@ pub struct SystemInfo<'a> {
 }
 
 impl SystemInfo<'_> {
-    fn write(&self, any: Any<'_>) {
-        any.dict()
+    fn write(&self, obj: Obj<'_>) {
+        obj.dict()
             .pair(Name(b"Registry"), self.registry)
             .pair(Name(b"Ordering"), self.ordering)
             .pair(Name(b"Supplement"), self.supplement);

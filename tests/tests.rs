@@ -10,9 +10,9 @@ macro_rules! test {
 }
 
 /// Test how a basic object is written.
-macro_rules! test_obj {
+macro_rules! test_primitive {
     ($basic:expr, $($tts:tt)*) => {{
-        let buf = with(|w| w.indirect(Ref::new(1)).obj($basic));
+        let buf = with(|w| w.indirect(Ref::new(1)).primitive($basic));
         test!(&buf[8 .. buf.len() - 9], $($tts)*)
     }}
 }
@@ -44,13 +44,13 @@ fn test_minimal() {
 }
 
 #[test]
-fn test_basic_objects() {
-    test_obj!(true, "true");
-    test_obj!(false, "false");
-    test_obj!(78, "78");
-    test_obj!(4.22, "4.22");
-    test_obj!(Str(b"hello"), "(hello)");
-    test_obj!(Name(b"Filter"), "/Filter");
-    test_obj!(Ref::new(7), "7 0 R");
-    test_obj!(Null, "null");
+fn test_primitive_objects() {
+    test_primitive!(true, "true");
+    test_primitive!(false, "false");
+    test_primitive!(78, "78");
+    test_primitive!(4.22, "4.22");
+    test_primitive!(Str(b"hello"), "(hello)");
+    test_primitive!(Name(b"Filter"), "/Filter");
+    test_primitive!(Ref::new(7), "7 0 R");
+    test_primitive!(Null, "null");
 }

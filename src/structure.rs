@@ -8,8 +8,8 @@ pub struct Catalog<'a> {
 }
 
 impl<'a> Catalog<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Catalog"));
         Self { dict }
     }
@@ -29,8 +29,8 @@ pub struct Pages<'a> {
 }
 
 impl<'a> Pages<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Pages"));
         Self { dict }
     }
@@ -68,8 +68,8 @@ pub struct Page<'a> {
 }
 
 impl<'a> Page<'a> {
-    pub(crate) fn start(any: Any<'a, IndirectGuard>) -> Self {
-        let mut dict = any.dict();
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Page"));
         Self { dict }
     }
@@ -106,8 +106,8 @@ pub struct Resources<'a> {
 }
 
 impl<'a> Resources<'a> {
-    fn new(any: Any<'a>) -> Self {
-        Self { dict: any.dict() }
+    fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
     }
 
     /// Start writing the `/XObject` dictionary.
