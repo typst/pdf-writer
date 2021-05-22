@@ -340,7 +340,17 @@ impl Object for Name<'_> {
     }
 }
 
-/// An indirect reference.
+/// The null object.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Null;
+
+impl Object for Null {
+    fn write(self, buf: &mut Vec<u8>) {
+        buf.push_bytes(b"null");
+    }
+}
+
+/// A reference to an indirect object.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Ref(NonZeroI32);
 
