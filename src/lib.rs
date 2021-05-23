@@ -122,29 +122,40 @@ impl PdfWriter {
     }
 
     fn xref_table(&mut self) -> (i32, usize) {
-        let mut offsets = std::mem::take(&mut self.offsets);
-        offsets.sort();
+        self.offsets.sort();
 
-        let xref_len = 1 + offsets.last().map(|p| p.0.get()).unwrap_or(0);
+        let xref_len = 1 + self.offsets.last().map_or(0, |p| p.0.get());
         let xref_offset = self.buf.len();
 
         self.buf.push_bytes(b"xref\n0 ");
         self.buf.push_int(xref_len);
+        self.buf.push(b'\n');
 
-        // Always write the initial entry for unusable id zero.
-        self.buf.push_bytes(b"\n0000000000 65535 f\r\n");
-        let mut next = 1;
+        let mut idx = 0;
+        let mut free = 0;
 
-        for &(id, offset) in &offsets {
-            let id = id.get();
-            while next < id {
-                // TODO: Form linked list of free items.
-                self.buf.push_bytes(b"0000000000 65535 f\r\n");
-                next += 1;
+        loop {
+            // Find the next free entry.
+            let start = idx;
+            let mut link = free + 1;
+            while self.offsets.get(idx).map_or(false, |(id, _)| link == id.get()) {
+                idx += 1;
+                link += 1;
             }
 
-            write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
-            next = id + 1;
+            // A free entry links to next free entry.
+            let gen = if free == 0 { "65535" } else { "00000" };
+            write!(self.buf, "{:010} {} f\r\n", link % xref_len, gen).unwrap();
+            free = link;
+
+            // A used entries contain to offset in file.
+            for &(_, offset) in &self.offsets[start .. idx] {
+                write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
+            }
+
+            if idx >= self.offsets.len() {
+                break;
+            }
         }
 
         (xref_len, xref_offset)

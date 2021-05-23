@@ -52,10 +52,56 @@ fn test_minimal() {
         w.finish(Ref::new(1)),
         "%PDF-1.7\n\n",
         "xref\n0 1\n0000000000 65535 f\r\n",
-        "trailer\n",
-        "<<\n/Size 1\n/Root 1 0 R\n>>\n",
+        "trailer\n<<\n/Size 1\n/Root 1 0 R\n>>\n",
         "startxref\n10\n%%EOF",
     );
+}
+
+#[test]
+fn test_xref_free_list_short() {
+    let mut w = PdfWriter::new(1, 7);
+    w.indirect(Ref::new(1)).primitive(1);
+    w.indirect(Ref::new(2)).primitive(2);
+    test!(
+        w.finish(Ref::new(1)),
+        "%PDF-1.7\n\n",
+        "1 0 obj\n1\nendobj\n\n",
+        "2 0 obj\n2\nendobj\n\n",
+        "xref\n",
+        "0 3\n",
+        "0000000000 65535 f\r\n",
+        "0000000010 00000 n\r\n",
+        "0000000028 00000 n\r\n",
+        "trailer\n",
+        "<<\n/Size 3\n/Root 1 0 R\n>>\n",
+        "startxref\n46\n%%EOF",
+    )
+}
+
+#[test]
+fn test_xref_free_list_long() {
+    let mut w = PdfWriter::new(1, 4);
+    w.indirect(Ref::new(1)).primitive(1);
+    w.indirect(Ref::new(2)).primitive(2);
+    w.indirect(Ref::new(5)).primitive(5);
+    test!(
+        w.finish(Ref::new(2)),
+        "%PDF-1.4\n\n",
+        "1 0 obj\n1\nendobj\n\n",
+        "2 0 obj\n2\nendobj\n\n",
+        "5 0 obj\n5\nendobj\n\n",
+        "xref\n",
+        "0 6\n",
+        "0000000003 65535 f\r\n",
+        "0000000010 00000 n\r\n",
+        "0000000028 00000 n\r\n",
+        "0000000004 00000 f\r\n",
+        "0000000000 00000 f\r\n",
+        "0000000046 00000 n\r\n",
+        "trailer\n",
+        "<<\n/Size 6\n/Root 2 0 R\n>>\n",
+        "startxref\n64\n%%EOF",
+    )
 }
 
 #[test]
