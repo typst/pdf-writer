@@ -184,7 +184,7 @@ pub struct Text<'a> {
 }
 
 impl<'a> Text<'a> {
-    fn start(content: &'a mut Content) -> Self {
+    pub(crate) fn start(content: &'a mut Content) -> Self {
         let buf = &mut content.buf;
         buf.push_bytes(b"BT\n");
         Self { buf }
@@ -260,7 +260,7 @@ pub struct Path<'a> {
 
 impl<'a> Path<'a> {
     /// Create a new path.
-    fn start(content: &'a mut Content, stroke: bool, fill: bool) -> Self {
+    pub(crate) fn start(content: &'a mut Content, stroke: bool, fill: bool) -> Self {
         Self { buf: &mut content.buf, stroke, fill }
     }
 

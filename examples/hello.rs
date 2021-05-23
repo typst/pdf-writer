@@ -9,12 +9,13 @@ fn main() -> std::io::Result<()> {
     // Make the output more readable by indenting things with 2 spaces.
     writer.set_indent(2);
 
-    // Define some indirect reference ids we'll to use.
+    // Define some indirect reference ids we'll use.
     let catalog_id = Ref::new(1);
     let page_tree_id = Ref::new(2);
     let page_id = Ref::new(3);
     let font_id = Ref::new(4);
     let text_id = Ref::new(5);
+    let font_name = Name(b"F1");
 
     // Write the document catalog with a reference to the page tree.
     writer.catalog(catalog_id).pages(page_tree_id);
@@ -36,7 +37,7 @@ fn main() -> std::io::Result<()> {
         .contents(text_id)
         .resources()
         .fonts()
-        .pair(Name(b"F1"), font_id);
+        .pair(font_name, font_id);
 
     // Specify the font we want to use. Because Helvetica is one of the 14 base
     // fonts shipped with every PDF reader, we don't have to embed any font
@@ -53,7 +54,7 @@ fn main() -> std::io::Result<()> {
     let mut content = Content::new();
     content
         .text()
-        .font(Name(b"F1"), 14.0)
+        .font(font_name, 14.0)
         .next_line(108.0, 734.0)
         .show(Str(b"Hello World from Rust!"));
 

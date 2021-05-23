@@ -106,7 +106,7 @@ pub struct Resources<'a> {
 }
 
 impl<'a> Resources<'a> {
-    fn new(obj: Obj<'a>) -> Self {
+    pub(crate) fn new(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 
