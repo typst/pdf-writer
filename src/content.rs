@@ -144,9 +144,7 @@ impl Content {
         self.buf.push(b' ');
         self.buf.push_val(height);
         self.buf.push_bytes(b" re\n");
-
         terminate_path(&mut self.buf, stroke, fill);
-
         self
     }
 
@@ -370,46 +368,43 @@ pub struct ImageStream<'a> {
 
 impl<'a> ImageStream<'a> {
     pub(crate) fn start(mut stream: Stream<'a>) -> Self {
-        stream.inner().pair(Name(b"Type"), Name(b"XObject"));
-        stream.inner().pair(Name(b"Subtype"), Name(b"Image"));
+        stream.pair(Name(b"Type"), Name(b"XObject"));
+        stream.pair(Name(b"Subtype"), Name(b"Image"));
         Self { stream }
     }
 
     /// Write the `/Width` attribute.
     pub fn width(&mut self, width: i32) -> &mut Self {
-        self.stream.inner().pair(Name(b"Width"), width);
+        self.pair(Name(b"Width"), width);
         self
     }
 
     /// Write the `/Height` attribute.
     pub fn height(&mut self, height: i32) -> &mut Self {
-        self.stream.inner().pair(Name(b"Height"), height);
+        self.pair(Name(b"Height"), height);
         self
     }
 
     /// Write the `/ColorSpace` attribute.
     pub fn color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.stream.inner().pair(Name(b"ColorSpace"), space.to_name());
+        self.pair(Name(b"ColorSpace"), space.to_name());
         self
     }
 
     /// Write the `/BitsPerComponent` attribute.
     pub fn bits_per_component(&mut self, bits: i32) -> &mut Self {
-        self.stream.inner().pair(Name(b"BitsPerComponent"), bits);
+        self.pair(Name(b"BitsPerComponent"), bits);
         self
     }
 
     /// Write the `/SMask` attribute.
     pub fn s_mask(&mut self, x_object: Ref) -> &mut Self {
-        self.stream.inner().pair(Name(b"SMask"), x_object);
+        self.pair(Name(b"SMask"), x_object);
         self
     }
-
-    /// Access the underlying stream writer.
-    pub fn inner(&mut self) -> &mut Stream<'a> {
-        &mut self.stream
-    }
 }
+
+deref!('a, ImageStream<'a> => Stream<'a>, stream);
 
 /// A color space.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

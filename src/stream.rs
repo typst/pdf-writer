@@ -29,15 +29,12 @@ impl<'a> Stream<'a> {
 
     /// Write the `/Filter` attribute.
     pub fn filter(&mut self, filter: Filter) -> &mut Self {
-        self.dict.pair(Name(b"Filter"), filter.name());
+        self.pair(Name(b"Filter"), filter.name());
         self
     }
-
-    /// Access the underlying dictionary.
-    pub fn inner(&mut self) -> &mut Dict<'a, StreamGuard<'a>> {
-        &mut self.dict
-    }
 }
+
+deref!('a, Stream<'a> => Dict<'a, StreamGuard<'a>>, dict);
 
 /// A guard that finishes a stream when released.
 ///

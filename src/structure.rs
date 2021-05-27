@@ -16,10 +16,12 @@ impl<'a> Catalog<'a> {
 
     /// Write the `/Pages` attribute pointing to the root page tree.
     pub fn pages(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair(Name(b"Pages"), id);
+        self.pair(Name(b"Pages"), id);
         self
     }
 }
+
+deref!('a, Catalog<'a> => Dict<'a, IndirectGuard>, dict);
 
 /// Writer for a _page tree_.
 ///
@@ -37,28 +39,30 @@ impl<'a> Pages<'a> {
 
     /// Write the `/Parent` attribute.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
-        self.dict.pair(Name(b"Parent"), parent);
+        self.pair(Name(b"Parent"), parent);
         self
     }
 
     /// Write the `/Kids` and `/Count` attributes.
     pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) -> &mut Self {
-        let len = self.dict.key(Name(b"Kids")).array().typed().items(kids).len();
-        self.dict.pair(Name(b"Count"), len);
+        let len = self.key(Name(b"Kids")).array().typed().items(kids).len();
+        self.pair(Name(b"Count"), len);
         self
     }
 
     /// Write the `/MediaBox` attribute.
     pub fn media_box(&mut self, rect: Rect) -> &mut Self {
-        self.dict.pair(Name(b"MediaBox"), rect);
+        self.pair(Name(b"MediaBox"), rect);
         self
     }
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.dict.key(Name(b"Resources")))
+        Resources::new(self.key(Name(b"Resources")))
     }
 }
+
+deref!('a, Pages<'a> => Dict<'a, IndirectGuard>, dict);
 
 /// Writer for a _page_.
 ///
@@ -76,27 +80,29 @@ impl<'a> Page<'a> {
 
     /// Write the `/Parent` attribute.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
-        self.dict.pair(Name(b"Parent"), parent);
+        self.pair(Name(b"Parent"), parent);
         self
     }
 
     /// Write the `/MediaBox` attribute.
     pub fn media_box(&mut self, rect: Rect) -> &mut Self {
-        self.dict.pair(Name(b"MediaBox"), rect);
+        self.pair(Name(b"MediaBox"), rect);
         self
     }
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.dict.key(Name(b"Resources")))
+        Resources::new(self.key(Name(b"Resources")))
     }
 
     /// Write the `/Contents` attribute.
     pub fn contents(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair(Name(b"Contents"), id);
+        self.pair(Name(b"Contents"), id);
         self
     }
 }
+
+deref!('a, Page<'a> => Dict<'a, IndirectGuard>, dict);
 
 /// Writer for a _resource dictionary_.
 ///
@@ -112,11 +118,13 @@ impl<'a> Resources<'a> {
 
     /// Start writing the `/XObject` dictionary.
     pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
-        self.dict.key(Name(b"XObject")).dict().typed()
+        self.key(Name(b"XObject")).dict().typed()
     }
 
     /// Start writing the `/Font` dictionary.
     pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
-        self.dict.key(Name(b"Font")).dict().typed()
+        self.key(Name(b"Font")).dict().typed()
     }
 }
+
+deref!('a, Resources<'a> => Dict<'a>, dict);

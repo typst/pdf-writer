@@ -36,6 +36,8 @@ repository, which creates a document with text in it.
 
 #![deny(missing_docs)]
 
+#[macro_use]
+mod macros;
 mod buf;
 mod content;
 mod font;
@@ -143,12 +145,12 @@ impl PdfWriter {
                 link += 1;
             }
 
-            // A free entry links to next free entry.
+            // A free entry links to the next free entry.
             let gen = if free == 0 { "65535" } else { "00000" };
             write!(self.buf, "{:010} {} f\r\n", link % xref_len, gen).unwrap();
             free = link;
 
-            // A used entries contain to offset in file.
+            // A used entry contains the offset of the object in the file.
             for &(_, offset) in &self.offsets[start .. idx] {
                 write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
             }
