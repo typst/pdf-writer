@@ -3,10 +3,14 @@
 [![Crates.io](https://img.shields.io/crates/v/pdf-writer.svg)](https://crates.io/crates/pdf-writer)
 [![Documentation](https://docs.rs/pdf-writer/badge.svg)](https://docs.rs/pdf-writer)
 
-A step-by-step PDF writer.
+A step-by-step, zero-unsafe PDF writer.
 
-The entry point into the API is the main `PdfWriter`. The document is written
-into an internal buffer, but otherwise the API is largely non-allocating.
+The entry point into the API is the main `PdfWriter`, which constructs the
+document into one big internal buffer. The top-level writer has many methods to
+create specialized writers for specific PDF objects. These all follow the same
+general pattern: They borrow the main buffer mutably, expose a builder pattern
+for writing individual fields in a strongly typed fashion and finish up the
+object when dropped.
 
 ## Minimal example
 The following example creates a PDF with a single, empty A4 page.
@@ -14,19 +18,24 @@ The following example creates a PDF with a single, empty A4 page.
 ```rust
 use pdf_writer::{PdfWriter, Rect, Ref};
 
+// Define some indirect reference ids we'll use.
+let catalog_id = Ref::new(1);
+let page_tree_id = Ref::new(2);
+let page_id = Ref::new(3);
+
 // Start writing with the PDF version 1.7 header.
 let mut writer = PdfWriter::new(1, 7);
 
 // The document catalog and a page tree with one A4 page that uses no resources.
-writer.catalog(Ref::new(1)).pages(Ref::new(2));
-writer.pages(Ref::new(2)).kids(vec![Ref::new(3)]);
-writer.page(Ref::new(3))
-    .parent(Ref::new(2))
+writer.catalog(catalog_id).pages(page_tree_id);
+writer.pages(page_tree_id).kids(vec![page_id]);
+writer.page(page_id)
+    .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("empty.pdf", writer.finish(Ref::new(1)))?;
+std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
 ```
 
 For a more comprehensive overview, check out the [hello world example] in the
