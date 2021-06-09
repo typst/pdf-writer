@@ -1,4 +1,4 @@
-use pdf_writer::{IndirectGuard, Name, Null, Obj, PdfWriter, Ref, Str};
+use pdf_writer::{Filter, IndirectGuard, Name, Null, Obj, PdfWriter, Ref, Str};
 
 /// Test that `buf` is the same as the result of concatenating the strings.
 macro_rules! test {
@@ -159,4 +159,27 @@ fn test_dicts() {
         |obj| obj.dict().pair(Name(b"Quality"), Name(b"Good")),
         "<<\n/Quality /Good\n>>",
     );
+}
+
+#[test]
+fn test_streams() {
+    let mut w = PdfWriter::new(1, 7);
+    w.stream(Ref::new(1), b"Hi there!").filter(Filter::Crypt);
+    test!(
+        w.finish(Ref::new(1)),
+        "%PDF-1.7\n\n",
+        "1 0 obj\n",
+        "<<\n/Length 9\n/Filter /Crypt\n>>\n",
+        "stream\n",
+        "Hi there!\n",
+        "endstream\n",
+        "endobj\n\n",
+        "xref\n",
+        "0 2\n",
+        "0000000000 65535 f\r\n",
+        "0000000010 00000 n\r\n",
+        "trailer\n",
+        "<<\n/Size 2\n/Root 1 0 R\n>>\n",
+        "startxref\n84\n%%EOF",
+    )
 }

@@ -1,8 +1,42 @@
 /*!
-A step-by-step PDF writer.
+A step-by-step, zero-unsafe PDF writer.
 
-The entry point into the API is the main [`PdfWriter`]. The document is written
-into one big internal buffer, but otherwise the API is largely non-allocating.
+The entry point into the API is the main [`PdfWriter`], which constructs the
+document into one big internal buffer. The top-level writer has many methods to
+create specialized writers for specific PDF objects. These all follow the same
+general pattern: They borrow the main buffer mutably, expose a builder pattern
+for writing individual fields in a strongly typed fashion and finish up the
+object when dropped.
+
+There are a few more top-level structs with internal buffers, like the builder
+for [`Content`] streams, but wherever possible buffers are borrowed from parent
+writers to minimize allocations.
+
+# Writers
+The writers contained is this crate fall roughly into two categories.
+
+**Core writers** enable you to write arbitrary PDF objects.
+
+- The [`Obj`] writer allows to write most fundamental PDF objects (numbers,
+  strings, arrays, dictionaries, ...). It is exposed through
+  [`PdfWriter::indirect`] to write top-level indirect objects and through
+  [`Array::obj`] and [`Dict::key`] to compose objects.
+- Streams are exposed through a separate [`PdfWriter::stream`] method since they
+  _must_ be indirect objects.
+
+**Specialized writers** for things like a _[page]_ or an _[image stream]_ expose
+the core writer's capabilities in a strongly typed fashion.
+
+- A [`Page`] writer, for example, is just a thin wrapper around a [`Dict`] and
+  it even derefs to a dictionary in case you need to write a field that is not
+  yet exposed by the typed API.
+- Similarly, the [`ImageStream`] derefs to a [`Stream`], so that the
+  [`filter()`] function can be shared by all kinds of streams. The [`Stream`] in
+  turn derefs to a [`Dict`] so that you can add arbitrary fields to the stream
+  dictionary.
+
+When you bind a writer to a variable instead of just writing a chained builder
+pattern, you may need to manually [`drop()`] it before starting a new object.
 
 # Minimal example
 The following example creates a PDF with a single, empty A4 page.
@@ -11,19 +45,24 @@ The following example creates a PDF with a single, empty A4 page.
 use pdf_writer::{PdfWriter, Rect, Ref};
 
 # fn main() -> std::io::Result<()> {
+// Define some indirect reference ids we'll use.
+let catalog_id = Ref::new(1);
+let page_tree_id = Ref::new(2);
+let page_id = Ref::new(3);
+
 // Start writing with the PDF version 1.7 header.
 let mut writer = PdfWriter::new(1, 7);
 
 // The document catalog and a page tree with one A4 page that uses no resources.
-writer.catalog(Ref::new(1)).pages(Ref::new(2));
-writer.pages(Ref::new(2)).kids(vec![Ref::new(3)]);
-writer.page(Ref::new(3))
-    .parent(Ref::new(2))
+writer.catalog(catalog_id).pages(page_tree_id);
+writer.pages(page_tree_id).kids(vec![page_id]);
+writer.page(page_id)
+    .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/empty.pdf", writer.finish(Ref::new(1)))?;
+std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
 # Ok(())
 # }
 ```
@@ -31,9 +70,19 @@ std::fs::write("target/empty.pdf", writer.finish(Ref::new(1)))?;
 For a more comprehensive overview, check out the [hello world example] in the
 repository, which creates a document with text in it.
 
-[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
+# Note
+This crate does not validate whether you use the correct indirect reference ids
+or whether you write all required fields for an object. Refer to the
+[PDF specification] to make sure you create valid PDFs.
+
+[page]: writers::Page
+[image stream]: writers::ImageStream
+[`filter()`]: Stream::filter
+[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs^
+[PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
 */
 
+#![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
 #[macro_use]
