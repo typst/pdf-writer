@@ -78,7 +78,7 @@ or whether you write all required fields for an object. Refer to the
 [page]: writers::Page
 [image stream]: writers::ImageStream
 [`filter()`]: Stream::filter
-[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs^
+[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 [PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
 */
 
@@ -99,13 +99,14 @@ pub mod writers {
     use super::*;
     pub use content::{ImageStream, Path, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
-    pub use structure::{Catalog, Page, Pages, Resources};
+    pub use structure::{Catalog, Page, Pages, Resources, ViewerPreferences};
 }
 
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 pub use object::*;
 pub use stream::*;
+pub use structure::{Direction, PageLayout, PageMode};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
