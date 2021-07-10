@@ -34,10 +34,16 @@ impl<'a> Catalog<'a> {
         self
     }
 
-    /// Start writing the `/ViewerPreferences` dictionary. Requires PDF 1.2 or
-    /// later.
+    /// Start writing the `/ViewerPreferences` dictionary. (1.2+)
     pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
         ViewerPreferences::new(self.key(Name(b"ViewerPreferences")))
+    }
+
+    /// Write the `/Dests` attribute pointing to the named attribute dictionary.
+    /// (1.1+)
+    pub fn destinations(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Dests"), id);
+        self
     }
 }
 
@@ -71,15 +77,15 @@ impl<'a> ViewerPreferences<'a> {
 
     /// Write the `/FitWindow` attribute to set whether the viewer should resize
     /// its window to the size of the first page.
-    pub fn fit_window(&mut self, hide: bool) -> &mut Self {
-        self.pair(Name(b"FitWindow"), hide);
+    pub fn fit_window(&mut self, fit: bool) -> &mut Self {
+        self.pair(Name(b"FitWindow"), fit);
         self
     }
 
     /// Write the `/CenterWindow` attribute to set whether the viewer should
     /// center its window on the screen.
-    pub fn center_window(&mut self, hide: bool) -> &mut Self {
-        self.pair(Name(b"CenterWindow"), hide);
+    pub fn center_window(&mut self, center: bool) -> &mut Self {
+        self.pair(Name(b"CenterWindow"), center);
         self
     }
 
@@ -92,9 +98,7 @@ impl<'a> ViewerPreferences<'a> {
     /// because the specification does not allow this enum variant here.
     pub fn non_full_screen_page_mode(&mut self, mode: PageMode) -> &mut Self {
         if mode == PageMode::FullScreen {
-            panic!(
-                "requesting full screen view for `/NonFullScreenPageMode` is disallowed by the specification"
-            );
+            panic!("mode must not full screen");
         }
 
         self.pair(Name(b"NonFullScreenPageMode"), mode.to_name());
@@ -102,7 +106,7 @@ impl<'a> ViewerPreferences<'a> {
     }
 
     /// Write the `/Direction` attribute to aid the viewer in how to lay out the
-    /// pages visually. Requires PDF 1.3 or later.
+    /// pages visually. (1.3+)
     pub fn direction(&mut self, dir: Direction) -> &mut Self {
         self.pair(Name(b"Direction"), dir.to_name());
         self
@@ -185,21 +189,21 @@ impl<'a> Page<'a> {
         self
     }
 
-    /// Write the `/BleedBox` attribute. Requires PDF 1.3 or later.
+    /// Write the `/BleedBox` attribute. (1.3+)
     pub fn bleed_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"BleedBox"), rect);
         self
     }
 
     /// Write the `/TrimBox` attribute. This is the size of the produced
-    /// document after trimming is applied. Requires PDF 1.3 or later.
+    /// document after trimming is applied. (1.3+)
     pub fn trim_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"TrimBox"), rect);
         self
     }
 
     /// Write the `/ArtBox` attribute. This is the area that another program
-    /// importing this file should use. Requires PDF 1.3 or later.
+    /// importing this file should use. (1.3+)
     pub fn art_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"ArtBox"), rect);
         self
@@ -217,17 +221,15 @@ impl<'a> Page<'a> {
     }
 
     /// Write the `/Dur` attribute. This is the amount of seconds the page
-    /// should be displayed before advancing to the next one. Requires PDF 1.1
-    /// or later.
+    /// should be displayed before advancing to the next one. (1.1+)
     pub fn dur(&mut self, seconds: f32) -> &mut Self {
         self.pair(Name(b"Dur"), seconds);
         self
     }
 
     /// Start writing the `/Trans` dictionary. This sets a transition effect for
-    /// advancing to the next page. Requires PDF 1.1 or later.
+    /// advancing to the next page. (1.1+)
     pub fn trans(&mut self) -> Transition<'_> {
-        todo!();
         Transition::new(self.key(Name(b"Trans")))
     }
 
@@ -278,10 +280,10 @@ pub enum PageLayout {
     /// pages on the right (like in a left-bound book).
     TwoColumnRight,
     /// Only two pages are visible at a time, laid out with odd-numbered pages
-    /// on the left. Requires PDF 1.5 or later.
+    /// on the left. (1.5+)
     TwoPageLeft,
     /// Only two pages are visible at a time, laid out with odd-numbered pages
-    /// on the right (like in a left-bound book). Requires PDF 1.5 or later.
+    /// on the right (like in a left-bound book). (1.5+)
     TwoPageRight,
 }
 
@@ -352,11 +354,147 @@ pub struct Transition<'a> {
 
 impl<'a> Transition<'a> {
     pub(crate) fn new(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Trans"));
+        Self { dict }
+    }
+
+    /// Write the `/S` attribute to set the transition style.
+    pub fn style(&mut self, kind: TransitionStyle) -> &mut Self {
+        self.pair(Name(b"S"), kind.to_name());
+        self
+    }
+
+    /// Write the `/D` attribute to set the transition duration.
+    pub fn duration(&mut self, seconds: f32) -> &mut Self {
+        self.pair(Name(b"D"), seconds);
+        self
+    }
+
+    /// Write the `/Dm` attribute to set the transition direction. Will be
+    /// horizontal if the argument is `false`.
+    pub fn dimension(&mut self, vertical: bool) -> &mut Self {
+        let name = if vertical { Name(b"V") } else { Name(b"H") };
+
+        self.pair(Name(b"Dm"), name);
+        self
+    }
+
+    /// Write the `/M` attribute to set the transition direction. Will be
+    /// inwards if the argument is `false`.
+    pub fn direction(&mut self, outward: bool) -> &mut Self {
+        let name = if outward { Name(b"O") } else { Name(b"I") };
+
+        self.pair(Name(b"M"), name);
+        self
+    }
+
+    /// Write the `/Di` attribute to set the transition angle.
+    pub fn angle(&mut self, angle: TransitionDirection) -> &mut Self {
+        if let Some(number) = angle.to_number() {
+            self.pair(Name(b"Di"), number);
+        } else {
+            self.pair(Name(b"Di"), angle.to_name().unwrap());
+        }
+
+        self
+    }
+
+    /// Write the `/SS` attribute to set the scale for the `Fly` transition.
+    /// (1.5+)
+    pub fn scale(&mut self, scale: f32) -> &mut Self {
+        self.pair(Name(b"SS"), scale);
+        self
+    }
+
+    /// Write the `/B` attribute for the `Fly` transition. (1.5+)
+    pub fn opaque(&mut self, opaque: f32) -> &mut Self {
+        self.pair(Name(b"F"), opaque);
+        self
     }
 }
 
 deref!('a, Transition<'a> => Dict<'a>, dict);
+
+/// The kind of transition.
+pub enum TransitionStyle {
+    /// Split the slide down the middle.
+    Split,
+    /// Multiple lines roll up the slide.
+    Blinds,
+    /// The new slide is revealed in a growing box.
+    Box,
+    /// Single line that sweeps across the slide.
+    Wipe,
+    /// Slide dissolves gradually.
+    Dissolve,
+    /// Like dissolve, but starts on one side.
+    Glitter,
+    /// No effect.
+    R,
+    /// Changes are flown in. (1.5+)
+    Fly,
+    /// Old page slides out, new page slides in. (1.5+)
+    Push,
+    /// New page slides in to cover the old one. (1.5+)
+    Cover,
+    /// Old page slides out to uncover the new one. (1.5+)
+    Uncover,
+    /// A cross-fade. (1.5+)
+    Fade,
+}
+
+impl TransitionStyle {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Split => Name(b"Split"),
+            Self::Blinds => Name(b"Blinds"),
+            Self::Box => Name(b"Box"),
+            Self::Wipe => Name(b"Wipe"),
+            Self::Dissolve => Name(b"Dissolve"),
+            Self::Glitter => Name(b"Glitter"),
+            Self::R => Name(b"R"),
+            Self::Fly => Name(b"Fly"),
+            Self::Push => Name(b"Push"),
+            Self::Cover => Name(b"Cover"),
+            Self::Uncover => Name(b"Uncover"),
+            Self::Fade => Name(b"Fade"),
+        }
+    }
+}
+
+/// The angle at which the transition plays.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum TransitionDirection {
+    LeftToRight,
+    BottomToTop,
+    RightToLeft,
+    TopToBottom,
+    TopLeftToBottomRight,
+    /// No direction in the `Fly` style.
+    None,
+}
+
+impl TransitionDirection {
+    fn to_number(&self) -> Option<i32> {
+        match self {
+            Self::LeftToRight => Some(0),
+            Self::BottomToTop => Some(90),
+            Self::RightToLeft => Some(180),
+            Self::TopToBottom => Some(270),
+            Self::TopLeftToBottomRight => Some(315),
+            Self::None => None,
+        }
+    }
+
+    fn to_name(&self) -> Option<Name<'static>> {
+        match self {
+            Self::None => Some(Name(b"None")),
+            _ => None,
+        }
+    }
+}
 
 /// Writer for the _annotations array_ in a [`Page`].
 ///
@@ -415,48 +553,35 @@ impl<'a> Annotation<'a> {
 
     /// Write the `/F` attribute.
     pub fn flags(&mut self, flags: AnnotationFlags) -> &mut Self {
-        self.pair(Name(b"F"), flags.to_integer());
+        self.pair(Name(b"F"), flags.bits() as i32);
         self
     }
 
     /// Write the `/C` attribute forcing a transparent color. This sets the
-    /// annotations background color and its popup title bar color. Requires PDF
-    /// 1.1 or later.
+    /// annotations background color and its popup title bar color. (1.1+)
     pub fn color_transparent(&mut self) -> &mut Self {
         self.key(Name(b"C")).array().typed::<f32>();
         self
     }
 
     /// Write the `/C` attribute using a grayscale color. This sets the
-    /// annotations background color and its popup title bar color. Requires PDF
-    /// 1.1 or later.
+    /// annotations background color and its popup title bar color. (1.1+)
     pub fn color_gray(&mut self, gray: f32) -> &mut Self {
-        self.key(Name(b"C")).array().typed::<f32>().item(gray);
+        self.key(Name(b"C")).array().typed().item(gray);
         self
     }
 
     /// Write the `/C` attribute using a RGB color. This sets the annotations
-    /// background color and its popup title bar color. Requires PDF 1.1 or
-    /// later.
+    /// background color and its popup title bar color. (1.1+)
     pub fn color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        let mut array = self.key(Name(b"C")).array().typed::<f32>();
-        array.item(r);
-        array.item(g);
-        array.item(b);
-        drop(array);
+        self.key(Name(b"C")).array().typed().items([r, g, b]);
         self
     }
 
     /// Write the `/C` attribute using a CMYK color. This sets the annotations
-    /// background color and its popup title bar color. Requires PDF 1.1 or
-    /// later.
+    /// background color and its popup title bar color. (1.1+)
     pub fn color_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
-        let mut array = self.key(Name(b"C")).array().typed::<f32>();
-        array.item(c);
-        array.item(m);
-        array.item(y);
-        array.item(k);
-        drop(array);
+        self.key(Name(b"C")).array().typed().items([c, m, y, k]);
         self
     }
 
@@ -468,7 +593,7 @@ impl<'a> Annotation<'a> {
 
     /// Write the `/H` attribute to set what effect is used to convey that the
     /// user is pressing a link annotation. Only permissible for the subtype
-    /// `Link`. Requires PDF 1.2 or later.
+    /// `Link`. (1.2+)
     pub fn highlight(&mut self, effect: HighlightEffect) -> &mut Self {
         self.pair(Name(b"H"), effect.to_name());
         self
@@ -484,21 +609,21 @@ pub enum AnnotationType {
     Text,
     /// A link.
     Link,
-    /// Text coming up in a popup. Requires PDF 1.3 or later.
+    /// Text coming up in a popup. (1.3+)
     FreeText,
-    /// A line. Requires PDF 1.3 or later.
+    /// A line. (1.3+)
     Line,
-    /// A square. Requires PDF 1.3 or later.
+    /// A square. (1.3+)
     Square,
-    /// A circle. Requires PDF 1.3 or later.
+    /// A circle. (1.3+)
     Circle,
-    /// Highlighting the text on the page. Requires PDF 1.3 or later.
+    /// Highlighting the text on the page. (1.3+)
     Highlight,
-    /// Underline the text on the page. Requires PDF 1.3 or later.
+    /// Underline the text on the page. (1.3+)
     Underline,
-    /// Squiggly underline of the text on the page. Requires PDF 1.4 or later.
+    /// Squiggly underline of the text on the page. (1.4+)
     Squiggly,
-    /// Strike out the text on the page. Requires PDF 1.3 or later.
+    /// Strike out the text on the page. (1.3+)
     StrikeOut,
 }
 
@@ -519,75 +644,37 @@ impl AnnotationType {
     }
 }
 
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
-pub struct AnnotationFlags {
-    /// This will hide the annotation if the viewer does not recognize its
-    /// subtype. Otherwise, it will be rendered as specified in its apprearance
-    /// stream.
-    pub invisible: bool,
-    /// This hides the annotation from view and disallows interaction. Requires
-    /// PDF 1.2 or later.
-    pub hidden: bool,
-    /// Print the annotation. If not set, it will be always hidden on print.
-    /// Requires PDF 1.2 or later.
-    pub print: bool,
-    /// Do not zoom the annotation appearance if the document is zoomed in.
-    /// Requires PDF 1.3 or later.
-    pub no_zoom: bool,
-    /// Do not rotate the annotation appearance if the document is zoomed in.
-    /// Requires PDF 1.3 or later.
-    pub no_rotate: bool,
-    /// Do not view the annotation on screen. It may still show on print.
-    /// Requires PDF 1.3 or later.
-    pub no_view: bool,
-    /// Do not allow interactions. Requires PDF 1.3 or later.
-    pub read_only: bool,
-    /// Do not allow the user to delete or reposition the annotation. Contents
-    /// may still be changed. Requires PDF 1.4 or later.
-    pub locked: bool,
-    /// Invert the interpretation of the `no_view` flag for certain events.
-    /// Requires PDF 1.5 or later.
-    pub toggle_no_view: bool,
-    /// Do not allow content changes. Requires PDF 1.7 or later.
-    pub locked_contents: bool,
-}
-
-impl AnnotationFlags {
-    fn to_integer(self) -> i32 {
-        let mut res = 0;
-
-        if self.invisible {
-            res |= 0x1;
-        }
-        if self.hidden {
-            res |= 0x01;
-        }
-        if self.print {
-            res |= 0x001;
-        }
-        if self.no_zoom {
-            res |= 0x0001;
-        }
-        if self.no_rotate {
-            res |= 0x00001;
-        }
-        if self.no_view {
-            res |= 0x000001;
-        }
-        if self.read_only {
-            res |= 0x0000001;
-        }
-        if self.locked {
-            res |= 0x00000001;
-        }
-        if self.toggle_no_view {
-            res |= 0x000000001;
-        }
-        if self.locked_contents {
-            res |= 0x0000000001;
-        }
-
-        res
+bitflags::bitflags! {
+    /// Bitflags describing various characteristics of fonts.
+    pub struct AnnotationFlags: u32 {
+        /// This will hide the annotation if the viewer does not recognize its
+        /// subtype. Otherwise, it will be rendered as specified in its apprearance
+        /// stream.
+        const INVISIBLE = 1 << 0;
+        /// This hides the annotation from view and disallows interaction. (1.2+)
+        const HIDDEN = 1 << 1;
+        /// Print the annotation. If not set, it will be always hidden on print.
+        /// (1.2+)
+        const PRINT = 1 << 2;
+        /// Do not zoom the annotation appearance if the document is zoomed in.
+        /// (1.3+)
+        const NO_ZOOM = 1 << 3;
+        /// Do not rotate the annotation appearance if the document is zoomed in.
+        /// (1.3+)
+        const NO_ROTATE = 1 << 4;
+        /// Do not view the annotation on screen. It may still show on print.
+        /// (1.3+)
+        const NO_VIEW = 1 << 5;
+        /// Do not allow interactions. (1.3+)
+        const READ_ONLY = 1 << 6;
+        /// Do not allow the user to delete or reposition the annotation. Contents
+        /// may still be changed. (1.4+)
+        const LOCKED = 1 << 7;
+        /// Invert the interpretation of the `no_view` flag for certain events.
+        /// (1.5+)
+        const TOGGLE_NO_VIEW = 1 << 8;
+        /// Do not allow content changes. (1.7+)
+        const LOCKED_CONTENTS = 1 << 9;
     }
 }
 
@@ -638,14 +725,15 @@ impl<'a> Action<'a> {
 
 deref!('a, Action<'a> => Dict<'a>, dict);
 
+/// What kind of action to perform.
 pub enum ActionType {
-    // Go to a destination in the document.
+    /// Go to a destination in the document.
     GoTo,
-    // Launch an application.
+    /// Launch an application.
     Launch,
-    // Begin reading an article thread.
+    /// Begin reading an article thread.
     Thread,
-    // Open a URI.
+    /// Open a URI.
     Uri,
 }
 
@@ -660,4 +748,212 @@ impl ActionType {
     }
 }
 
-// TODO: 7.11.3, 12.6.4.2, 12.6.4.5-7, 12.5.2 Border, 12.5.4, 12.4.4.1, 12.3.2.2-3, and maybe 12.3.3
+/// Writer for a _file specification dictionary_.
+///
+/// This struct is created by TODO.
+pub struct FileSpec<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> FileSpec<'a> {
+    pub(crate) fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Filespec"));
+        Self { dict }
+    }
+
+    /// Write the `/FS` attribute to set the file system this entry relates to.
+    /// If you set the `system` argument to `Name(b"URL")`, this becomes a URL
+    /// Specification.
+    pub fn file_system(&mut self, system: Name) -> &mut Self {
+        self.pair(Name(b"FS"), system);
+        self
+    }
+
+    /// Write the `/F` attribute to set the file path. Directories are indicated
+    /// by `/`, independant of the platform.
+    pub fn file(&mut self, path: Str) -> &mut Self {
+        self.pair(Name(b"F"), path);
+        self
+    }
+
+    /// Write the `/UF` attribute to set a Unicode-compatible path. Directories
+    /// are indicated by `/`, independant of the platform. (1.7+)
+    pub fn unic_file(&mut self, path: TextStr) -> &mut Self {
+        self.pair(Name(b"UF"), path);
+        self
+    }
+
+    /// Write the `/V` attribute to indicate whether to cache the file.
+    pub fn volatile(&mut self, no_cache: bool) -> &mut Self {
+        self.pair(Name(b"V"), no_cache);
+        self
+    }
+
+    /// Write the `/Desc` attribute to set a file description. (1.6+)
+    pub fn description(&mut self, desc: TextStr) -> &mut Self {
+        self.pair(Name(b"Desc"), desc);
+        self
+    }
+}
+
+deref!('a, FileSpec<'a> => Dict<'a>, dict);
+
+/// Writer for an _border style dictionary_.
+///
+/// This struct is created by TODO.
+pub struct BorderStyle<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> BorderStyle<'a> {
+    pub(crate) fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Border"));
+        Self { dict }
+    }
+
+    /// Write the `/W` attribute. This is the width of the border in points.
+    pub fn width(&mut self, points: f32) -> &mut Self {
+        self.pair(Name(b"W"), points);
+        self
+    }
+
+    /// Write the `/S` attribute.
+    pub fn style(&mut self, style: BorderType) -> &mut Self {
+        self.pair(Name(b"S"), style.to_name());
+        self
+    }
+
+    /// Write the `/D` attribute to set the repeating lengths of dashes and gaps
+    /// inbetween.
+    pub fn dashes(&mut self, dash_pattern: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"D")).array().typed().items(dash_pattern);
+        self
+    }
+}
+
+deref!('a, BorderStyle<'a> => Dict<'a>, dict);
+
+/// The kind of line to draw on the border.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum BorderType {
+    /// A solid line.
+    Solid,
+    /// A dashed line, dash pattern may be specified further elsewhere.
+    Dashed,
+    /// A line with a 3D effect.
+    Beveled,
+    /// A line that makes the rectangle appear depressed.
+    Inset,
+    /// A single line at the bottom of the border rectangle.
+    Underline,
+}
+
+impl BorderType {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Solid => Name(b"S"),
+            Self::Dashed => Name(b"D"),
+            Self::Beveled => Name(b"B"),
+            Self::Inset => Name(b"I"),
+            Self::Underline => Name(b"U"),
+        }
+    }
+}
+
+/// Writer for the _destination array_.
+pub struct Destination<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> Destination<'a> {
+    pub(crate) fn start(obj: Obj<'a>, page: Ref) -> Self {
+        let mut array = obj.array();
+        array.item(page);
+        Self { array }
+    }
+
+    /// Write the `/XYZ` command which skips to the specified coordinated. Leave
+    /// `zoom` on `0` if you do not want to change the zoom level.
+    pub fn xyz(mut self, left: f32, top: f32, zoom: f32) {
+        self.item(Name(b"XYZ"));
+        self.item(left);
+        self.item(top);
+        self.item(zoom);
+    }
+
+    /// Write the `/Fit` command which fits all of the referenced page on
+    /// screen.
+    pub fn fit(mut self) {
+        self.item(Name(b"Fit"));
+    }
+
+    /// Write the `/FitH` command which fits the referenced page to the screen
+    /// width and skips to the specified offset.
+    pub fn fit_horizontal(mut self, top: f32) {
+        self.item(Name(b"FitH"));
+        self.item(top);
+    }
+
+    /// Write the `/FitV` command which fits the referenced page to the screen
+    /// height and skips to the specified offset.
+    pub fn fit_vertical(mut self, left: f32) {
+        self.item(Name(b"FitV"));
+        self.item(left);
+    }
+
+    /// Write the `/FitR` command which fits the rectangle argument on the
+    /// screen.
+    pub fn fit_rect(mut self, rect: Rect) {
+        self.item(Name(b"FitR"));
+        self.item(rect.x1);
+        self.item(rect.y1);
+        self.item(rect.x2);
+        self.item(rect.y2);
+    }
+
+    /// Write the `/FitB` command which fits all of the referenced page's
+    /// content on screen. (1.1+)
+    pub fn fit_bounding_box(mut self) {
+        self.item(Name(b"FitB"));
+    }
+
+    /// Write the `/FitBH` command which fits the referenced page's content to
+    /// the screen width and skips to the specified offset.
+    pub fn fit_bounding_box_horizontal(mut self, top: f32) {
+        self.item(Name(b"FitBH"));
+        self.item(top);
+    }
+
+    /// Write the `/FitBV` command which fits the referenced page's content to
+    /// the screen height and skips to the specified offset.
+    pub fn fit_bounding_box_vertical(mut self, left: f32) {
+        self.item(Name(b"FitBV"));
+        self.item(left);
+    }
+}
+
+deref!('a, Destination<'a> => Array<'a>, array);
+
+/// Writer for a _named destinations dictionary_.
+///
+/// This struct is created by [`PdfWriter::destinations`].
+pub struct Destinations<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> Destinations<'a> {
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Start adding another named destination.
+    pub fn add(&mut self, name: Name, page: Ref) -> Destination<'_> {
+        Destination::start(self.key(name), page)
+    }
+}
+
+deref!('a, Destinations<'a> => Dict<'a, IndirectGuard>, dict);
+
+// TODO: 12.6.4.2, 12.6.4.5-7, 12.5.2 Border, and maybe 12.3.3

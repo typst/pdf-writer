@@ -56,6 +56,26 @@ impl Primitive for Str<'_> {
     }
 }
 
+/// A UTF-16BE-encoded text string object.
+///
+/// This is written as `(BOM <bytes>)`.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct TextStr<'a>(pub &'a str);
+
+impl Primitive for TextStr<'_> {
+    fn write(self, buf: &mut Vec<u8>) {
+        buf.push(b'(');
+        buf.push(254);
+        buf.push(255);
+        buf.extend(
+            self.0
+                .encode_utf16()
+                .flat_map(|x| std::array::IntoIter::new(x.to_be_bytes())),
+        );
+        buf.push(b')');
+    }
+}
+
 /// A name object.
 ///
 /// Written as `/Thing`.

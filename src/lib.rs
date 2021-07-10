@@ -99,14 +99,20 @@ pub mod writers {
     use super::*;
     pub use content::{ImageStream, Path, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
-    pub use structure::{Catalog, Page, Pages, Resources, ViewerPreferences};
+    pub use structure::{
+        Action, Annotation, Annotations, Catalog, Destination, Destinations, Page, Pages,
+        Resources, Transition, ViewerPreferences,
+    };
 }
 
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 pub use object::*;
 pub use stream::*;
-pub use structure::{Direction, PageLayout, PageMode};
+pub use structure::{
+    ActionType, AnnotationFlags, AnnotationType, Direction, HighlightEffect, PageLayout,
+    PageMode, TransitionDirection, TransitionStyle,
+};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
@@ -278,6 +284,11 @@ impl PdfWriter {
     /// Start writing a font descriptor.
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
         FontDescriptor::start(self.indirect(id))
+    }
+
+    /// Start writing a named destination dictionary.
+    pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
+        Destinations::start(self.indirect(id))
     }
 }
 
