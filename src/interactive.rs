@@ -232,7 +232,7 @@ impl ActionType {
             Self::GoTo => Name(b"GoTo"),
             Self::RemoteGoTo => Name(b"GoToR"),
             Self::Launch => Name(b"Launch"),
-            Self::Uri => Name(b"Uri"),
+            Self::Uri => Name(b"URI"),
         }
     }
 }

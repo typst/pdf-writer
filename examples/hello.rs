@@ -1,4 +1,7 @@
-use pdf_writer::{Content, Name, PdfWriter, Rect, Ref, Str};
+use pdf_writer::{
+    ActionType, AnnotationType, BorderType, Content, Name,
+    PdfWriter, Rect, Ref, Str, TextStr,
+};
 
 fn main() -> std::io::Result<()> {
     // Start writing with PDF version 1.7 header. The version is not
@@ -24,20 +27,48 @@ fn main() -> std::io::Result<()> {
     writer.pages(page_tree_id).kids(vec![page_id]);
 
     // Write a page.
-    //
+    let mut page = writer.page(page_id);
+
     // Set the size to A4 (measured in points) using `media_box` and set the
     // text object we'll write later as the page's contents.
     //
-    // We also need to specify which resources the page needs, which in our case
-    // is only a font that we name "F1" (the specific name doesn't matter).
-    writer
-        .page(page_id)
+    // We also create the annotations list here that allows us to have things
+    // like links or comments on the page.
+    let mut annots = page
         .parent(page_tree_id)
         .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
-        .contents(text_id)
-        .resources()
-        .fonts()
-        .pair(font_name, font_id);
+        .annots();
+
+    // Write a new annotation.
+    let mut annot = annots.add();
+
+    // Write the type, area, and action for this annotation.
+    annot
+        .subtype(AnnotationType::Link)
+        .rect(Rect::new(215.0, 730.0, 251.0, 748.0))
+        .contents(TextStr("Link to the Rust project web page"))
+        .action()
+        .action_type(ActionType::Uri)
+        .uri(Str(b"https://www.rust-lang.org/"));
+
+    // Set border and style for the link annotation.
+    annot
+        .color_rgb(0.0, 0.0, 1.0)
+        .border_style()
+        .width(3.0)
+        .style(BorderType::Underline);
+
+    // We have to drop all the writers that page depends on in order here
+    // because otherwise it would be mutably borrowed until the end of the
+    // block.
+    drop(annot);
+    drop(annots);
+
+    // We also need to specify which resources the page needs, which in our case
+    // is only a font that we name "F1" (the specific name doesn't matter).
+    page.contents(text_id).resources().fonts().pair(font_name, font_id);
+
+    drop(page);
 
     // Specify the font we want to use. Because Helvetica is one of the 14 base
     // fonts shipped with every PDF reader, we don't have to embed any font

@@ -278,7 +278,7 @@ impl Primitive for Date {
                 None
             });
 
-        TextStr(&s).write(buf)
+        Str(&s.bytes().collect::<Vec<_>>()).write(buf)
     }
 }
 

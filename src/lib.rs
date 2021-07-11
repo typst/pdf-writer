@@ -113,8 +113,8 @@ pub use interactive::{ActionType, TransitionDirection, TransitionStyle};
 pub use object::*;
 pub use stream::*;
 pub use structure::{
-    AnnotationFlags, AnnotationName, AnnotationType, Direction, HighlightEffect,
-    OutlineItemFlags, PageLayout, PageMode,
+    AnnotationFlags, AnnotationName, AnnotationType, BorderType, Direction,
+    HighlightEffect, OutlineItemFlags, PageLayout, PageMode,
 };
 
 use std::fmt::{self, Debug, Formatter};
