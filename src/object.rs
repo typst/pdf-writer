@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -166,6 +167,118 @@ impl Primitive for Rect {
         buf.push(b' ');
         buf.push_val(self.y2);
         buf.push(b']');
+    }
+}
+
+/// A date, represented as a text string.
+///
+/// In order for the time zone information to be written, all time information
+/// (including seconds) must be written whereas `utc_offset_minute` must only be
+/// used to specify sub-hour time zone offsets.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Date {
+    /// The year (0-9999).
+    pub year: u16,
+    /// The month (0-11).
+    pub month: Option<u8>,
+    /// The month (0-30).
+    pub day: Option<u8>,
+    /// The hour (0-23).
+    pub hour: Option<u8>,
+    /// The minute (0-59).
+    pub minute: Option<u8>,
+    /// The second (0-59).
+    pub second: Option<u8>,
+    /// The hour offset from UTC (-23 through 23).
+    pub utc_offset_hour: Option<i8>,
+    /// The minute offset from UTC (0-59). Will carry over the sign from
+    /// `utc_offset_hour`.
+    pub utc_offset_minute: Option<u8>,
+}
+
+impl Date {
+    /// Create a new, complete date. The result will be `Ok` if all values are
+    /// within range.
+    pub fn new(
+        year: u16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+        utc_offset_hour: i8,
+        utc_offset_minute: u8,
+    ) -> Result<Self, ()> {
+        let res = Self {
+            year,
+            month: Some(month),
+            day: Some(day),
+            hour: Some(hour),
+            minute: Some(minute),
+            second: Some(second),
+            utc_offset_hour: Some(utc_offset_hour),
+            utc_offset_minute: Some(utc_offset_minute),
+        };
+
+        if res.check() { Ok(res) } else { Err(()) }
+    }
+
+    /// Checks if all values are within range. If this returns `true`, the
+    /// struct will not panic upon write as a primitive.
+    pub fn check(&self) -> bool {
+        self.year <= 9999
+            && self.month.map_or(true, |x| x <= 11)
+            && self.day.map_or(true, |x| x <= 30)
+            && self.hour.map_or(true, |x| x <= 23)
+            && self.minute.map_or(true, |x| x <= 59)
+            && self.second.map_or(true, |x| x <= 59)
+            && self.utc_offset_hour.map_or(true, |x| x <= 23)
+            && self.utc_offset_minute.map_or(true, |x| x <= 59)
+    }
+}
+
+impl Primitive for Date {
+    fn write(self, buf: &mut Vec<u8>) {
+        if !self.check() {
+            panic!("date values are out of range");
+        }
+
+        let mut s = format!("D:{:04}", self.year);
+
+        self.month
+            .and_then(|month| {
+                write!(&mut s, "{:02}", month + 1).unwrap();
+                self.day
+            })
+            .and_then(|day| {
+                write!(&mut s, "{:02}", day + 1).unwrap();
+                self.hour
+            })
+            .and_then(|hour| {
+                write!(&mut s, "{:02}", hour).unwrap();
+                self.minute
+            })
+            .and_then(|minute| {
+                write!(&mut s, "{:02}", minute).unwrap();
+                self.second
+            })
+            .and_then(|second| {
+                write!(&mut s, "{:02}", second).unwrap();
+                self.utc_offset_hour
+            })
+            .and_then::<u8, _>(|hour_offset| {
+                let minute_offset = self.utc_offset_minute.unwrap_or(0);
+
+                if hour_offset == 0 && minute_offset == 0 {
+                    s.push('Z');
+                } else {
+                    write!(&mut s, "{:+03}'{:02}", hour_offset, minute_offset).unwrap();
+                }
+
+                None
+            });
+
+        TextStr(&s).write(buf)
     }
 }
 

@@ -345,157 +345,6 @@ impl Direction {
     }
 }
 
-/// Writer for a _transition dictionary_.
-///
-/// This struct is created by [`Page::trans`].
-pub struct Transition<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Transition<'a> {
-    pub(crate) fn new(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Trans"));
-        Self { dict }
-    }
-
-    /// Write the `/S` attribute to set the transition style.
-    pub fn style(&mut self, kind: TransitionStyle) -> &mut Self {
-        self.pair(Name(b"S"), kind.to_name());
-        self
-    }
-
-    /// Write the `/D` attribute to set the transition duration.
-    pub fn duration(&mut self, seconds: f32) -> &mut Self {
-        self.pair(Name(b"D"), seconds);
-        self
-    }
-
-    /// Write the `/Dm` attribute to set the transition direction. Will be
-    /// horizontal if the argument is `false`.
-    pub fn dimension(&mut self, vertical: bool) -> &mut Self {
-        let name = if vertical { Name(b"V") } else { Name(b"H") };
-
-        self.pair(Name(b"Dm"), name);
-        self
-    }
-
-    /// Write the `/M` attribute to set the transition direction. Will be
-    /// inwards if the argument is `false`.
-    pub fn direction(&mut self, outward: bool) -> &mut Self {
-        let name = if outward { Name(b"O") } else { Name(b"I") };
-
-        self.pair(Name(b"M"), name);
-        self
-    }
-
-    /// Write the `/Di` attribute to set the transition angle.
-    pub fn angle(&mut self, angle: TransitionDirection) -> &mut Self {
-        if let Some(number) = angle.to_number() {
-            self.pair(Name(b"Di"), number);
-        } else {
-            self.pair(Name(b"Di"), angle.to_name().unwrap());
-        }
-
-        self
-    }
-
-    /// Write the `/SS` attribute to set the scale for the `Fly` transition.
-    /// (1.5+)
-    pub fn scale(&mut self, scale: f32) -> &mut Self {
-        self.pair(Name(b"SS"), scale);
-        self
-    }
-
-    /// Write the `/B` attribute for the `Fly` transition. (1.5+)
-    pub fn opaque(&mut self, opaque: f32) -> &mut Self {
-        self.pair(Name(b"F"), opaque);
-        self
-    }
-}
-
-deref!('a, Transition<'a> => Dict<'a>, dict);
-
-/// The kind of transition.
-pub enum TransitionStyle {
-    /// Split the slide down the middle.
-    Split,
-    /// Multiple lines roll up the slide.
-    Blinds,
-    /// The new slide is revealed in a growing box.
-    Box,
-    /// Single line that sweeps across the slide.
-    Wipe,
-    /// Slide dissolves gradually.
-    Dissolve,
-    /// Like dissolve, but starts on one side.
-    Glitter,
-    /// No effect.
-    R,
-    /// Changes are flown in. (1.5+)
-    Fly,
-    /// Old page slides out, new page slides in. (1.5+)
-    Push,
-    /// New page slides in to cover the old one. (1.5+)
-    Cover,
-    /// Old page slides out to uncover the new one. (1.5+)
-    Uncover,
-    /// A cross-fade. (1.5+)
-    Fade,
-}
-
-impl TransitionStyle {
-    fn to_name(self) -> Name<'static> {
-        match self {
-            Self::Split => Name(b"Split"),
-            Self::Blinds => Name(b"Blinds"),
-            Self::Box => Name(b"Box"),
-            Self::Wipe => Name(b"Wipe"),
-            Self::Dissolve => Name(b"Dissolve"),
-            Self::Glitter => Name(b"Glitter"),
-            Self::R => Name(b"R"),
-            Self::Fly => Name(b"Fly"),
-            Self::Push => Name(b"Push"),
-            Self::Cover => Name(b"Cover"),
-            Self::Uncover => Name(b"Uncover"),
-            Self::Fade => Name(b"Fade"),
-        }
-    }
-}
-
-/// The angle at which the transition plays.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[allow(missing_docs)]
-pub enum TransitionDirection {
-    LeftToRight,
-    BottomToTop,
-    RightToLeft,
-    TopToBottom,
-    TopLeftToBottomRight,
-    /// No direction in the `Fly` style.
-    None,
-}
-
-impl TransitionDirection {
-    fn to_number(&self) -> Option<i32> {
-        match self {
-            Self::LeftToRight => Some(0),
-            Self::BottomToTop => Some(90),
-            Self::RightToLeft => Some(180),
-            Self::TopToBottom => Some(270),
-            Self::TopLeftToBottomRight => Some(315),
-            Self::None => None,
-        }
-    }
-
-    fn to_name(&self) -> Option<Name<'static>> {
-        match self {
-            Self::None => Some(Name(b"None")),
-            _ => None,
-        }
-    }
-}
-
 /// Writer for the _annotations array_ in a [`Page`].
 ///
 /// This struct is created by [`Page::annots`].
@@ -546,14 +395,52 @@ impl<'a> Annotation<'a> {
 
     /// Write the `/Contents` attribute. This is the content or alt-text,
     /// depending on the [`AnnotationType`].
-    pub fn contents(&mut self, text: Str) -> &mut Self {
+    pub fn contents(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"Contents"), text);
+        self
+    }
+
+    /// Write the `/NM` attribute. This uniquely identified the anotation on the
+    /// page. (1.3+)
+    pub fn name(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"NM"), text);
+        self
+    }
+
+    /// Write the `/M` attribute, specifying the date the annotation was last
+    /// modified. (1.1+)
+    pub fn modified(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"M"), date);
         self
     }
 
     /// Write the `/F` attribute.
     pub fn flags(&mut self, flags: AnnotationFlags) -> &mut Self {
         self.pair(Name(b"F"), flags.bits() as i32);
+        self
+    }
+
+    /// Write the `/Border` attribute. This describes the look of the border
+    /// around the annotation, including width and horizontal and vertical
+    /// border radii. The function may also receive a dash pattern which
+    /// specifies the lengths and gaps of the border segments on a dashed
+    /// border. Although all PDF versions accept `/Border`, this feature
+    /// specifically is only available in PDF 1.1 or later.
+    pub fn border(
+        &mut self,
+        h_radius: f32,
+        v_radius: f32,
+        width: f32,
+        dash_pattern: Option<impl IntoIterator<Item = f32>>,
+    ) -> &mut Self {
+        let mut array = self.key(Name(b"Border")).array();
+        array.item(h_radius).item(v_radius).item(width);
+
+        if let Some(pattern) = dash_pattern {
+            array.obj().array().typed().items(pattern);
+        }
+
+        drop(array);
         self
     }
 
@@ -598,6 +485,71 @@ impl<'a> Annotation<'a> {
         self.pair(Name(b"H"), effect.to_name());
         self
     }
+
+    /// Write the `/T` attribute. This is in the title bar of markup annotations
+    /// and should be the name of the annotation author. (1.1+)
+    pub fn author(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"T"), text);
+        self
+    }
+
+    /// Write the `/Subj` attribute. This is the subject of the annotation.
+    /// (1.5+)
+    pub fn subject(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"Subj"), text);
+        self
+    }
+
+    /// Start writing the `/BS` attribute. These are some more elaborate border
+    /// settings taking precedence over `/B` for some annotation types. (1.6+)
+    pub fn border_style(&mut self) -> BorderStyle<'_> {
+        BorderStyle::new(self.key(Name(b"BS")))
+    }
+
+    /// Write the `/QuadPoints` attribute.
+    pub fn quad_points(
+        &mut self,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        x3: f32,
+        y3: f32,
+        x4: f32,
+        y4: f32,
+    ) -> &mut Self {
+        self.key(Name(b"QuadPoints"))
+            .array()
+            .typed()
+            .items([x1, y1, x2, y2, x3, y3, x4, y4]);
+        self
+    }
+
+    /// Write the `/LL` attribute. This defines the start and end point of a line annotation
+    pub fn line_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32) -> &mut Self {
+        self.key(Name(b"LL")).array().typed().items([x1, y1, x2, y2]);
+        self
+    }
+
+    /// Start writing the `/FS` attribute, setting which file to reference.
+    pub fn file(&mut self) -> FileSpec<'_> {
+        FileSpec::new(self.key(Name(b"FS")))
+    }
+
+    /// Write the `/Name` attribute. This often sets the icon for the
+    /// annotation.
+    pub fn custom_name(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"Name"), name);
+        self
+    }
+
+    /// Write the `/Name` attribute to one of the predefined icon names. Please
+    /// mind the documentation to see which names are allowable for which
+    /// annotation type.
+    pub fn icon(&mut self, name: AnnotationName) -> &mut Self {
+        self.pair(Name(b"Name"), name.to_name());
+        self
+    }
 }
 
 deref!('a, Annotation<'a> => Dict<'a>, dict);
@@ -609,8 +561,6 @@ pub enum AnnotationType {
     Text,
     /// A link.
     Link,
-    /// Text coming up in a popup. (1.3+)
-    FreeText,
     /// A line. (1.3+)
     Line,
     /// A square. (1.3+)
@@ -625,6 +575,8 @@ pub enum AnnotationType {
     Squiggly,
     /// Strike out the text on the page. (1.3+)
     StrikeOut,
+    /// A reference to another file. (1.3+)
+    FileAttachment,
 }
 
 impl AnnotationType {
@@ -632,7 +584,6 @@ impl AnnotationType {
         match self {
             Self::Text => Name(b"Text"),
             Self::Link => Name(b"Link"),
-            Self::FreeText => Name(b"FreeText"),
             Self::Line => Name(b"Line"),
             Self::Square => Name(b"Square"),
             Self::Circle => Name(b"Circle"),
@@ -640,6 +591,52 @@ impl AnnotationType {
             Self::Underline => Name(b"Underline"),
             Self::Squiggly => Name(b"Squiggly"),
             Self::StrikeOut => Name(b"StrikeOut"),
+            Self::FileAttachment => Name(b"FileAttachment"),
+        }
+    }
+}
+
+/// A name that sets the icon for the annotation.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum AnnotationName {
+    /// Speech bubble. For use with text annotations.
+    Comment,
+    /// For use with text annotations.
+    Key,
+    /// Sticky note. For use with text annotations.
+    Note,
+    /// Question mark or manual. For use with text annotations.
+    Help,
+    /// For use with text annotations.
+    NewParagraph,
+    /// For use with text annotations.
+    Paragraph,
+    /// A plus or similar. For use with text annotations.
+    Insert,
+    /// Chart. For use with file attachment annotations.
+    Graph,
+    /// For use with file attachment annotations.
+    PushPin,
+    /// For use with file attachment annotations.
+    Paperclip,
+    /// For use with file attachment annotations.
+    Tag,
+}
+
+impl AnnotationName {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Comment => Name(b"Comment"),
+            Self::Key => Name(b"Key"),
+            Self::Note => Name(b"Note"),
+            Self::Help => Name(b"Help"),
+            Self::NewParagraph => Name(b"NewParagraph"),
+            Self::Paragraph => Name(b"Paragraph"),
+            Self::Insert => Name(b"Insert"),
+            Self::Graph => Name(b"Graph"),
+            Self::PushPin => Name(b"PushPin"),
+            Self::Paperclip => Name(b"Paperclip"),
+            Self::Tag => Name(b"Tag"),
         }
     }
 }
@@ -702,55 +699,9 @@ impl HighlightEffect {
     }
 }
 
-/// Writer for an _action dictionary_.
-///
-/// This struct is created by [`Annotation::action`].
-pub struct Action<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Action<'a> {
-    pub(crate) fn new(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Action"));
-        Self { dict }
-    }
-
-    /// Write the `/S` attribute to set the action type.
-    pub fn action_type(&mut self, kind: ActionType) -> &mut Self {
-        self.pair(Name(b"S"), kind.to_name());
-        self
-    }
-}
-
-deref!('a, Action<'a> => Dict<'a>, dict);
-
-/// What kind of action to perform.
-pub enum ActionType {
-    /// Go to a destination in the document.
-    GoTo,
-    /// Launch an application.
-    Launch,
-    /// Begin reading an article thread.
-    Thread,
-    /// Open a URI.
-    Uri,
-}
-
-impl ActionType {
-    fn to_name(self) -> Name<'static> {
-        match self {
-            Self::GoTo => Name(b"GoTo"),
-            Self::Launch => Name(b"Launch"),
-            Self::Thread => Name(b"Thread"),
-            Self::Uri => Name(b"Uri"),
-        }
-    }
-}
-
 /// Writer for a _file specification dictionary_.
 ///
-/// This struct is created by TODO.
+/// This struct is created by [`Annotation::file`] and [`Action::file`].
 pub struct FileSpec<'a> {
     dict: Dict<'a>,
 }
@@ -801,7 +752,7 @@ deref!('a, FileSpec<'a> => Dict<'a>, dict);
 
 /// Writer for an _border style dictionary_.
 ///
-/// This struct is created by TODO.
+/// This struct is created by [`Annotation::border_style`].
 pub struct BorderStyle<'a> {
     dict: Dict<'a>,
 }
@@ -920,14 +871,14 @@ impl<'a> Destination<'a> {
     }
 
     /// Write the `/FitBH` command which fits the referenced page's content to
-    /// the screen width and skips to the specified offset.
+    /// the screen width and skips to the specified offset. (1.1+)
     pub fn fit_bounding_box_horizontal(mut self, top: f32) {
         self.item(Name(b"FitBH"));
         self.item(top);
     }
 
     /// Write the `/FitBV` command which fits the referenced page's content to
-    /// the screen height and skips to the specified offset.
+    /// the screen height and skips to the specified offset. (1.1+)
     pub fn fit_bounding_box_vertical(mut self, left: f32) {
         self.item(Name(b"FitBV"));
         self.item(left);
@@ -956,4 +907,148 @@ impl<'a> Destinations<'a> {
 
 deref!('a, Destinations<'a> => Dict<'a, IndirectGuard>, dict);
 
-// TODO: 12.6.4.2, 12.6.4.5-7, 12.5.2 Border, and maybe 12.3.3
+/// Writer for an _outline dictionary_.
+///
+/// This struct is created by [`PdfWriter::outline`].
+pub struct Outline<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> Outline<'a> {
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Outlines"));
+        Self { dict }
+    }
+
+    /// Write the `/First` attribute which points to the first item in the
+    /// document's outline.
+    pub fn first(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"First"), outline);
+        self
+    }
+
+    /// Write the `/Last` attribute which points to the last item in the
+    /// document's outline.
+    pub fn last(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"Last"), outline);
+        self
+    }
+
+    /// Write the `/Count` attribute. This tells the viewer how many outline
+    /// elements (at all levels) are currently visible. The value must not be
+    /// negative, otherwise, the function will panic.
+    pub fn count(&mut self, items: i32) -> &mut Self {
+        if items < 0 {
+            panic!("negative values not allowed for `/Count` attribute")
+        }
+
+        self.pair(Name(b"Count"), items);
+        self
+    }
+}
+
+deref!('a, Outline<'a> => Dict<'a, IndirectGuard>, dict);
+
+/// Writer for an _outline dictionary_.
+///
+/// This struct is created by [`PdfWriter::outline_item`].
+pub struct OutlineItem<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> OutlineItem<'a> {
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Outlines"));
+        Self { dict }
+    }
+
+    /// Write the `/Title` attribute.
+    pub fn title(&mut self, title: TextStr) -> &mut Self {
+        self.pair(Name(b"Title"), title);
+        self
+    }
+
+    /// Write the `/Parent` attribute which points to the item's parent or the
+    /// top-level outline dictionary.
+    pub fn parent(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"Parent"), outline);
+        self
+    }
+
+    /// Write the `/Prev` attribute which points to the previous item on the
+    /// item's level.
+    pub fn prev(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"Prev"), outline);
+        self
+    }
+
+    /// Write the `/Next` attribute which points to the next item on the item's
+    /// level.
+    pub fn next(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"Next"), outline);
+        self
+    }
+
+    /// Write the `/First` attribute which points to the first item in the
+    /// item's children.
+    pub fn first(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"First"), outline);
+        self
+    }
+
+    /// Write the `/Last` attribute which points to the last item in the
+    /// item's children.
+    pub fn last(&mut self, outline: Ref) -> &mut Self {
+        self.pair(Name(b"Last"), outline);
+        self
+    }
+
+    /// Write the `/Count` attribute. This tells the viewer how many outline
+    /// element children are currently visible. If the item is collapsed, this
+    /// number shall be negative indicating how many elements you would be able
+    /// to see if it was open.
+    pub fn count(&mut self, items: i32) -> &mut Self {
+        self.pair(Name(b"Count"), items);
+        self
+    }
+
+    /// Start writing the `/Dest` attribute to set the destination of this
+    /// outline item.
+    pub fn dest_direct(&mut self, page: Ref) -> Destination<'_> {
+        Destination::start(self.key(Name(b"Dest")), page)
+    }
+
+    /// Write the `/Dest` attribute to set the destination of this
+    /// outline item to a named destination.
+    pub fn dest_name(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"Dest"), name);
+        self
+    }
+
+    /// Write the `/C` attribute using a RGB color. This sets the color in which
+    /// the outline item's title should be rendered. (1.4+)
+    pub fn color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.key(Name(b"C")).array().typed().items([r, g, b]);
+        self
+    }
+
+    /// Write the `/F` attribute. (1.4+)
+    pub fn flags(&mut self, flags: OutlineItemFlags) -> &mut Self {
+        self.pair(Name(b"F"), flags.bits() as i32);
+        self
+    }
+}
+
+deref!('a, OutlineItem<'a> => Dict<'a, IndirectGuard>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing the appearance of an outline item.
+    pub struct OutlineItemFlags: u32 {
+        /// This renders the outline item italicized.
+        const ITALIC = 1 << 0;
+        /// This renders the outline item emboldened.
+        const BOLD = 1 << 1;
+    }
+}

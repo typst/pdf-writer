@@ -90,6 +90,7 @@ mod macros;
 mod buf;
 mod content;
 mod font;
+mod interactive;
 mod object;
 mod stream;
 mod structure;
@@ -99,19 +100,21 @@ pub mod writers {
     use super::*;
     pub use content::{ImageStream, Path, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
+    pub use interactive::{Action, Transition};
     pub use structure::{
-        Action, Annotation, Annotations, Catalog, Destination, Destinations, Page, Pages,
-        Resources, Transition, ViewerPreferences,
+        Annotation, Annotations, Catalog, Destination, Destinations, FileSpec, Outline,
+        OutlineItem, Page, Pages, Resources, ViewerPreferences,
     };
 }
 
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
+pub use interactive::{ActionType, TransitionDirection, TransitionStyle};
 pub use object::*;
 pub use stream::*;
 pub use structure::{
-    ActionType, AnnotationFlags, AnnotationType, Direction, HighlightEffect, PageLayout,
-    PageMode, TransitionDirection, TransitionStyle,
+    AnnotationFlags, AnnotationName, AnnotationType, Direction, HighlightEffect,
+    OutlineItemFlags, PageLayout, PageMode,
 };
 
 use std::fmt::{self, Debug, Formatter};
@@ -289,6 +292,16 @@ impl PdfWriter {
     /// Start writing a named destination dictionary.
     pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
         Destinations::start(self.indirect(id))
+    }
+
+    /// Start writing an outline.
+    pub fn outline(&mut self, id: Ref) -> Outline<'_> {
+        Outline::start(self.indirect(id))
+    }
+
+    /// Start writing an outline item.
+    pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
+        OutlineItem::start(self.indirect(id))
     }
 }
 
