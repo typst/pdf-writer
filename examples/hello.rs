@@ -24,7 +24,7 @@ fn main() -> std::io::Result<()> {
     writer.catalog(catalog_id).pages(page_tree_id);
 
     // Write the page tree with a single child page.
-    writer.pages(page_tree_id).kids(vec![page_id]);
+    writer.pages(page_tree_id).kids([page_id]);
 
     // Write a page.
     let mut page = writer.page(page_id);
@@ -57,7 +57,7 @@ fn main() -> std::io::Result<()> {
         .uri(Str(b"https://www.rust-lang.org/"));
 
     // Set border and style for the link annotation.
-    annotation.border_style().width(3.0).style(BorderType::Underline);
+    annotation.border_style().width(2.0).style(BorderType::Underline);
 
     // We have to drop all the writers that page depends on in order here
     // because otherwise it would be mutably borrowed until the end of the
@@ -69,6 +69,7 @@ fn main() -> std::io::Result<()> {
     // is only a font that we name "F1" (the specific name doesn't matter).
     page.resources().fonts().pair(font_name, font_id);
 
+    // We also need to drop the page, as with the annotations above.
     drop(page);
 
     // Specify the font we want to use. Because Helvetica is one of the 14 base
