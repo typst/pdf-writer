@@ -102,8 +102,8 @@ pub mod writers {
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use interactive::{Action, Transition};
     pub use structure::{
-        Annotation, Annotations, Catalog, Destination, Destinations, FileSpec, Outline,
-        OutlineItem, Page, Pages, Resources, ViewerPreferences,
+        Annotation, Annotations, BorderStyle, Catalog, Destination, Destinations,
+        FileSpec, Outline, OutlineItem, Page, Pages, Resources, ViewerPreferences,
     };
 }
 
@@ -113,7 +113,7 @@ pub use interactive::{ActionType, TransitionAngle, TransitionStyle};
 pub use object::*;
 pub use stream::*;
 pub use structure::{
-    AnnotationFlags, AnnotationName, AnnotationType, BorderType, Direction,
+    AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, Direction,
     HighlightEffect, OutlineItemFlags, PageLayout, PageMode,
 };
 

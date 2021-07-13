@@ -2,7 +2,7 @@ use super::*;
 
 /// Writer for a _transition dictionary_.
 ///
-/// This struct is created by [`Page::trans`].
+/// This struct is created by [`Page::transition`].
 pub struct Transition<'a> {
     dict: Dict<'a>,
 }
@@ -30,7 +30,6 @@ impl<'a> Transition<'a> {
     /// horizontal if the argument is `false`.
     pub fn dimension(&mut self, vertical: bool) -> &mut Self {
         let name = if vertical { Name(b"V") } else { Name(b"H") };
-
         self.pair(Name(b"Dm"), name);
         self
     }
@@ -39,7 +38,6 @@ impl<'a> Transition<'a> {
     /// inwards if the argument is `false`.
     pub fn direction(&mut self, outward: bool) -> &mut Self {
         let name = if outward { Name(b"O") } else { Name(b"I") };
-
         self.pair(Name(b"M"), name);
         self
     }
@@ -67,6 +65,7 @@ impl<'a> Transition<'a> {
 deref!('a, Transition<'a> => Dict<'a>, dict);
 
 /// The kind of transition.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TransitionStyle {
     /// Split the slide down the middle.
     Split,
@@ -203,6 +202,7 @@ impl<'a> Action<'a> {
 deref!('a, Action<'a> => Dict<'a>, dict);
 
 /// What kind of action to perform.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ActionType {
     /// Go to a destination in the document.
     GoTo,

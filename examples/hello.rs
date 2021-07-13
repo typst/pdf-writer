@@ -37,29 +37,30 @@ fn main() -> std::io::Result<()> {
 
     // We also create the annotations list here that allows us to have things
     // like links or comments on the page.
-    let mut annots = page.annotations();
+    let mut annotations = page.annotations();
 
     // Write a new annotation.
-    let mut annot = annots.add();
+    let mut annotation = annotations.push();
 
     // Write the type, area, and action for this annotation.
-    annot
-        .subtype(AnnotationType::Link)
-        .rect(Rect::new(215.0, 730.0, 251.0, 748.0))
-        .contents(TextStr("Link to the Rust project web page"))
-        .color_rgb(0.0, 0.0, 1.0)
+    annotation.subtype(AnnotationType::Link);
+    annotation.rect(Rect::new(215.0, 730.0, 251.0, 748.0));
+    annotation.contents(TextStr("Link to the Rust project web page"));
+    annotation.color_rgb(0.0, 0.0, 1.0);
+
+    annotation
         .action()
         .action_type(ActionType::Uri)
         .uri(Str(b"https://www.rust-lang.org/"));
 
     // Set border and style for the link annotation.
-    annot.border_style().width(3.0).style(BorderType::Underline);
+    annotation.border_style().width(3.0).style(BorderType::Underline);
 
     // We have to drop all the writers that page depends on in order here
     // because otherwise it would be mutably borrowed until the end of the
     // block.
-    drop(annot);
-    drop(annots);
+    drop(annotation);
+    drop(annotations);
 
     // We also need to specify which resources the page needs, which in our case
     // is only a font that we name "F1" (the specific name doesn't matter).

@@ -168,9 +168,11 @@ impl Primitive for Rect {
 
 /// A date, represented as a text string.
 ///
-/// In order for the time zone information to be written, all time information
-/// (including seconds) must be written whereas `utc_offset_minute` must only be
-/// used to specify sub-hour time zone offsets.
+/// A field is only respected, if all superior fields are supplied. For example,
+/// to set the minute, the hour, day, etc. have to be set. Similarly, in order
+/// for the time zone information to be written, all time information (including
+/// seconds) must be written. `utc_offset_minute` is optional if supplying time
+/// zone info. It must only be used to specify sub-hour time zone offsets.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Date {
     /// The year (0-9999).
@@ -189,7 +191,7 @@ pub struct Date {
     utc_offset_hour: Option<i8>,
     /// The minute offset from UTC (0-59). Will carry over the sign from
     /// `utc_offset_hour`.
-    utc_offset_minute: Option<u8>,
+    utc_offset_minute: u8,
 }
 
 impl Date {
@@ -204,36 +206,36 @@ impl Date {
             minute: None,
             second: None,
             utc_offset_hour: None,
-            utc_offset_minute: None,
+            utc_offset_minute: 0,
         }
     }
 
     /// Add the month field. It will be clamped within the range 0-11.
-    pub fn month(&mut self, month: u8) -> &mut Self {
+    pub fn month(mut self, month: u8) -> Self {
         self.month = Some(month.min(11));
         self
     }
 
     /// Add the day field. It will be clamped within the range 0-30.
-    pub fn day(&mut self, day: u8) -> &mut Self {
+    pub fn day(mut self, day: u8) -> Self {
         self.day = Some(day.min(30));
         self
     }
 
     /// Add the hour field. It will be clamped within the range 0-23.
-    pub fn hour(&mut self, hour: u8) -> &mut Self {
+    pub fn hour(mut self, hour: u8) -> Self {
         self.hour = Some(hour.min(23));
         self
     }
 
     /// Add the minute field. It will be clamped within the range 0-59.
-    pub fn minute(&mut self, minute: u8) -> &mut Self {
+    pub fn minute(mut self, minute: u8) -> Self {
         self.minute = Some(minute.min(59));
         self
     }
 
     /// Add the second field. It will be clamped within the range 0-59.
-    pub fn second(&mut self, second: u8) -> &mut Self {
+    pub fn second(mut self, second: u8) -> Self {
         self.second = Some(second.min(59));
         self
     }
@@ -241,15 +243,15 @@ impl Date {
     /// Add the offset from UTC in hours. If not specified, the time will be
     /// assumed to be local to the viewer's time zone. It will be clamped within
     /// the range -23-23.
-    pub fn utc_offset_hour(&mut self, hour: i8) -> &mut Self {
+    pub fn utc_offset_hour(mut self, hour: i8) -> Self {
         self.utc_offset_hour = Some(hour.clamp(-23, 23));
         self
     }
 
     /// Add the offset from UTC in minutes. This will have the same sign as set in
     /// [`Self::utc_offset_hour`]. It will be clamped within the range 0-59.
-    pub fn utc_offset_minute(&mut self, minute: u8) -> &mut Self {
-        self.utc_offset_minute = Some(minute.min(59));
+    pub fn utc_offset_minute(mut self, minute: u8) -> Self {
+        self.utc_offset_minute = minute.min(59);
         self
     }
 }
@@ -280,18 +282,17 @@ impl Primitive for Date {
                 self.utc_offset_hour
             })
             .and_then::<u8, _>(|hour_offset| {
-                let minute_offset = self.utc_offset_minute.unwrap_or(0);
-
-                if hour_offset == 0 && minute_offset == 0 {
+                if hour_offset == 0 && self.utc_offset_minute == 0 {
                     s.push('Z');
                 } else {
-                    write!(&mut s, "{:+03}'{:02}", hour_offset, minute_offset).unwrap();
+                    write!(&mut s, "{:+03}'{:02}", hour_offset, self.utc_offset_minute)
+                        .unwrap();
                 }
 
                 None
             });
 
-        Str(s.as_bytes())).write(buf);
+        Str(s.as_bytes()).write(buf);
     }
 }
 

@@ -351,7 +351,7 @@ impl Direction {
 
 /// Writer for the _annotations array_ in a [`Page`].
 ///
-/// This struct is created by [`Page::annots`].
+/// This struct is created by [`Page::annotations`].
 pub struct Annotations<'a> {
     array: Array<'a>,
 }
@@ -362,7 +362,7 @@ impl<'a> Annotations<'a> {
     }
 
     /// Start writing a new annotation dictionary.
-    pub fn add(&mut self) -> Annotation<'_> {
+    pub fn push(&mut self) -> Annotation<'_> {
         Annotation::new(self.obj())
     }
 }
@@ -438,7 +438,9 @@ impl<'a> Annotation<'a> {
         dash_pattern: Option<impl IntoIterator<Item = f32>>,
     ) -> &mut Self {
         let mut array = self.key(Name(b"Border")).array();
-        array.item(h_radius).item(v_radius).item(width);
+        array.item(h_radius);
+        array.item(v_radius);
+        array.item(width);
 
         if let Some(pattern) = dash_pattern {
             array.obj().array().typed().items(pattern);
@@ -446,6 +448,12 @@ impl<'a> Annotation<'a> {
 
         drop(array);
         self
+    }
+
+    /// Start writing the `/BS` attribute. These are some more elaborate border
+    /// settings taking precedence over `/B` for some annotation types. (1.2+)
+    pub fn border_style(&mut self) -> BorderStyle<'_> {
+        BorderStyle::new(self.key(Name(b"BS")))
     }
 
     /// Write the `/C` attribute forcing a transparent color. This sets the
@@ -504,28 +512,12 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Start writing the `/BS` attribute. These are some more elaborate border
-    /// settings taking precedence over `/B` for some annotation types. (1.6+)
-    pub fn border_style(&mut self) -> BorderStyle<'_> {
-        BorderStyle::new(self.key(Name(b"BS")))
-    }
-
     /// Write the `/QuadPoints` attribute, specifying the region in which the link should be activated. (1.6+)
     pub fn quad_points(
         &mut self,
-        x1: f32,
-        y1: f32,
-        x2: f32,
-        y2: f32,
-        x3: f32,
-        y3: f32,
-        x4: f32,
-        y4: f32,
+        coordinates: impl IntoIterator<Item = f32>,
     ) -> &mut Self {
-        self.key(Name(b"QuadPoints"))
-            .array()
-            .typed()
-            .items([x1, y1, x2, y2, x3, y3, x4, y4]);
+        self.key(Name(b"QuadPoints")).array().typed().items(coordinates);
         self
     }
 
@@ -550,7 +542,7 @@ impl<'a> Annotation<'a> {
     /// Write the `/Name` attribute to one of the predefined icon names. Please
     /// mind the documentation to see which names are allowable for which
     /// annotation type.
-    pub fn icon(&mut self, name: AnnotationName) -> &mut Self {
+    pub fn icon(&mut self, name: AnnotationIcon) -> &mut Self {
         self.pair(Name(b"Name"), name.to_name());
         self
     }
@@ -627,7 +619,7 @@ pub enum AnnotationIcon {
     Tag,
 }
 
-impl AnnotationName {
+impl AnnotationIcon {
     fn to_name(self) -> Name<'static> {
         match self {
             Self::Comment => Name(b"Comment"),
@@ -646,7 +638,7 @@ impl AnnotationName {
 }
 
 bitflags::bitflags! {
-    /// Bitflags describing various characteristics of fonts.
+    /// Bitflags describing various characteristics of annotations.
     pub struct AnnotationFlags: u32 {
         /// This will hide the annotation if the viewer does not recognize its
         /// subtype. Otherwise, it will be rendered as specified in its apprearance
@@ -679,7 +671,8 @@ bitflags::bitflags! {
     }
 }
 
-/// Highlighting effect.
+/// Highlighting effect applied when a user holds the mouse button over some
+/// annotations.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum HighlightEffect {
     /// No effect.
@@ -817,6 +810,26 @@ impl BorderType {
     }
 }
 
+/// Writer for a _named destinations dictionary_.
+///
+/// This struct is created by [`PdfWriter::destinations`].
+pub struct Destinations<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> Destinations<'a> {
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Start adding another named destination.
+    pub fn push(&mut self, name: Name, page: Ref) -> Destination<'_> {
+        Destination::start(self.key(name), page)
+    }
+}
+
+deref!('a, Destinations<'a> => Dict<'a, IndirectGuard>, dict);
+
 /// Writer for a _destination array_.
 ///
 /// This struct is created by [`Destinations::push`].
@@ -831,13 +844,12 @@ impl<'a> Destination<'a> {
         Self { array }
     }
 
-    /// Write the `/XYZ` command which skips to the specified coordinated. Leave
-    /// `zoom` on `0` if you do not want to change the zoom level.
-    pub fn xyz(mut self, left: f32, top: f32, zoom: f32) {
+    /// Write the `/XYZ` command which skips to the specified coordinated.
+    pub fn xyz(mut self, left: f32, top: f32, zoom: Option<f32>) {
         self.item(Name(b"XYZ"));
         self.item(left);
         self.item(top);
-        self.item(zoom);
+        self.item(zoom.unwrap_or_default());
     }
 
     /// Write the `/Fit` command which fits all of the referenced page on
@@ -892,26 +904,6 @@ impl<'a> Destination<'a> {
 }
 
 deref!('a, Destination<'a> => Array<'a>, array);
-
-/// Writer for a _named destinations dictionary_.
-///
-/// This struct is created by [`PdfWriter::destinations`].
-pub struct Destinations<'a> {
-    dict: Dict<'a, IndirectGuard>,
-}
-
-impl<'a> Destinations<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
-        Self { dict: obj.dict() }
-    }
-
-    /// Start adding another named destination.
-    pub fn add(&mut self, name: Name, page: Ref) -> Destination<'_> {
-        Destination::start(self.key(name), page)
-    }
-}
-
-deref!('a, Destinations<'a> => Dict<'a, IndirectGuard>, dict);
 
 /// Writer for an _outline dictionary_.
 ///
