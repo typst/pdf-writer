@@ -42,12 +42,15 @@ fn main() -> std::io::Result<()> {
     // Write a new annotation.
     let mut annotation = annotations.push();
 
-    // Write the type, area, and action for this annotation.
+    // Write the type, area, alt-text, and color for this annotation.
     annotation.subtype(AnnotationType::Link);
     annotation.rect(Rect::new(215.0, 730.0, 251.0, 748.0));
     annotation.contents(TextStr("Link to the Rust project web page"));
     annotation.color_rgb(0.0, 0.0, 1.0);
 
+    // Write an action for the annotation, telling it where to link to. Actions
+    // can be associated with annotations, outline objects, and more and allow
+    // creating interactive PDFs (open links, play sounds...).
     annotation
         .action()
         .action_type(ActionType::Uri)

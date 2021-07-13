@@ -168,7 +168,7 @@ impl Primitive for Rect {
 
 /// A date, represented as a text string.
 ///
-/// A field is only respected, if all superior fields are supplied. For example,
+/// A field is only respected if all superior fields are supplied. For example,
 /// to set the minute, the hour, day, etc. have to be set. Similarly, in order
 /// for the time zone information to be written, all time information (including
 /// seconds) must be written. `utc_offset_minute` is optional if supplying time
