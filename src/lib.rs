@@ -78,7 +78,7 @@ or whether you write all required fields for an object. Refer to the
 [page]: writers::Page
 [image stream]: writers::ImageStream
 [`filter()`]: Stream::filter
-[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs^
+[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 [PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
 */
 
@@ -90,6 +90,7 @@ mod macros;
 mod buf;
 mod content;
 mod font;
+mod interactive;
 mod object;
 mod stream;
 mod structure;
@@ -99,13 +100,22 @@ pub mod writers {
     use super::*;
     pub use content::{ImageStream, Path, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
-    pub use structure::{Catalog, Page, Pages, Resources};
+    pub use interactive::{Action, Transition};
+    pub use structure::{
+        Annotation, Annotations, BorderStyle, Catalog, Destination, Destinations,
+        FileSpec, Outline, OutlineItem, Page, Pages, Resources, ViewerPreferences,
+    };
 }
 
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
+pub use interactive::{ActionType, TransitionAngle, TransitionStyle};
 pub use object::*;
 pub use stream::*;
+pub use structure::{
+    AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, Direction,
+    HighlightEffect, OutlineItemFlags, PageLayout, PageMode,
+};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
@@ -277,6 +287,21 @@ impl PdfWriter {
     /// Start writing a font descriptor.
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
         FontDescriptor::start(self.indirect(id))
+    }
+
+    /// Start writing a named destination dictionary.
+    pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
+        Destinations::start(self.indirect(id))
+    }
+
+    /// Start writing an outline.
+    pub fn outline(&mut self, id: Ref) -> Outline<'_> {
+        Outline::start(self.indirect(id))
+    }
+
+    /// Start writing an outline item.
+    pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
+        OutlineItem::start(self.indirect(id))
     }
 }
 

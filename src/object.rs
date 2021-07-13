@@ -1,3 +1,4 @@
+use std::fmt::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -53,6 +54,22 @@ impl Primitive for Str<'_> {
             buf.push_bytes(self.0);
             buf.push(b')');
         }
+    }
+}
+
+/// A UTF-16BE-encoded text string object.
+///
+/// This is written as `(BOM <bytes>)`.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct TextStr<'a>(pub &'a str);
+
+impl Primitive for TextStr<'_> {
+    fn write(self, buf: &mut Vec<u8>) {
+        let mut bytes = vec![254, 255];
+        for v in self.0.encode_utf16() {
+            bytes.extend(v.to_be_bytes());
+        }
+        Str(&bytes).write(buf);
     }
 }
 
@@ -146,6 +163,136 @@ impl Primitive for Rect {
         buf.push(b' ');
         buf.push_val(self.y2);
         buf.push(b']');
+    }
+}
+
+/// A date, represented as a text string.
+///
+/// A field is only respected if all superior fields are supplied. For example,
+/// to set the minute, the hour, day, etc. have to be set. Similarly, in order
+/// for the time zone information to be written, all time information (including
+/// seconds) must be written. `utc_offset_minute` is optional if supplying time
+/// zone info. It must only be used to specify sub-hour time zone offsets.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Date {
+    /// The year (0-9999).
+    year: u16,
+    /// The month (0-11).
+    month: Option<u8>,
+    /// The month (0-30).
+    day: Option<u8>,
+    /// The hour (0-23).
+    hour: Option<u8>,
+    /// The minute (0-59).
+    minute: Option<u8>,
+    /// The second (0-59).
+    second: Option<u8>,
+    /// The hour offset from UTC (-23 through 23).
+    utc_offset_hour: Option<i8>,
+    /// The minute offset from UTC (0-59). Will carry over the sign from
+    /// `utc_offset_hour`.
+    utc_offset_minute: u8,
+}
+
+impl Date {
+    /// Create a new, minimal date. The year value will be clamped within the
+    /// range 0-9999.
+    pub fn new(year: u16) -> Self {
+        Self {
+            year: year.min(9999),
+            month: None,
+            day: None,
+            hour: None,
+            minute: None,
+            second: None,
+            utc_offset_hour: None,
+            utc_offset_minute: 0,
+        }
+    }
+
+    /// Add the month field. It will be clamped within the range 0-11.
+    pub fn month(mut self, month: u8) -> Self {
+        self.month = Some(month.min(11));
+        self
+    }
+
+    /// Add the day field. It will be clamped within the range 0-30.
+    pub fn day(mut self, day: u8) -> Self {
+        self.day = Some(day.min(30));
+        self
+    }
+
+    /// Add the hour field. It will be clamped within the range 0-23.
+    pub fn hour(mut self, hour: u8) -> Self {
+        self.hour = Some(hour.min(23));
+        self
+    }
+
+    /// Add the minute field. It will be clamped within the range 0-59.
+    pub fn minute(mut self, minute: u8) -> Self {
+        self.minute = Some(minute.min(59));
+        self
+    }
+
+    /// Add the second field. It will be clamped within the range 0-59.
+    pub fn second(mut self, second: u8) -> Self {
+        self.second = Some(second.min(59));
+        self
+    }
+
+    /// Add the offset from UTC in hours. If not specified, the time will be
+    /// assumed to be local to the viewer's time zone. It will be clamped within
+    /// the range -23-23.
+    pub fn utc_offset_hour(mut self, hour: i8) -> Self {
+        self.utc_offset_hour = Some(hour.clamp(-23, 23));
+        self
+    }
+
+    /// Add the offset from UTC in minutes. This will have the same sign as set in
+    /// [`Self::utc_offset_hour`]. It will be clamped within the range 0-59.
+    pub fn utc_offset_minute(mut self, minute: u8) -> Self {
+        self.utc_offset_minute = minute.min(59);
+        self
+    }
+}
+
+impl Primitive for Date {
+    fn write(self, buf: &mut Vec<u8>) {
+        let mut s = format!("D:{:04}", self.year);
+
+        self.month
+            .and_then(|month| {
+                write!(&mut s, "{:02}", month + 1).unwrap();
+                self.day
+            })
+            .and_then(|day| {
+                write!(&mut s, "{:02}", day + 1).unwrap();
+                self.hour
+            })
+            .and_then(|hour| {
+                write!(&mut s, "{:02}", hour).unwrap();
+                self.minute
+            })
+            .and_then(|minute| {
+                write!(&mut s, "{:02}", minute).unwrap();
+                self.second
+            })
+            .and_then(|second| {
+                write!(&mut s, "{:02}", second).unwrap();
+                self.utc_offset_hour
+            })
+            .and_then::<u8, _>(|hour_offset| {
+                if hour_offset == 0 && self.utc_offset_minute == 0 {
+                    s.push('Z');
+                } else {
+                    write!(&mut s, "{:+03}'{:02}", hour_offset, self.utc_offset_minute)
+                        .unwrap();
+                }
+
+                None
+            });
+
+        Str(s.as_bytes()).write(buf);
     }
 }
 
