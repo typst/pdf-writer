@@ -45,13 +45,8 @@ impl<'a> Transition<'a> {
     }
 
     /// Write the `/Di` attribute to set the transition angle.
-    pub fn angle(&mut self, angle: TransitionDirection) -> &mut Self {
-        if let Some(number) = angle.to_number() {
-            self.pair(Name(b"Di"), number);
-        } else {
-            self.pair(Name(b"Di"), angle.to_name().unwrap());
-        }
-
+    pub fn angle(&mut self, angle: TransitionAngle) -> &mut Self {
+        angle.write_to_obj(self.key(Name(b"Di")));
         self
     }
 
@@ -121,7 +116,7 @@ impl TransitionStyle {
 /// The angle at which the transition plays.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
-pub enum TransitionDirection {
+pub enum TransitionAngle {
     LeftToRight,
     BottomToTop,
     RightToLeft,
@@ -131,22 +126,15 @@ pub enum TransitionDirection {
     None,
 }
 
-impl TransitionDirection {
-    fn to_number(&self) -> Option<i32> {
+impl TransitionAngle {
+    fn write_to_obj(&self, obj: Obj<'_>) {
         match self {
-            Self::LeftToRight => Some(0),
-            Self::BottomToTop => Some(90),
-            Self::RightToLeft => Some(180),
-            Self::TopToBottom => Some(270),
-            Self::TopLeftToBottomRight => Some(315),
-            Self::None => None,
-        }
-    }
-
-    fn to_name(&self) -> Option<Name<'static>> {
-        match self {
-            Self::None => Some(Name(b"None")),
-            _ => None,
+            Self::LeftToRight => obj.primitive(0),
+            Self::BottomToTop => obj.primitive(90),
+            Self::RightToLeft => obj.primitive(180),
+            Self::TopToBottom => obj.primitive(270),
+            Self::TopLeftToBottomRight => obj.primitive(315),
+            Self::None => obj.primitive(Name(b"None")),
         }
     }
 }

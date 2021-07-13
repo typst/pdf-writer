@@ -65,15 +65,16 @@ pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        buf.push(b'(');
-        buf.push(254);
-        buf.push(255);
-        buf.extend(
-            self.0
-                .encode_utf16()
-                .flat_map(|x| std::array::IntoIter::new(x.to_be_bytes())),
-        );
-        buf.push(b')');
+        let iter = std::iter::once(254).chain(std::iter::once(255));
+        let bytes: Vec<_> = iter
+            .chain(
+                self.0
+                    .encode_utf16()
+                    .flat_map(|x| std::array::IntoIter::new(x.to_be_bytes())),
+            )
+            .collect();
+
+        Str(&bytes).write(buf)
     }
 }
 
@@ -178,71 +179,88 @@ impl Primitive for Rect {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Date {
     /// The year (0-9999).
-    pub year: u16,
+    year: u16,
     /// The month (0-11).
-    pub month: Option<u8>,
+    month: Option<u8>,
     /// The month (0-30).
-    pub day: Option<u8>,
+    day: Option<u8>,
     /// The hour (0-23).
-    pub hour: Option<u8>,
+    hour: Option<u8>,
     /// The minute (0-59).
-    pub minute: Option<u8>,
+    minute: Option<u8>,
     /// The second (0-59).
-    pub second: Option<u8>,
+    second: Option<u8>,
     /// The hour offset from UTC (-23 through 23).
-    pub utc_offset_hour: Option<i8>,
+    utc_offset_hour: Option<i8>,
     /// The minute offset from UTC (0-59). Will carry over the sign from
     /// `utc_offset_hour`.
-    pub utc_offset_minute: Option<u8>,
+    utc_offset_minute: Option<u8>,
 }
 
 impl Date {
-    /// Create a new, complete date. The result will be `Ok` if all values are
-    /// within range.
-    pub fn new(
-        year: u16,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-        utc_offset_hour: i8,
-        utc_offset_minute: u8,
-    ) -> Result<Self, ()> {
-        let res = Self {
-            year,
-            month: Some(month),
-            day: Some(day),
-            hour: Some(hour),
-            minute: Some(minute),
-            second: Some(second),
-            utc_offset_hour: Some(utc_offset_hour),
-            utc_offset_minute: Some(utc_offset_minute),
-        };
-
-        if res.check() { Ok(res) } else { Err(()) }
+    /// Create a new, minimal date. The year value will be clamped within the
+    /// range 0-9999.
+    pub fn new(year: u16) -> Self {
+        Self {
+            year: year.min(9999),
+            month: None,
+            day: None,
+            hour: None,
+            minute: None,
+            second: None,
+            utc_offset_hour: None,
+            utc_offset_minute: None,
+        }
     }
 
-    /// Checks if all values are within range. If this returns `true`, the
-    /// struct will not panic upon write as a primitive.
-    pub fn check(&self) -> bool {
-        self.year <= 9999
-            && self.month.map_or(true, |x| x <= 11)
-            && self.day.map_or(true, |x| x <= 30)
-            && self.hour.map_or(true, |x| x <= 23)
-            && self.minute.map_or(true, |x| x <= 59)
-            && self.second.map_or(true, |x| x <= 59)
-            && self.utc_offset_hour.map_or(true, |x| x <= 23)
-            && self.utc_offset_minute.map_or(true, |x| x <= 59)
+    /// Add the month field. It will be clamped within the range 0-11.
+    pub fn month(&mut self, month: u8) -> &mut Self {
+        self.month = Some(month.min(11));
+        self
+    }
+
+    /// Add the day field. It will be clamped within the range 0-30.
+    pub fn day(&mut self, day: u8) -> &mut Self {
+        self.day = Some(day.min(30));
+        self
+    }
+
+    /// Add the hour field. It will be clamped within the range 0-23.
+    pub fn hour(&mut self, hour: u8) -> &mut Self {
+        self.hour = Some(hour.min(23));
+        self
+    }
+
+    /// Add the minute field. It will be clamped within the range 0-59.
+    pub fn minute(&mut self, minute: u8) -> &mut Self {
+        self.minute = Some(minute.min(59));
+        self
+    }
+
+    /// Add the second field. It will be clamped within the range 0-59.
+    pub fn second(&mut self, second: u8) -> &mut Self {
+        self.second = Some(second.min(59));
+        self
+    }
+
+    /// Add the offset from UTC in hours. If not specified, the time will be
+    /// assumed to be local to the viewer's time zone. It will be clamped within
+    /// the range -23-23.
+    pub fn utc_offset_hour(&mut self, hour: i8) -> &mut Self {
+        self.utc_offset_hour = Some(hour.clamp(-23, 23));
+        self
+    }
+
+    /// Add the from UTC in minutes. This will have the same sign as set in
+    /// [`Self::utc_offset_hour`]. It will be clamped within the range 0-59.
+    pub fn utc_offset_minute(&mut self, minute: u8) -> &mut Self {
+        self.utc_offset_minute = Some(minute.min(59));
+        self
     }
 }
 
 impl Primitive for Date {
     fn write(self, buf: &mut Vec<u8>) {
-        if !self.check() {
-            panic!("date values are out of range");
-        }
-
         let mut s = format!("D:{:04}", self.year);
 
         self.month

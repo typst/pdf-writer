@@ -1,6 +1,6 @@
 use pdf_writer::{
-    ActionType, AnnotationType, BorderType, Content, Name,
-    PdfWriter, Rect, Ref, Str, TextStr,
+    ActionType, AnnotationType, BorderType, Content, Name, PdfWriter, Rect, Ref, Str,
+    TextStr,
 };
 
 fn main() -> std::io::Result<()> {
@@ -31,13 +31,13 @@ fn main() -> std::io::Result<()> {
 
     // Set the size to A4 (measured in points) using `media_box` and set the
     // text object we'll write later as the page's contents.
-    //
+    page.media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
+    page.parent(page_tree_id);
+    page.contents(text_id);
+
     // We also create the annotations list here that allows us to have things
     // like links or comments on the page.
-    let mut annots = page
-        .parent(page_tree_id)
-        .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
-        .annots();
+    let mut annots = page.annotations();
 
     // Write a new annotation.
     let mut annot = annots.add();
@@ -47,16 +47,13 @@ fn main() -> std::io::Result<()> {
         .subtype(AnnotationType::Link)
         .rect(Rect::new(215.0, 730.0, 251.0, 748.0))
         .contents(TextStr("Link to the Rust project web page"))
+        .color_rgb(0.0, 0.0, 1.0)
         .action()
         .action_type(ActionType::Uri)
         .uri(Str(b"https://www.rust-lang.org/"));
 
     // Set border and style for the link annotation.
-    annot
-        .color_rgb(0.0, 0.0, 1.0)
-        .border_style()
-        .width(3.0)
-        .style(BorderType::Underline);
+    annot.border_style().width(3.0).style(BorderType::Underline);
 
     // We have to drop all the writers that page depends on in order here
     // because otherwise it would be mutably borrowed until the end of the
@@ -66,7 +63,7 @@ fn main() -> std::io::Result<()> {
 
     // We also need to specify which resources the page needs, which in our case
     // is only a font that we name "F1" (the specific name doesn't matter).
-    page.contents(text_id).resources().fonts().pair(font_name, font_id);
+    page.resources().fonts().pair(font_name, font_id);
 
     drop(page);
 

@@ -183,13 +183,16 @@ impl<'a> Page<'a> {
         self
     }
 
-    /// Write the `/CropBox` attribute.
+    /// Write the `/CropBox` attribute. This is the size of the area within
+    /// which content is visible.
     pub fn crop_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"CropBox"), rect);
         self
     }
 
-    /// Write the `/BleedBox` attribute. (1.3+)
+    /// Write the `/BleedBox` attribute. This is the size of the area within
+    /// which content is visible in a print production environment. Most
+    /// production-aiding marks should be outside of this box. (1.3+)
     pub fn bleed_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"BleedBox"), rect);
         self
@@ -222,19 +225,19 @@ impl<'a> Page<'a> {
 
     /// Write the `/Dur` attribute. This is the amount of seconds the page
     /// should be displayed before advancing to the next one. (1.1+)
-    pub fn dur(&mut self, seconds: f32) -> &mut Self {
+    pub fn duration(&mut self, seconds: f32) -> &mut Self {
         self.pair(Name(b"Dur"), seconds);
         self
     }
 
     /// Start writing the `/Trans` dictionary. This sets a transition effect for
     /// advancing to the next page. (1.1+)
-    pub fn trans(&mut self) -> Transition<'_> {
+    pub fn transition(&mut self) -> Transition<'_> {
         Transition::new(self.key(Name(b"Trans")))
     }
 
     /// Start writing the `/Annots` (annotations) array.
-    pub fn annots(&mut self) -> Annotations<'_> {
+    pub fn annotations(&mut self) -> Annotations<'_> {
         Annotations::start(self.key(Name(b"Annots")))
     }
 }

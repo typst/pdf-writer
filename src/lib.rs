@@ -109,7 +109,7 @@ pub mod writers {
 
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
-pub use interactive::{ActionType, TransitionDirection, TransitionStyle};
+pub use interactive::{ActionType, TransitionAngle, TransitionStyle};
 pub use object::*;
 pub use stream::*;
 pub use structure::{
