@@ -65,16 +65,11 @@ pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        let iter = std::iter::once(254).chain(std::iter::once(255));
-        let bytes: Vec<_> = iter
-            .chain(
-                self.0
-                    .encode_utf16()
-                    .flat_map(|x| std::array::IntoIter::new(x.to_be_bytes())),
-            )
-            .collect();
-
-        Str(&bytes).write(buf)
+        let mut bytes = vec![254, 255];
+        for v in self.0.encode_utf16() {
+            bytes.extend(v.to_be_bytes());
+        }
+        Str(&bytes).write(buf);
     }
 }
 
@@ -251,7 +246,7 @@ impl Date {
         self
     }
 
-    /// Add the from UTC in minutes. This will have the same sign as set in
+    /// Add the offset from UTC in minutes. This will have the same sign as set in
     /// [`Self::utc_offset_hour`]. It will be clamped within the range 0-59.
     pub fn utc_offset_minute(&mut self, minute: u8) -> &mut Self {
         self.utc_offset_minute = Some(minute.min(59));
@@ -296,7 +291,7 @@ impl Primitive for Date {
                 None
             });
 
-        Str(&s.bytes().collect::<Vec<_>>()).write(buf)
+        Str(s.as_bytes())).write(buf);
     }
 }
 

@@ -329,8 +329,9 @@ impl PageMode {
     }
 }
 
-/// Predominant reading order of text. Used to aid the viewer with the spacial
-/// ordering in which to display pages.
+/// Predominant reading order of text.
+///
+/// Used to aid the viewer with the spacial ordering in which to display pages.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Direction {
     /// Left-to-right.
@@ -403,7 +404,7 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Write the `/NM` attribute. This uniquely identified the anotation on the
+    /// Write the `/NM` attribute. This uniquely identifies the anotation on the
     /// page. (1.3+)
     pub fn name(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"NM"), text);
@@ -461,7 +462,7 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Write the `/C` attribute using a RGB color. This sets the annotations
+    /// Write the `/C` attribute using an RGB color. This sets the annotations
     /// background color and its popup title bar color. (1.1+)
     pub fn color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.key(Name(b"C")).array().typed().items([r, g, b]);
@@ -509,7 +510,7 @@ impl<'a> Annotation<'a> {
         BorderStyle::new(self.key(Name(b"BS")))
     }
 
-    /// Write the `/QuadPoints` attribute.
+    /// Write the `/QuadPoints` attribute, specifying the region in which the link should be activated. (1.6+)
     pub fn quad_points(
         &mut self,
         x1: f32,
@@ -599,9 +600,9 @@ impl AnnotationType {
     }
 }
 
-/// A name that sets the icon for the annotation.
+/// Possible icons for an annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum AnnotationName {
+pub enum AnnotationIcon {
     /// Speech bubble. For use with text annotations.
     Comment,
     /// For use with text annotations.
@@ -717,22 +718,22 @@ impl<'a> FileSpec<'a> {
     }
 
     /// Write the `/FS` attribute to set the file system this entry relates to.
-    /// If you set the `system` argument to `Name(b"URL")`, this becomes a URL
-    /// Specification.
+    /// If you set the `system` argument to `Name(b"URL")`, this becomes an URL
+    /// specification.
     pub fn file_system(&mut self, system: Name) -> &mut Self {
         self.pair(Name(b"FS"), system);
         self
     }
 
     /// Write the `/F` attribute to set the file path. Directories are indicated
-    /// by `/`, independant of the platform.
+    /// by `/`, independent of the platform.
     pub fn file(&mut self, path: Str) -> &mut Self {
         self.pair(Name(b"F"), path);
         self
     }
 
     /// Write the `/UF` attribute to set a Unicode-compatible path. Directories
-    /// are indicated by `/`, independant of the platform. (1.7+)
+    /// are indicated by `/`, independent of the platform. (1.7+)
     pub fn unic_file(&mut self, path: TextStr) -> &mut Self {
         self.pair(Name(b"UF"), path);
         self
@@ -816,7 +817,9 @@ impl BorderType {
     }
 }
 
-/// Writer for the _destination array_.
+/// Writer for a _destination array_.
+///
+/// This struct is created by [`Destinations::push`].
 pub struct Destination<'a> {
     array: Array<'a>,
 }
@@ -953,7 +956,7 @@ impl<'a> Outline<'a> {
 
 deref!('a, Outline<'a> => Dict<'a, IndirectGuard>, dict);
 
-/// Writer for an _outline dictionary_.
+/// Writer for an _outline item dictionary_.
 ///
 /// This struct is created by [`PdfWriter::outline_item`].
 pub struct OutlineItem<'a> {
@@ -1030,7 +1033,7 @@ impl<'a> OutlineItem<'a> {
         self
     }
 
-    /// Write the `/C` attribute using a RGB color. This sets the color in which
+    /// Write the `/C` attribute using an RGB color. This sets the color in which
     /// the outline item's title should be rendered. (1.4+)
     pub fn color(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.key(Name(b"C")).array().typed().items([r, g, b]);
