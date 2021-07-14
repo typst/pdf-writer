@@ -1,4 +1,4 @@
-use std::fmt::Write;
+// use std::fmt::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -57,9 +57,10 @@ impl Primitive for Str<'_> {
     }
 }
 
-/// A UTF-16BE-encoded text string object.
+/// A unicode text string object.
 ///
-/// This is written as `(BOM <bytes>)`.
+/// This is written as a [`Str`] containing a byte order mark followed by
+/// UTF-16-BE bytes.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TextStr<'a>(pub &'a str);
 
@@ -150,6 +151,14 @@ impl Rect {
     pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
         Self { x1, y1, x2, y2 }
     }
+
+    /// Convert this rectangle into 8 floats describing the four corners of the
+    /// rectangle in counterclockwise order.
+    pub fn to_quad_points(self) -> [f32; 8] {
+        [
+            self.x1, self.y1, self.x2, self.y1, self.x2, self.y2, self.x1, self.y2,
+        ]
+    }
 }
 
 impl Primitive for Rect {
@@ -173,7 +182,7 @@ impl Primitive for Rect {
 /// for the time zone information to be written, all time information (including
 /// seconds) must be written. `utc_offset_minute` is optional if supplying time
 /// zone info. It must only be used to specify sub-hour time zone offsets.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Date {
     /// The year (0-9999).
     year: u16,
@@ -195,8 +204,8 @@ pub struct Date {
 }
 
 impl Date {
-    /// Create a new, minimal date. The year value will be clamped within the
-    /// range 0-9999.
+    /// Create a new, minimal date. The year will be clamped within the range
+    /// 0-9999.
     pub fn new(year: u16) -> Self {
         Self {
             year: year.min(9999),
@@ -210,15 +219,15 @@ impl Date {
         }
     }
 
-    /// Add the month field. It will be clamped within the range 0-11.
+    /// Add the month field. It will be clamped within the range 1-12.
     pub fn month(mut self, month: u8) -> Self {
-        self.month = Some(month.min(11));
+        self.month = Some(month.clamp(1, 12));
         self
     }
 
-    /// Add the day field. It will be clamped within the range 0-30.
+    /// Add the day field. It will be clamped within the range 1-31.
     pub fn day(mut self, day: u8) -> Self {
-        self.day = Some(day.min(30));
+        self.day = Some(day.clamp(1, 31));
         self
     }
 
@@ -258,41 +267,39 @@ impl Date {
 
 impl Primitive for Date {
     fn write(self, buf: &mut Vec<u8>) {
-        let mut s = format!("D:{:04}", self.year);
+        write!(buf, "(D:{:04}", self.year).unwrap();
 
         self.month
             .and_then(|month| {
-                write!(&mut s, "{:02}", month + 1).unwrap();
+                write!(buf, "{:02}", month).unwrap();
                 self.day
             })
             .and_then(|day| {
-                write!(&mut s, "{:02}", day + 1).unwrap();
+                write!(buf, "{:02}", day).unwrap();
                 self.hour
             })
             .and_then(|hour| {
-                write!(&mut s, "{:02}", hour).unwrap();
+                write!(buf, "{:02}", hour).unwrap();
                 self.minute
             })
             .and_then(|minute| {
-                write!(&mut s, "{:02}", minute).unwrap();
+                write!(buf, "{:02}", minute).unwrap();
                 self.second
             })
             .and_then(|second| {
-                write!(&mut s, "{:02}", second).unwrap();
+                write!(buf, "{:02}", second).unwrap();
                 self.utc_offset_hour
             })
-            .and_then::<u8, _>(|hour_offset| {
-                if hour_offset == 0 && self.utc_offset_minute == 0 {
-                    s.push('Z');
+            .map(|utc_offset_hour| {
+                if utc_offset_hour == 0 && self.utc_offset_minute == 0 {
+                    buf.push(b'Z');
                 } else {
-                    write!(&mut s, "{:+03}'{:02}", hour_offset, self.utc_offset_minute)
+                    write!(buf, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
                         .unwrap();
                 }
-
-                None
             });
 
-        Str(s.as_bytes()).write(buf);
+        buf.push(b')');
     }
 }
 

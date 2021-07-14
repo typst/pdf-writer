@@ -28,7 +28,7 @@ let mut writer = PdfWriter::new(1, 7);
 
 // The document catalog and a page tree with one A4 page that uses no resources.
 writer.catalog(catalog_id).pages(page_tree_id);
-writer.pages(page_tree_id).kids(vec![page_id]);
+writer.pages(page_tree_id).kids([page_id]);
 writer.page(page_id)
     .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
@@ -38,8 +38,8 @@ writer.page(page_id)
 std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
 ```
 
-For a more comprehensive overview, check out the [hello world example] in the
-repository, which creates a document with text in it.
+For a more comprehensive overview, check out the [hello world example], which
+creates a document with text and a link in it.
 
 ## License
 This crate is dual-licensed under the MIT and Apache 2.0 licenses.

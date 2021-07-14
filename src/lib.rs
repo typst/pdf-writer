@@ -68,7 +68,7 @@ std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
 ```
 
 For a more comprehensive overview, check out the [hello world example] in the
-repository, which creates a document with text in it.
+repository, which creates a document with text and a link in it.
 
 # Note
 This crate does not validate whether you use the correct indirect reference ids
@@ -87,35 +87,38 @@ or whether you write all required fields for an object. Refer to the
 
 #[macro_use]
 mod macros;
+mod annotations;
 mod buf;
 mod content;
 mod font;
-mod interactive;
 mod object;
 mod stream;
 mod structure;
+mod transitions;
 
 /// Writers for specific PDF structures.
 pub mod writers {
     use super::*;
+    pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
     pub use content::{ImageStream, Path, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
-    pub use interactive::{Action, Transition};
     pub use structure::{
-        Annotation, Annotations, BorderStyle, Catalog, Destination, Destinations,
-        FileSpec, Outline, OutlineItem, Page, Pages, Resources, ViewerPreferences,
+        Catalog, Destination, Destinations, Outline, OutlineItem, Page, Pages, Resources,
+        ViewerPreferences,
     };
+    pub use transitions::Transition;
 }
 
+pub use annotations::{
+    ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
+    HighlightEffect,
+};
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
-pub use interactive::{ActionType, TransitionAngle, TransitionStyle};
 pub use object::*;
 pub use stream::*;
-pub use structure::{
-    AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, Direction,
-    HighlightEffect, OutlineItemFlags, PageLayout, PageMode,
-};
+pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};
+pub use transitions::{TransitionAngle, TransitionStyle};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
@@ -269,6 +272,21 @@ impl PdfWriter {
         Page::start(self.indirect(id))
     }
 
+    /// Start writing an outline.
+    pub fn outline(&mut self, id: Ref) -> Outline<'_> {
+        Outline::start(self.indirect(id))
+    }
+
+    /// Start writing an outline item.
+    pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
+        OutlineItem::start(self.indirect(id))
+    }
+
+    /// Start writing a named destination dictionary.
+    pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
+        Destinations::start(self.indirect(id))
+    }
+
     /// Start writing a Type-1 font.
     pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
         Type1Font::start(self.indirect(id))
@@ -287,21 +305,6 @@ impl PdfWriter {
     /// Start writing a font descriptor.
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
         FontDescriptor::start(self.indirect(id))
-    }
-
-    /// Start writing a named destination dictionary.
-    pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
-        Destinations::start(self.indirect(id))
-    }
-
-    /// Start writing an outline.
-    pub fn outline(&mut self, id: Ref) -> Outline<'_> {
-        Outline::start(self.indirect(id))
-    }
-
-    /// Start writing an outline item.
-    pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
-        OutlineItem::start(self.indirect(id))
     }
 }
 

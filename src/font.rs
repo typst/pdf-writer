@@ -75,7 +75,7 @@ impl<'a> Type0Font<'a> {
 
 deref!('a, Type0Font<'a> => Dict<'a, IndirectGuard>, dict);
 
-/// Writer for a _CID font_, a descendant of a [`Type0Font`].
+/// Writer for a _CID font_, a descendant of a [_Type-0 font_](Type0Font).
 ///
 /// This struct is created by [`PdfWriter::cid_font`].
 pub struct CidFont<'a> {
@@ -134,7 +134,7 @@ impl CidFontType {
     }
 }
 
-/// Writer for the _width array_ in a [`CidFont`].
+/// Writer for the _width array_ in a [_Cid font_](CidFont).
 ///
 /// This struct is created by [`CidFont::widths`].
 pub struct Widths<'a> {
