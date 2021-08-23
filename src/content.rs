@@ -239,11 +239,63 @@ impl<'a> Text<'a> {
         self.buf.push_bytes(b" Tj\n");
         self
     }
+
+    /// `TJ`: Show text with individual glyph positioning.
+    pub fn show_positioned(&mut self) -> PositionedText<'_> {
+        PositionedText::start(self)
+    }
 }
 
 impl Drop for Text<'_> {
     fn drop(&mut self) {
         self.buf.push_bytes(b"ET\n");
+    }
+}
+
+/// Writer for text with _individual glyph positioning_ in a text object.
+///
+/// This struct is created by [`Text::show_positioned`].
+pub struct PositionedText<'a> {
+    buf: &'a mut Vec<u8>,
+    first: bool,
+}
+
+impl<'a> PositionedText<'a> {
+    pub(crate) fn start(text: &'a mut Text) -> Self {
+        let buf = &mut text.buf;
+        buf.push(b'[');
+        Self { buf, first: true }
+    }
+
+    /// Show a continous text string without adjustments.
+    ///
+    /// The encoding of the text is up to you.
+    pub fn show(&mut self, text: Str) -> &mut Self {
+        if !self.first {
+            self.buf.push(b' ');
+        }
+        self.first = false;
+        self.buf.push_val(text);
+        self
+    }
+
+    /// Specify an adjustment between two glyphs.
+    ///
+    /// The `amount` is specified in thousands of units of text space and is
+    /// subtracted from the current writing-mode dependent coordinate.
+    pub fn adjust(&mut self, amount: f32) -> &mut Self {
+        if !self.first {
+            self.buf.push(b' ');
+        }
+        self.first = false;
+        self.buf.push_val(amount);
+        self
+    }
+}
+
+impl Drop for PositionedText<'_> {
+    fn drop(&mut self) {
+        self.buf.push_bytes(b"] TJ\n");
     }
 }
 

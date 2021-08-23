@@ -100,7 +100,7 @@ mod transitions;
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
-    pub use content::{ImageStream, Path, Text};
+    pub use content::{ImageStream, Path, PositionedText, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use structure::{
         Catalog, Destination, Destinations, Outline, OutlineItem, Page, Pages, Resources,
