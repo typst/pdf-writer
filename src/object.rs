@@ -42,7 +42,12 @@ pub struct Str<'a>(pub &'a [u8]);
 
 impl Primitive for Str<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        if self.0.iter().any(|b| matches!(b, b'\\' | b'(' | b')')) {
+        // Fall back to hex formatting if the string contains a:
+        // - backslash because it is used for escaping,
+        // - parenthesis because they are the delimiters,
+        // - carriage return (0x0D) because it would be silently
+        //   transformed into a newline (0x0A).
+        if self.0.iter().any(|b| matches!(b, b'\\' | b'(' | b')' | b'\r')) {
             buf.reserve(2 + 2 * self.0.len());
             buf.push(b'<');
             for &byte in self.0 {
