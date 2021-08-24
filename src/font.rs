@@ -112,6 +112,19 @@ impl<'a> CidFont<'a> {
     pub fn widths(&mut self) -> Widths<'_> {
         Widths::start(self.key(Name(b"W")))
     }
+
+    /// Write the `/CIDToGIDMap` attribute as a predefined name.
+    pub fn cid_to_gid_map_predefined(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"CIDToGIDMap"), name);
+        self
+    }
+
+    /// Write the `/CIDToGIDMap` attribute as a reference to a stream, whose
+    /// bytes directly map from CIDs to glyph indices.
+    pub fn cid_to_gid_map_stream(&mut self, stream: Ref) -> &mut Self {
+        self.pair(Name(b"CIDToGIDMap"), stream);
+        self
+    }
 }
 
 deref!('a, CidFont<'a> => Dict<'a, IndirectGuard>, dict);
