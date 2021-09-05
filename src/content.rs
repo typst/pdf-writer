@@ -171,6 +171,54 @@ impl Content {
         self.buf.push_bytes(b" SCN\n");
         self
     }
+
+    /// `scn`: Set the fill pattern. PDF 1.2+.
+    ///
+    /// The `name` parameter is the name of a pattern. If this is an uncolored
+    /// pattern, a tint color in the current `Pattern` base color space must be
+    /// given, otherwise, the `color` iterator shall remain empty.
+    pub fn fill_pattern(
+        &mut self,
+        color: impl IntoIterator<Item = f32>,
+        name: Name,
+    ) -> &mut Self {
+        for val in color.into_iter() {
+            self.buf.push_val(val);
+            self.buf.push(b' ');
+        }
+
+        self.buf.push_val(name);
+        self.buf.push_bytes(b" scn\n");
+        self
+    }
+
+    /// `SCN`: Set the stroke pattern. PDF 1.2+.
+    ///
+    /// The `name` parameter is the name of a pattern. If this is an uncolored
+    /// pattern, a tint color in the current `Pattern` base color space must be
+    /// given, otherwise, the `color` iterator shall remain empty.
+    pub fn stroke_pattern(
+        &mut self,
+        color: impl IntoIterator<Item = f32>,
+        name: Name,
+    ) -> &mut Self {
+        for val in color.into_iter() {
+            self.buf.push_val(val);
+            self.buf.push(b' ');
+        }
+
+        self.buf.push_val(name);
+        self.buf.push_bytes(b" SCN\n");
+        self
+    }
+
+    /// `ri`: Set the color rendering intent to the parameter. PDF 1.1+.
+    pub fn rendering_intent(&mut self, intent: RenderingIntent) -> &mut Self {
+        self.buf.push_val(intent.to_name());
+        self.buf.push_bytes(b" ri\n");
+        self
+    }
+
     /// `re`: Draw a rectangle.
     pub fn rect(
         &mut self,
@@ -207,6 +255,13 @@ impl Content {
     pub fn x_object(&mut self, name: Name) -> &mut Self {
         self.buf.push_val(name);
         self.buf.push_bytes(b" Do\n");
+        self
+    }
+
+    /// `sh`: Fill the whole drawing area with the specified shading.
+    pub fn shading(&mut self, shading: Name) -> &mut Self {
+        self.buf.push_val(shading);
+        self.buf.push_bytes(b" sh\n");
         self
     }
 
@@ -484,6 +539,12 @@ impl<'a> ImageStream<'a> {
         self.pair(Name(b"SMask"), x_object);
         self
     }
+
+    /// Write the `/Intent` attribute. PDF 1.1+.
+    pub fn intent(&mut self, intent: RenderingIntent) -> &mut Self {
+        self.pair(Name(b"Intent"), intent.to_name());
+        self
+    }
 }
 
 deref!('a, ImageStream<'a> => Stream<'a>, stream);
@@ -700,6 +761,18 @@ impl<'a> ColorSpaces<'a> {
         drop(array);
         self
     }
+
+    /// Write a `Pattern` color space for uncolored patterns. PDF 1.2+.
+    ///
+    /// The `base` attribute is the color space in which the pattern color is
+    /// specified upon use.
+    pub fn pattern(&mut self, name: Name, base: Name) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::Pattern.to_name());
+        array.item(base);
+        drop(array);
+        self
+    }
 }
 
 deref!('a, ColorSpaces<'a> => Dict<'a>, dict);
@@ -726,3 +799,322 @@ impl LineCapStyle {
         }
     }
 }
+
+/// How the document should aim to render colors.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum RenderingIntent {
+    /// Only consider the light source, not the output's white point.
+    AbsoluteColorimetric,
+    /// Consider both the light source and the output's white point.
+    RelativeColorimetric,
+    /// Preserve saturation.
+    Saturation,
+    /// Preserve a pleasing visual appearance.
+    Perceptual,
+}
+
+impl RenderingIntent {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            Self::AbsoluteColorimetric => Name(b"AbsoluteColorimetric"),
+            Self::RelativeColorimetric => Name(b"RelativeColorimetric"),
+            Self::Saturation => Name(b"Saturation"),
+            Self::Perceptual => Name(b"Perceptual"),
+        }
+    }
+}
+
+/// Writer for a _tiling pattern stream_.
+pub struct TilingStream<'a> {
+    stream: Stream<'a>,
+}
+
+impl<'a> TilingStream<'a> {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+        stream.pair(Name(b"Type"), Name(b"Pattern"));
+        stream.pair(Name(b"PatternType"), PatternType::Tiling.to_int());
+        Self { stream }
+    }
+
+    /// Write the `/PaintType` attribute.
+    ///
+    /// Sets whether to use external or stream color. Required.
+    pub fn paint_type(&mut self, paint_type: PaintType) -> &mut Self {
+        self.stream.pair(Name(b"PaintType"), paint_type.to_int());
+        self
+    }
+
+    /// Write the `/TilingType` attribute.
+    ///
+    /// Sets how to stretch and space the pattern. Required.
+    pub fn tiling_type(&mut self, tiling_type: TilingType) -> &mut Self {
+        self.stream.pair(Name(b"TilingType"), tiling_type.to_int());
+        self
+    }
+
+    /// Write the `/BBox` attribute.
+    ///
+    /// Sets the bounding box of the pattern in the pattern's coordinate system.
+    /// Required.
+    pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
+        self.stream.pair(Name(b"BBox"), bbox);
+        self
+    }
+
+    /// Write the `/XStep` attribute.
+    ///
+    /// Sets the horizontal spacing between pattern cells. Required.
+    ///
+    /// Panics if zero.
+    pub fn x_step(&mut self, x_step: f32) -> &mut Self {
+        assert!(x_step != 0.0);
+        self.stream.pair(Name(b"XStep"), x_step);
+        self
+    }
+
+    /// Write the `/YStep` attribute.
+    ///
+    /// Sets the vertical spacing between pattern cells. Required.
+    ///
+    /// Panics if zero.
+    pub fn y_step(&mut self, y_step: f32) -> &mut Self {
+        assert!(y_step != 0.0);
+        self.stream.pair(Name(b"YStep"), y_step);
+        self
+    }
+
+    /// Start writing the `/Resources` dictionary.
+    ///
+    /// Sets the resources used by the pattern. Required.
+    pub fn resources(&mut self) -> Resources<'_> {
+        Resources::new(self.key(Name(b"Resources")))
+    }
+
+    /// Write the `/Matrix` attribute.
+    ///
+    /// Maps the pattern coordinate system to the parent content stream
+    /// coordinates. The default is the identity matrix.
+    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+        self.stream.key(Name(b"Matrix")).array().typed().items(matrix);
+        self
+    }
+}
+
+deref!('a, TilingStream<'a> => Stream<'a>, stream);
+
+/// Type of pattern.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum PatternType {
+    /// A tiling pattern.
+    Tiling,
+    /// A shading pattern.
+    Shading,
+}
+
+impl PatternType {
+    fn to_int(self) -> i32 {
+        match self {
+            Self::Tiling => 1,
+            Self::Shading => 2,
+        }
+    }
+}
+
+/// Type of paint for a tiling pattern.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum PaintType {
+    /// Paint the pattern with the colors specified in the stream.
+    Colored,
+    /// Paint the pattern with the colors active when the pattern was painted.
+    Uncolored,
+}
+
+impl PaintType {
+    fn to_int(self) -> i32 {
+        match self {
+            Self::Colored => 1,
+            Self::Uncolored => 2,
+        }
+    }
+}
+
+/// How to adjust tile spacing.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TilingType {
+    /// Constant space between each tile, tiles may be distorted by 1px.
+    ConstantSpacing,
+    /// Tile size is constant, spacing between may vary by 1px.
+    NoDistortion,
+    /// Constant space between each tile and faster drawing, tiles may be distorted.
+    FastConstantSpacing,
+}
+
+impl TilingType {
+    fn to_int(self) -> i32 {
+        match self {
+            Self::ConstantSpacing => 1,
+            Self::NoDistortion => 2,
+            Self::FastConstantSpacing => 3,
+        }
+    }
+}
+
+/// Writer for a _shading dictionary_.
+///
+/// This struct is created by [`PdfWriter::shading`].
+pub struct Shading<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> Shading<'a> {
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Write the `/ShadingType` attribute.
+    ///
+    /// Sets the type of shading. The available and required attributes change
+    /// depending on this. Required.
+    pub fn shading_type(&mut self, shading_type: ShadingType) -> &mut Self {
+        self.dict.pair(Name(b"ShadingType"), shading_type.to_int());
+        self
+    }
+
+    /// Write the `/ColorSpace` attribute.
+    ///
+    /// Sets the color space of the shading function. May not be a `Pattern`
+    /// space. Required.
+    pub fn color_space(&mut self, color_space: ColorSpace) -> &mut Self {
+        self.dict.pair(Name(b"ColorSpace"), color_space.to_name());
+        self
+    }
+
+    /// Write the `/Background` attribute.
+    ///
+    /// Sets the background color of the area to be shaded. The `background`
+    /// iterator must contain exactly as many elements as the current
+    /// `ColorSpace` has dimensions.
+    pub fn background(&mut self, background: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.dict.key(Name(b"Background")).array().typed().items(background);
+        self
+    }
+
+    /// Write the `/BBox` attribute.
+    ///
+    /// Sets the bounding box of the shading in the target coordinate system.
+    pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
+        self.dict.pair(Name(b"BBox"), bbox);
+        self
+    }
+
+    /// Write the `/AntiAlias` attribute.
+    ///
+    /// Sets whether to anti-alias the shading.
+    pub fn anti_alias(&mut self, anti_alias: bool) -> &mut Self {
+        self.dict.pair(Name(b"AntiAlias"), anti_alias);
+        self
+    }
+
+    /// Write the `/Domain` attribute.
+    ///
+    /// Sets the domain of the shading function in a rectangle. Can be used for
+    /// function, axial, or radial shadings. Will otherwise default to
+    /// `[x_min = 0, x_max = 1, y_min = 0, y_max = 1]`
+    pub fn domain(&mut self, domain: [f32; 4]) -> &mut Self {
+        self.dict.key(Name(b"Domain")).array().typed().items(domain);
+        self
+    }
+
+    /// Write the `/Matrix` attribute.
+    ///
+    /// Maps the shading domain rectangle to the target coordinate system. Can
+    /// be used for function shadings. Will otherwise
+    /// default to the identity matrix.
+    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+        self.dict.key(Name(b"Matrix")).array().typed().items(matrix);
+        self
+    }
+
+    /// Write the `/Function` attribute.
+    ///
+    /// Sets the 2-in function to use for shading. Required.
+    pub fn function(&mut self, function: Ref) -> &mut Self {
+        self.dict.pair(Name(b"Function"), function);
+        self
+    }
+
+    /// Write the `/Coords` attribute.
+    ///
+    /// Sets the coordinates of the start and end of the axis in terms of the
+    /// target coordinate system. Required for axial (4 items) and radial (6
+    /// items; centers and radii) shadings.
+    pub fn coords(&mut self, coords: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.dict.key(Name(b"Coords")).array().typed().items(coords);
+        self
+    }
+
+    /// Write the `/Extend` attribute.
+    ///
+    /// Set whether the shading should extend beyond either side of the axis /
+    /// circles. Can be used for axial and radial shadings.
+    pub fn extend(&mut self, extend: [bool; 2]) -> &mut Self {
+        self.dict.key(Name(b"Extend")).array().typed().items(extend);
+        self
+    }
+}
+
+deref!('a, Shading<'a> => Dict<'a, IndirectGuard>, dict);
+
+/// What kind of shading to use.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
+pub enum ShadingType {
+    /// The function specifies the color for each point in the domain.
+    Function,
+    /// The function specifies the color for each point on a line.
+    Axial,
+    /// The function specifies the color for each circle between two nested circles.
+    Radial,
+}
+
+impl ShadingType {
+    fn to_int(self) -> i32 {
+        match self {
+            Self::Function => 1,
+            Self::Axial => 2,
+            Self::Radial => 3,
+        }
+    }
+}
+
+/// Writer for a _shading pattern stream_.
+pub struct ShadingPattern<'a> {
+    dict: Dict<'a, IndirectGuard>,
+}
+
+impl<'a> ShadingPattern<'a> {
+    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Pattern"));
+        dict.pair(Name(b"PatternType"), PatternType::Shading.to_int());
+        Self { dict }
+    }
+
+    /// Write the `/Shading` attribute.
+    ///
+    /// Sets the shading object to use. Required.
+    pub fn shading(&mut self, shading: Ref) -> &mut Self {
+        self.dict.pair(Name(b"Shading"), shading);
+        self
+    }
+
+    /// Write the `/Matrix` attribute.
+    ///
+    /// Sets the matrix to use for the pattern. Defaults to the identity matrix.
+    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+        self.dict.key(Name(b"Matrix")).array().typed().items(matrix);
+        self
+    }
+}
+
+deref!('a, ShadingPattern<'a> => Dict<'a, IndirectGuard>, dict);

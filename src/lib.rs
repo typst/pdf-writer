@@ -101,7 +101,10 @@ mod transitions;
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
-    pub use content::{ImageStream, Path, PositionedText, Text};
+    pub use content::{
+        ColorSpaces, ImageStream, Path, PositionedText, Shading, ShadingPattern, Text,
+        TilingStream,
+    };
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -117,7 +120,10 @@ pub use annotations::{
     ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
     HighlightEffect,
 };
-pub use content::{ColorSpace, Content, LineCapStyle};
+pub use content::{
+    ColorSpace, Content, LineCapStyle, PaintType, RenderingIntent, ShadingType,
+    TilingType,
+};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
 pub use functions::{InterpolationOrder, PostScriptOp};
 pub use object::*;
@@ -313,6 +319,16 @@ impl PdfWriter {
         FontDescriptor::start(self.indirect(id))
     }
 
+    /// Start writing a shading dictionary.
+    pub fn shading(&mut self, id: Ref) -> Shading<'_> {
+        Shading::start(self.indirect(id))
+    }
+
+    /// Start writing a pattern dictionary for a shading pattern.
+    pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
+        ShadingPattern::start(self.indirect(id))
+    }
+
     /// Start writing an exponential function dictionary.
     pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
         ExponentialFunction::start(self.indirect(id))
@@ -369,6 +385,13 @@ impl PdfWriter {
     ) -> PostScriptFunction<'a> {
         let bytes = PostScriptOp::encode_slice(ops);
         PostScriptFunction::start(self.stream(id, bytes))
+    }
+
+    /// Start writing a tiling pattern stream.
+    ///
+    /// Obtain the `bytes` from a [`Content`] builder.
+    pub fn tiling_stream<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> TilingStream<'_> {
+        TilingStream::start(self.stream(id, bytes))
     }
 }
 

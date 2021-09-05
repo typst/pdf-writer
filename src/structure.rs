@@ -187,7 +187,8 @@ deref!('a, Page<'a> => Dict<'a, IndirectGuard>, dict);
 
 /// Writer for a _resource dictionary_.
 ///
-/// This struct is created by [`Pages::resources`] and [`Page::resources`].
+/// This struct is created by [`Pages::resources`], [`Page::resources`] and
+/// [`TilingStream::resources`].
 pub struct Resources<'a> {
     dict: Dict<'a>,
 }
@@ -205,6 +206,21 @@ impl<'a> Resources<'a> {
     /// Start writing the `/Font` dictionary.
     pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"Font")).dict().typed()
+    }
+
+    /// Start writing the `/ColorSpace` dictionary. PDF 1.1+.
+    pub fn color_spaces(&mut self) -> ColorSpaces<'_> {
+        ColorSpaces::new(self.key(Name(b"ColorSpace")))
+    }
+
+    /// Start writing the `/Pattern` dictionary. PDF 1.2+.
+    pub fn patterns(&mut self) -> TypedDict<'_, Ref> {
+        self.key(Name(b"Pattern")).dict().typed()
+    }
+
+    /// Start writing the `/Shading` dictionary. PDF 1.3+.
+    pub fn shadings(&mut self) -> TypedDict<'_, Ref> {
+        self.key(Name(b"Shading")).dict().typed()
     }
 }
 
