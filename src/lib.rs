@@ -91,6 +91,7 @@ mod annotations;
 mod buf;
 mod content;
 mod font;
+mod functions;
 mod object;
 mod stream;
 mod structure;
@@ -102,6 +103,9 @@ pub mod writers {
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
     pub use content::{ImageStream, Path, PositionedText, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
+    pub use functions::{
+        ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
+    };
     pub use structure::{
         Catalog, Destination, Destinations, Outline, OutlineItem, Page, Pages, Resources,
         ViewerPreferences,
@@ -115,11 +119,13 @@ pub use annotations::{
 };
 pub use content::{ColorSpace, Content, LineCapStyle};
 pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
+pub use functions::{InterpolationOrder, PostScriptOp};
 pub use object::*;
 pub use stream::*;
 pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};
 pub use transitions::{TransitionAngle, TransitionStyle};
 
+use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 
@@ -306,6 +312,16 @@ impl PdfWriter {
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
         FontDescriptor::start(self.indirect(id))
     }
+
+    /// Start writing an exponential function dictionary.
+    pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
+        ExponentialFunction::start(self.indirect(id))
+    }
+
+    /// Start writing a stitching function dictionary.
+    pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
+        StitchingFunction::start(self.indirect(id))
+    }
 }
 
 /// Streams.
@@ -315,9 +331,12 @@ impl PdfWriter {
     /// The stream data and the `/Length` field are written automatically. You
     /// can add additional key-value pairs to the stream dictionary with the
     /// returned stream writer.
-    pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
+    pub fn stream<'a, T>(&'a mut self, id: Ref, data: T) -> Stream<'a>
+    where
+        T: Into<Cow<'a, [u8]>>,
+    {
         let indirect = IndirectGuard::start(self, id);
-        Stream::start(self, data, indirect)
+        Stream::start(self, data.into(), indirect)
     }
 
     /// Start writing a character map stream.
@@ -331,6 +350,25 @@ impl PdfWriter {
     /// Start writing an XObject image stream.
     pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> ImageStream<'a> {
         ImageStream::start(self.stream(id, samples))
+    }
+
+    /// Start writing a sampled function stream.
+    pub fn sampled_function<'a>(
+        &'a mut self,
+        id: Ref,
+        samples: &'a [u8],
+    ) -> SampledFunction<'a> {
+        SampledFunction::start(self.stream(id, samples))
+    }
+
+    /// Start writing a PostScript function stream.
+    pub fn postscript_function<'a>(
+        &'a mut self,
+        id: Ref,
+        ops: &[PostScriptOp],
+    ) -> PostScriptFunction<'a> {
+        let bytes = PostScriptOp::encode_slice(ops);
+        PostScriptFunction::start(self.stream(id, bytes))
     }
 }
 

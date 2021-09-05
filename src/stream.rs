@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::convert::TryFrom;
 
 use super::*;
@@ -10,11 +11,11 @@ pub struct Stream<'a> {
 impl<'a> Stream<'a> {
     pub(crate) fn start(
         w: &'a mut PdfWriter,
-        data: &'a [u8],
+        data: Cow<'a, [u8]>,
         indirect: IndirectGuard,
     ) -> Self {
-        let stream = StreamGuard::new(data, indirect);
         let len = data.len();
+        let stream = StreamGuard::new(data, indirect);
 
         let mut dict = Dict::start(w, stream);
         dict.pair(
@@ -41,11 +42,11 @@ deref!('a, Stream<'a> => Dict<'a, StreamGuard<'a>>, dict);
 /// This is an implementation detail that you shouldn't need to worry about.
 pub struct StreamGuard<'a> {
     indirect: IndirectGuard,
-    data: &'a [u8],
+    data: Cow<'a, [u8]>,
 }
 
 impl<'a> StreamGuard<'a> {
-    pub(crate) fn new(data: &'a [u8], indirect: IndirectGuard) -> Self {
+    pub(crate) fn new(data: Cow<'a, [u8]>, indirect: IndirectGuard) -> Self {
         Self { indirect, data }
     }
 }
@@ -53,7 +54,7 @@ impl<'a> StreamGuard<'a> {
 impl Guard for StreamGuard<'_> {
     fn finish(&self, w: &mut PdfWriter) {
         w.buf.push_bytes(b"\nstream\n");
-        w.buf.push_bytes(self.data);
+        w.buf.push_bytes(&self.data);
         w.buf.push_bytes(b"\nendstream");
         self.indirect.finish(w);
     }
