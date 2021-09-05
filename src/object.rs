@@ -48,17 +48,27 @@ impl Primitive for Str<'_> {
         // - carriage return (0x0D) because it would be silently
         //   transformed into a newline (0x0A).
         if self.0.iter().any(|b| matches!(b, b'\\' | b'(' | b')' | b'\r')) {
-            buf.reserve(2 + 2 * self.0.len());
-            buf.push(b'<');
-            for &byte in self.0 {
-                buf.push_hex(byte);
-            }
-            buf.push(b'>');
+            ByteStr(self.0).write(buf);
         } else {
             buf.push(b'(');
             buf.push_bytes(self.0);
             buf.push(b')');
         }
+    }
+}
+
+/// A binary string of unknown encoding, always written in hexadecimal form.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ByteStr<'a>(pub &'a [u8]);
+
+impl Primitive for ByteStr<'_> {
+    fn write(self, buf: &mut Vec<u8>) {
+        buf.reserve(2 + 2 * self.0.len());
+        buf.push(b'<');
+        for &byte in self.0 {
+            buf.push_hex(byte);
+        }
+        buf.push(b'>');
     }
 }
 
@@ -118,7 +128,6 @@ impl Ref {
     ///
     /// The provided value must be greater than zero.
     ///
-    /// # Panics
     /// Panics if `id` is out of the valid range.
     pub fn new(id: i32) -> Ref {
         let val = if id > 0 { NonZeroI32::new(id) } else { None };

@@ -126,6 +126,51 @@ impl Content {
         self
     }
 
+    /// `cs`: Set the fill color space to the parameter. PDF 1.1+.
+    ///
+    /// The parameter must be the name of a parameter-less color space or of a
+    /// color space dictionary within the current resource dictionary.
+    pub fn fill_color_space(&mut self, space: ColorSpace) -> &mut Self {
+        self.buf.push_val(space.to_name());
+        self.buf.push_bytes(b" cs\n");
+        self
+    }
+
+    /// `CS`: Set the stroke color space to the parameter. PDF 1.1+.
+    ///
+    /// The parameter must be the name of a parameter-less color space or of a
+    /// color space dictionary within the current resource dictionary.
+    pub fn stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
+        self.buf.push_val(space.to_name());
+        self.buf.push_bytes(b" CS\n");
+        self
+    }
+
+    /// `scn`: Set the fill color to the parameter within the current color
+    /// space. PDF 1.2+.
+    pub fn fill_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
+        for (i, val) in color.into_iter().enumerate() {
+            if i != 0 {
+                self.buf.push(b' ');
+            }
+            self.buf.push_val(val);
+        }
+        self.buf.push_bytes(b" scn\n");
+        self
+    }
+
+    /// `SCN`: Set the stroke color to the parameter within the current color
+    /// space. PDF 1.2+.
+    pub fn stroke_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
+        for (i, val) in color.into_iter().enumerate() {
+            if i != 0 {
+                self.buf.push(b' ');
+            }
+            self.buf.push_val(val);
+        }
+        self.buf.push_bytes(b" SCN\n");
+        self
+    }
     /// `re`: Draw a rectangle.
     pub fn rect(
         &mut self,
@@ -207,27 +252,12 @@ impl<'a> Text<'a> {
     }
 
     /// `Tm`: Set the text matrix.
-    pub fn matrix(
-        &mut self,
-        a: f32,
-        b: f32,
-        c: f32,
-        d: f32,
-        e: f32,
-        f: f32,
-    ) -> &mut Self {
-        self.buf.push_val(a);
-        self.buf.push(b' ');
-        self.buf.push_val(b);
-        self.buf.push(b' ');
-        self.buf.push_val(c);
-        self.buf.push(b' ');
-        self.buf.push_val(d);
-        self.buf.push(b' ');
-        self.buf.push_val(e);
-        self.buf.push(b' ');
-        self.buf.push_val(f);
-        self.buf.push_bytes(b" Tm\n");
+    pub fn matrix(&mut self, values: [f32; 6]) -> &mut Self {
+        for x in values {
+            self.buf.push_val(x);
+            self.buf.push(b' ');
+        }
+        self.buf.push_bytes(b"Tm\n");
         self
     }
 
@@ -459,15 +489,44 @@ impl<'a> ImageStream<'a> {
 deref!('a, ImageStream<'a> => Stream<'a>, stream);
 
 /// A color space.
+///
+/// These are either the predefined, parameter-less color spaces like
+/// `DeviceGray` or the ones defined by the user, accessed through the `Named`
+/// variant. A custom color space of types like `CalRGB` or `Pattern` can be set
+/// by registering it with the [`/ColorSpace`](ColorSpaces) dictionary in the
+/// current [`Resources`] dictionary.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
-pub enum ColorSpace {
+pub enum ColorSpace<'a> {
     DeviceGray,
     DeviceRgb,
     DeviceCmyk,
+    Pattern,
+    Named(Name<'a>),
+}
+
+impl<'a> ColorSpace<'a> {
+    /// Get the corresponding [`Name`] primitive for the space.
+    pub fn to_name(self) -> Name<'a> {
+        match self {
+            Self::DeviceGray => Name(b"DeviceGray"),
+            Self::DeviceRgb => Name(b"DeviceRGB"),
+            Self::DeviceCmyk => Name(b"DeviceCMYK"),
+            Self::Pattern => Name(b"Pattern"),
+            Self::Named(name) => name,
+        }
+    }
+}
+
+/// A color space type that requires further parameters. These are for internal
+/// use. Instances of these color spaces may be used by defining them and their
+/// parameters through the [`/ColorSpace`](ColorSpaces) dictionary.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+enum ColorSpaceType {
     CalGray,
     CalRgb,
     Lab,
+    #[allow(unused)]
     IccBased,
     Indexed,
     Pattern,
@@ -475,12 +534,9 @@ pub enum ColorSpace {
     DeviceN,
 }
 
-impl ColorSpace {
+impl ColorSpaceType {
     fn to_name(self) -> Name<'static> {
         match self {
-            Self::DeviceGray => Name(b"DeviceGray"),
-            Self::DeviceRgb => Name(b"DeviceRGB"),
-            Self::DeviceCmyk => Name(b"DeviceCMYK"),
             Self::CalGray => Name(b"CalGray"),
             Self::CalRgb => Name(b"CalRGB"),
             Self::Lab => Name(b"Lab"),
@@ -492,6 +548,161 @@ impl ColorSpace {
         }
     }
 }
+
+/// Writer for a _color space dictionary_.
+///
+/// This struct is created by [`Resources::color_spaces`].
+pub struct ColorSpaces<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> ColorSpaces<'a> {
+    pub(crate) fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Write a `CalGray` color space.
+    pub fn cal_gray(
+        &mut self,
+        name: Name,
+        white_point: [f32; 3],
+        black_point: Option<[f32; 3]>,
+        gamma: Option<f32>,
+    ) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::CalGray.to_name());
+
+        let mut dict = array.obj().dict();
+        dict.key(Name(b"WhitePoint")).array().typed().items(white_point);
+
+        if let Some(black_point) = black_point {
+            dict.key(Name(b"BlackPoint")).array().typed().items(black_point);
+        }
+
+        if let Some(gamma) = gamma {
+            dict.pair(Name(b"Gamma"), gamma);
+        }
+
+        drop(dict);
+        drop(array);
+        self
+    }
+
+    /// Write a `CalRgb` color space.
+    pub fn cal_rgb(
+        &mut self,
+        name: Name,
+        white_point: [f32; 3],
+        black_point: Option<[f32; 3]>,
+        gamma: Option<f32>,
+        matrix: Option<[f32; 9]>,
+    ) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::CalRgb.to_name());
+
+        let mut dict = array.obj().dict();
+        dict.key(Name(b"WhitePoint")).array().typed().items(white_point);
+
+        if let Some(black_point) = black_point {
+            dict.key(Name(b"BlackPoint")).array().typed().items(black_point);
+        }
+
+        if let Some(gamma) = gamma {
+            dict.pair(Name(b"Gamma"), gamma);
+        }
+
+        if let Some(matrix) = matrix {
+            dict.key(Name(b"Matrix")).array().typed().items(matrix);
+        }
+
+        drop(dict);
+        drop(array);
+        self
+    }
+
+    /// Write a `Lab` color space.
+    pub fn lab(
+        &mut self,
+        name: Name,
+        white_point: [f32; 3],
+        black_point: Option<[f32; 3]>,
+        range: Option<[f32; 4]>,
+    ) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::Lab.to_name());
+
+        let mut dict = array.obj().dict();
+        dict.key(Name(b"WhitePoint")).array().typed().items(white_point);
+
+        if let Some(black_point) = black_point {
+            dict.key(Name(b"BlackPoint")).array().typed().items(black_point);
+        }
+
+        if let Some(range) = range {
+            dict.key(Name(b"Range")).array().typed().items(range);
+        }
+
+        drop(dict);
+        drop(array);
+        self
+    }
+
+    /// Write an `Indexed` color space. PDF 1.2+.
+    ///
+    /// The length of the lookup slice must be the product of the dimensions of
+    /// the base color space and (`hival + 1`).
+    pub fn indexed(
+        &mut self,
+        name: Name,
+        base: Name,
+        hival: i32,
+        lookup: &'a [u8],
+    ) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::Indexed.to_name());
+        array.item(base);
+        array.item(hival);
+        array.item(ByteStr(lookup));
+        drop(array);
+        self
+    }
+
+    /// Write a `Separation` color space. PDF 1.2+.
+    pub fn separation(
+        &mut self,
+        name: Name,
+        color_name: Name,
+        base: Name,
+        tint: Ref,
+    ) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::Separation.to_name());
+        array.item(color_name);
+        array.item(base);
+        array.item(tint);
+        drop(array);
+        self
+    }
+
+    /// Write a `DeviceN` color space. PDF 1.3+.
+    pub fn device_n(
+        &mut self,
+        name: Name,
+        names: impl IntoIterator<Item = Name<'a>>,
+        alternate_space: Name,
+        tint: Ref,
+    ) -> &mut Self {
+        let mut array = self.dict.key(name).array();
+        array.item(ColorSpaceType::DeviceN.to_name());
+        array.obj().array().typed().items(names);
+        array.item(alternate_space);
+        array.item(tint);
+        drop(array);
+        self
+    }
+}
+
+deref!('a, ColorSpaces<'a> => Dict<'a>, dict);
 
 /// How to terminate lines.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
