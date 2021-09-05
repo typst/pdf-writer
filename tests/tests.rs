@@ -184,7 +184,7 @@ fn test_dicts() {
 #[test]
 fn test_streams() {
     let mut w = PdfWriter::new(1, 7);
-    w.stream(Ref::new(1), b"Hi there!").filter(Filter::Crypt);
+    w.stream(Ref::new(1), &b"Hi there!"[..]).filter(Filter::Crypt);
     test!(
         w.finish(Ref::new(1)),
         b"%PDF-1.7\n\n",
