@@ -103,7 +103,7 @@ pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingStream};
-    pub use content::{Path, PositionedText, Text};
+    pub use content::{Operation, PositionedText, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -367,7 +367,8 @@ impl PdfWriter {
     /// // Create a writer and a simple content stream.
     /// let mut writer = PdfWriter::new();
     /// let mut content = Content::new();
-    /// content.rect(50.0, 50.0, 50.0, 50.0, true, true);
+    /// content.rect(50.0, 50.0, 50.0, 50.0);
+    /// content.stroke();
     ///
     /// // Compress and write the stream.
     /// let level = CompressionLevel::DefaultLevel as u8;
