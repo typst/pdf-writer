@@ -30,7 +30,7 @@ fn slice<F>(f: F) -> Vec<u8>
 where
     F: FnOnce(&mut PdfWriter),
 {
-    let mut w = PdfWriter::new(1, 7);
+    let mut w = PdfWriter::new();
     let start = w.len();
     f(&mut w);
     let end = w.len();
@@ -49,60 +49,61 @@ where
 
 #[test]
 fn test_minimal() {
-    let w = PdfWriter::new(1, 7);
+    let w = PdfWriter::new();
     test!(
         w.finish(Ref::new(1)),
-        b"%PDF-1.7\n\n",
+        b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"xref\n0 1\n0000000000 65535 f\r\n",
         b"trailer\n<<\n/Size 1\n/Root 1 0 R\n>>\n",
-        b"startxref\n10\n%%EOF",
+        b"startxref\n16\n%%EOF",
     );
 }
 
 #[test]
 fn test_xref_free_list_short() {
-    let mut w = PdfWriter::new(1, 7);
+    let mut w = PdfWriter::new();
     w.indirect(Ref::new(1)).primitive(1);
     w.indirect(Ref::new(2)).primitive(2);
     test!(
         w.finish(Ref::new(1)),
-        b"%PDF-1.7\n\n",
+        b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n1\nendobj\n\n",
         b"2 0 obj\n2\nendobj\n\n",
         b"xref\n",
         b"0 3\n",
         b"0000000000 65535 f\r\n",
-        b"0000000010 00000 n\r\n",
-        b"0000000028 00000 n\r\n",
+        b"0000000016 00000 n\r\n",
+        b"0000000034 00000 n\r\n",
         b"trailer\n",
         b"<<\n/Size 3\n/Root 1 0 R\n>>\n",
-        b"startxref\n46\n%%EOF",
+        b"startxref\n52\n%%EOF",
     )
 }
 
 #[test]
 fn test_xref_free_list_long() {
-    let mut w = PdfWriter::new(1, 4);
+    let mut w = PdfWriter::new();
+    w.set_version(1, 4);
     w.indirect(Ref::new(1)).primitive(1);
     w.indirect(Ref::new(2)).primitive(2);
     w.indirect(Ref::new(5)).primitive(5);
     test!(
         w.finish(Ref::new(2)),
-        b"%PDF-1.4\n\n",
+        b"%PDF-1.4\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n1\nendobj\n\n",
         b"2 0 obj\n2\nendobj\n\n",
         b"5 0 obj\n5\nendobj\n\n",
         b"xref\n",
         b"0 6\n",
         b"0000000003 65535 f\r\n",
-        b"0000000010 00000 n\r\n",
-        b"0000000028 00000 n\r\n",
+        b"0000000016 00000 n\r\n",
+        b"0000000034 00000 n\r\n",
         b"0000000004 00000 f\r\n",
         b"0000000000 00000 f\r\n",
-        b"0000000046 00000 n\r\n",
+        b"0000000052 00000 n\r\n",
         b"trailer\n",
         b"<<\n/Size 6\n/Root 2 0 R\n>>\n",
-        b"startxref\n64\n%%EOF",
+        b"startxref\n70\n%%EOF",
     )
 }
 
@@ -180,11 +181,11 @@ fn test_dicts() {
 
 #[test]
 fn test_streams() {
-    let mut w = PdfWriter::new(1, 7);
+    let mut w = PdfWriter::new();
     w.stream(Ref::new(1), &b"Hi there!"[..]).filter(Filter::Crypt);
     test!(
         w.finish(Ref::new(1)),
-        b"%PDF-1.7\n\n",
+        b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n",
         b"<<\n/Length 9\n/Filter /Crypt\n>>\n",
         b"stream\n",
@@ -194,9 +195,9 @@ fn test_streams() {
         b"xref\n",
         b"0 2\n",
         b"0000000000 65535 f\r\n",
-        b"0000000010 00000 n\r\n",
+        b"0000000016 00000 n\r\n",
         b"trailer\n",
         b"<<\n/Size 2\n/Root 1 0 R\n>>\n",
-        b"startxref\n84\n%%EOF",
+        b"startxref\n90\n%%EOF",
     )
 }

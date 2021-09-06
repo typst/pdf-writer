@@ -27,10 +27,8 @@ let catalog_id = Ref::new(1);
 let page_tree_id = Ref::new(2);
 let page_id = Ref::new(3);
 
-// Start writing with the PDF version 1.7 header.
-let mut writer = PdfWriter::new(1, 7);
-
-// The document catalog and a page tree with one A4 page that uses no resources.
+// Write a document catalog and a page tree with one A4 page that uses no resources.
+let mut writer = PdfWriter::new();
 writer.catalog(catalog_id).pages(page_tree_id);
 writer.pages(page_tree_id).kids([page_id]);
 writer.page(page_id)

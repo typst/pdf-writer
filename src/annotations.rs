@@ -86,7 +86,7 @@ impl<'a> Annotation<'a> {
         h_radius: f32,
         v_radius: f32,
         width: f32,
-        dash_pattern: Option<impl IntoIterator<Item = f32>>,
+        dash_pattern: Option<&[f32]>,
     ) -> &mut Self {
         let mut array = self.key(Name(b"Border")).array();
         array.item(h_radius);

@@ -51,10 +51,8 @@ let catalog_id = Ref::new(1);
 let page_tree_id = Ref::new(2);
 let page_id = Ref::new(3);
 
-// Start writing with the PDF version 1.7 header.
-let mut writer = PdfWriter::new(1, 7);
-
-// The document catalog and a page tree with one A4 page that uses no resources.
+// Write a document catalog and a page tree with one A4 page that uses no resources.
+let mut writer = PdfWriter::new();
 writer.catalog(catalog_id).pages(page_tree_id);
 writer.pages(page_tree_id).kids([page_id]);
 writer.page(page_id)
@@ -159,29 +157,34 @@ pub struct PdfWriter {
 impl PdfWriter {
     /// Create a new PDF writer with the default buffer capacity
     /// (currently 8 KB).
-    ///
-    /// This already writes the PDF header containing the (major, minor)
-    /// version.
-    pub fn new(major: i32, minor: i32) -> Self {
-        Self::with_capacity(8 * 1024, major, minor)
+    pub fn new() -> Self {
+        Self::with_capacity(8 * 1024)
     }
 
     /// Create a new PDF writer with the specified initial buffer capacity.
-    ///
-    /// This already writes the PDF header containing the (major, minor)
-    /// version.
-    pub fn with_capacity(capacity: usize, major: i32, minor: i32) -> Self {
+    pub fn with_capacity(capacity: usize) -> Self {
         let mut buf = Vec::with_capacity(capacity);
-        buf.push_bytes(b"%PDF-");
-        buf.push_int(major);
-        buf.push(b'.');
-        buf.push_int(minor);
-        buf.push_bytes(b"\n\n");
+        buf.push_bytes(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self {
             buf,
             offsets: vec![],
             depth: 0,
             indent: 0,
+        }
+    }
+
+    /// Set the PDF version.
+    ///
+    /// The version is not semantically important to the writer, but must be
+    /// present in the output document.
+    ///
+    /// _Default value_: 1.7.
+    pub fn set_version(&mut self, major: u8, minor: u8) {
+        if major < 10 {
+            self.buf[5] = b'0' + major;
+        }
+        if minor < 10 {
+            self.buf[7] = b'0' + minor;
         }
     }
 
@@ -360,18 +363,18 @@ impl PdfWriter {
     /// a stream, you have to pass already compressed data into this function
     /// and specify the appropriate filter in the stream dictionary.
     ///
-    /// For example, if you want to have [content](Content) stream that is
+    /// For example, if you want to have a [content](Content) stream that is
     /// compressed with DEFLATE, you could do something like this:
     /// ```
     /// use pdf_writer::{PdfWriter, Content, Ref, Filter, Name, Str};
     /// use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
     ///
     /// // Create a writer and a simple content stream.
-    /// let mut writer = PdfWriter::new(1, 7);
+    /// let mut writer = PdfWriter::new();
     /// let mut content = Content::new();
     /// content.rect(50.0, 50.0, 50.0, 50.0, true, true);
     ///
-    /// // Compress the stream.
+    /// // Compress and write the stream.
     /// let level = CompressionLevel::DefaultLevel as u8;
     /// let compressed = compress_to_vec_zlib(&content.finish(), level);
     /// writer.stream(Ref::new(1), compressed).filter(Filter::FlateDecode);
@@ -447,7 +450,7 @@ impl Debug for PdfWriter {
 ///
 /// ```
 /// # use pdf_writer::{PdfWriter, Ref, Finish, Name, Str};
-/// # let mut writer = PdfWriter::new(1, 7);
+/// # let mut writer = PdfWriter::new();
 /// let mut array = writer.indirect(Ref::new(1)).array();
 /// array.obj().dict().pair(Name(b"Key"), Str(b"Value"));
 /// array.item(2);

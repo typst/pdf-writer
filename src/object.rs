@@ -1,4 +1,3 @@
-// use std::fmt::Write;
 use std::marker::PhantomData;
 use std::num::NonZeroI32;
 
@@ -7,12 +6,18 @@ use super::*;
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
-    fn write(self, buf: &mut Vec<u8>);
+    fn write(&self, buf: &mut Vec<u8>);
+}
+
+impl<T: Primitive> Primitive for &T {
+    fn write(&self, buf: &mut Vec<u8>) {
+        (*self).write(buf);
+    }
 }
 
 impl Primitive for bool {
-    fn write(self, buf: &mut Vec<u8>) {
-        if self {
+    fn write(&self, buf: &mut Vec<u8>) {
+        if *self {
             buf.push_bytes(b"true");
         } else {
             buf.push_bytes(b"false");
@@ -21,14 +26,14 @@ impl Primitive for bool {
 }
 
 impl Primitive for i32 {
-    fn write(self, buf: &mut Vec<u8>) {
-        buf.push_int(self);
+    fn write(&self, buf: &mut Vec<u8>) {
+        buf.push_int(*self);
     }
 }
 
 impl Primitive for f32 {
-    fn write(self, buf: &mut Vec<u8>) {
-        buf.push_float(self);
+    fn write(&self, buf: &mut Vec<u8>) {
+        buf.push_float(*self);
     }
 }
 
@@ -41,7 +46,7 @@ impl Primitive for f32 {
 pub struct Str<'a>(pub &'a [u8]);
 
 impl Primitive for Str<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         // Fall back to hex formatting if the string contains a:
         // - backslash because it is used for escaping,
         // - parenthesis because they are the delimiters,
@@ -70,7 +75,7 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         let mut bytes = vec![254, 255];
         for v in self.0.encode_utf16() {
             bytes.extend(v.to_be_bytes());
@@ -86,7 +91,7 @@ impl Primitive for TextStr<'_> {
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         for &byte in self.0 {
             if matches!(byte, b'!' ..= b'~') && byte != b'#' {
@@ -104,7 +109,7 @@ impl Primitive for Name<'_> {
 pub struct Null;
 
 impl Primitive for Null {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push_bytes(b"null");
     }
 }
@@ -131,7 +136,7 @@ impl Ref {
 }
 
 impl Primitive for Ref {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push_int(self.0.get());
         buf.push_bytes(b" 0 R");
     }
@@ -166,7 +171,7 @@ impl Rect {
 }
 
 impl Primitive for Rect {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'[');
         buf.push_val(self.x1);
         buf.push(b' ');
@@ -270,7 +275,7 @@ impl Date {
 }
 
 impl Primitive for Date {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Vec<u8>) {
         write!(buf, "(D:{:04}", self.year).unwrap();
 
         self.month

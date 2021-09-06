@@ -317,12 +317,9 @@ impl<'a> Outline<'a> {
     /// Write the `/Count` attribute. This tells the viewer how many outline
     /// elements (at all levels) are currently visible.
     ///
-    /// Panics the `items` is negative.
+    /// Panics if `count` is negative.
     pub fn count(&mut self, count: i32) -> &mut Self {
-        if count < 0 {
-            panic!("count must not be negative");
-        }
-
+        assert!(count >= 0, "visible outline count must not be negative");
         self.pair(Name(b"Count"), count);
         self
     }
@@ -571,12 +568,9 @@ impl<'a> ViewerPreferences<'a> {
     /// screen rendering in its catalog when it is not shown in full screen
     /// mode.
     ///
-    /// Panics if the mode is [`PageMode::FullScreen`].
+    /// Panics if `mode` is [`PageMode::FullScreen`].
     pub fn non_full_screen_page_mode(&mut self, mode: PageMode) -> &mut Self {
-        if mode == PageMode::FullScreen {
-            panic!("mode must not full screen");
-        }
-
+        assert!(mode != PageMode::FullScreen, "mode must not full screen");
         self.pair(Name(b"NonFullScreenPageMode"), mode.to_name());
         self
     }

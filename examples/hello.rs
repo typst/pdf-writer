@@ -2,12 +2,8 @@ use pdf_writer::types::{ActionType, AnnotationType, BorderType};
 use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref, Str, TextStr};
 
 fn main() -> std::io::Result<()> {
-    // Start writing with PDF version 1.7 header. The version is not
-    // semantically important to the writer, but must be present in the output
-    // document.
-    let mut writer = PdfWriter::new(1, 7);
-
-    // Make the output more readable by indenting things with 2 spaces.
+    // Start writing and make the output more readable by indenting things.
+    let mut writer = PdfWriter::new();
     writer.set_indent(2);
 
     // Define some indirect reference ids we'll use.
@@ -34,12 +30,11 @@ fn main() -> std::io::Result<()> {
     page.contents(text_id);
 
     // We also create the annotations list here that allows us to have things
-    // like links or comments on the page and directly start with a new
-    // annotation.
+    // like links or comments on the page.
     let mut annotations = page.annotations();
     let mut annotation = annotations.push();
 
-    // Write the type, area, alt-text, and color for this annotation.
+    // Write the type, area, alt-text, and color for our link annotation.
     annotation.subtype(AnnotationType::Link);
     annotation.rect(Rect::new(215.0, 730.0, 251.0, 748.0));
     annotation.contents(TextStr("Link to the Rust project web page"));
@@ -56,7 +51,7 @@ fn main() -> std::io::Result<()> {
     // Set border and style for the link annotation.
     annotation.border_style().width(2.0).style(BorderType::Underline);
 
-    // We have to finish all the writers that the page depends on here because
+    // We have to finish all the writers that depend on the page here because
     // otherwise they would be mutably borrowed until the end of the block.
     // Finishing is handled through the writer's `Drop` implementations, so that
     // you cannot accidentally forget it. The `finish()` method from the `Finish`

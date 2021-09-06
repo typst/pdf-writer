@@ -30,38 +30,20 @@ impl Content {
     }
 
     /// `cm`: Modify the transformation matrix.
-    pub fn matrix(
-        &mut self,
-        a: f32,
-        b: f32,
-        c: f32,
-        d: f32,
-        e: f32,
-        f: f32,
-    ) -> &mut Self {
-        self.buf.push_val(a);
-        self.buf.push(b' ');
-        self.buf.push_val(b);
-        self.buf.push(b' ');
-        self.buf.push_val(c);
-        self.buf.push(b' ');
-        self.buf.push_val(d);
-        self.buf.push(b' ');
-        self.buf.push_val(e);
-        self.buf.push(b' ');
-        self.buf.push_val(f);
-        self.buf.push_bytes(b" cm\n");
+    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+        for x in matrix {
+            self.buf.push_val(x);
+            self.buf.push(b' ');
+        }
+        self.buf.push_bytes(b"cm\n");
         self
     }
 
     /// `w`: Set the stroke line width.
     ///
-    /// Panics if width is negative.
+    /// Panics if `width` is negative.
     pub fn line_width(&mut self, width: f32) -> &mut Self {
-        if width < 0.0 {
-            panic!("width must be positive");
-        }
-
+        assert!(width >= 0.0, "line width must be positive");
         self.buf.push_val(width);
         self.buf.push_bytes(b" w\n");
         self
@@ -86,18 +68,6 @@ impl Content {
         self
     }
 
-    /// `RG`: Set the stroke color to the parameter and the color space to
-    /// `DeviceRGB`.
-    pub fn stroke_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.buf.push_val(r);
-        self.buf.push(b' ');
-        self.buf.push_val(g);
-        self.buf.push(b' ');
-        self.buf.push_val(b);
-        self.buf.push_bytes(b" RG\n");
-        self
-    }
-
     /// `k`: Set the fill color to the parameter and the color space to
     /// `DeviceCMYK`.
     pub fn fill_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
@@ -112,20 +82,6 @@ impl Content {
         self
     }
 
-    /// `K`: Set the stroke color to the parameter and the color space to
-    /// `DeviceCMYK`.
-    pub fn stroke_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
-        self.buf.push_val(c);
-        self.buf.push(b' ');
-        self.buf.push_val(m);
-        self.buf.push(b' ');
-        self.buf.push_val(y);
-        self.buf.push(b' ');
-        self.buf.push_val(k);
-        self.buf.push_bytes(b" K\n");
-        self
-    }
-
     /// `cs`: Set the fill color space to the parameter. PDF 1.1+.
     ///
     /// The parameter must be the name of a parameter-less color space or of a
@@ -133,16 +89,6 @@ impl Content {
     pub fn fill_color_space(&mut self, space: ColorSpace) -> &mut Self {
         self.buf.push_val(space.to_name());
         self.buf.push_bytes(b" cs\n");
-        self
-    }
-
-    /// `CS`: Set the stroke color space to the parameter. PDF 1.1+.
-    ///
-    /// The parameter must be the name of a parameter-less color space or of a
-    /// color space dictionary within the current resource dictionary.
-    pub fn stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.buf.push_val(space.to_name());
-        self.buf.push_bytes(b" CS\n");
         self
     }
 
@@ -156,19 +102,6 @@ impl Content {
             self.buf.push_val(val);
         }
         self.buf.push_bytes(b" scn\n");
-        self
-    }
-
-    /// `SCN`: Set the stroke color to the parameter within the current color
-    /// space. PDF 1.2+.
-    pub fn stroke_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
-        for (i, val) in color.into_iter().enumerate() {
-            if i != 0 {
-                self.buf.push(b' ');
-            }
-            self.buf.push_val(val);
-        }
-        self.buf.push_bytes(b" SCN\n");
         self
     }
 
@@ -189,6 +122,55 @@ impl Content {
 
         self.buf.push_val(name);
         self.buf.push_bytes(b" scn\n");
+        self
+    }
+
+    /// `RG`: Set the stroke color to the parameter and the color space to
+    /// `DeviceRGB`.
+    pub fn stroke_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.buf.push_val(r);
+        self.buf.push(b' ');
+        self.buf.push_val(g);
+        self.buf.push(b' ');
+        self.buf.push_val(b);
+        self.buf.push_bytes(b" RG\n");
+        self
+    }
+
+    /// `K`: Set the stroke color to the parameter and the color space to
+    /// `DeviceCMYK`.
+    pub fn stroke_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
+        self.buf.push_val(c);
+        self.buf.push(b' ');
+        self.buf.push_val(m);
+        self.buf.push(b' ');
+        self.buf.push_val(y);
+        self.buf.push(b' ');
+        self.buf.push_val(k);
+        self.buf.push_bytes(b" K\n");
+        self
+    }
+
+    /// `CS`: Set the stroke color space to the parameter. PDF 1.1+.
+    ///
+    /// The parameter must be the name of a parameter-less color space or of a
+    /// color space dictionary within the current resource dictionary.
+    pub fn stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
+        self.buf.push_val(space.to_name());
+        self.buf.push_bytes(b" CS\n");
+        self
+    }
+
+    /// `SCN`: Set the stroke color to the parameter within the current color
+    /// space. PDF 1.2+.
+    pub fn stroke_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
+        for (i, val) in color.into_iter().enumerate() {
+            if i != 0 {
+                self.buf.push(b' ');
+            }
+            self.buf.push_val(val);
+        }
+        self.buf.push_bytes(b" SCN\n");
         self
     }
 
@@ -307,8 +289,8 @@ impl<'a> Text<'a> {
     }
 
     /// `Tm`: Set the text matrix.
-    pub fn matrix(&mut self, values: [f32; 6]) -> &mut Self {
-        for x in values {
+    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+        for x in matrix {
             self.buf.push_val(x);
             self.buf.push(b' ');
         }
@@ -868,9 +850,9 @@ impl<'a> TilingStream<'a> {
     ///
     /// Sets the horizontal spacing between pattern cells. Required.
     ///
-    /// Panics if zero.
+    /// Panics if `x_step` is zero.
     pub fn x_step(&mut self, x_step: f32) -> &mut Self {
-        assert!(x_step != 0.0);
+        assert!(x_step != 0.0, "x step must not be zero");
         self.stream.pair(Name(b"XStep"), x_step);
         self
     }
@@ -879,9 +861,9 @@ impl<'a> TilingStream<'a> {
     ///
     /// Sets the vertical spacing between pattern cells. Required.
     ///
-    /// Panics if zero.
+    /// Panics if `y_step` is zero.
     pub fn y_step(&mut self, y_step: f32) -> &mut Self {
-        assert!(y_step != 0.0);
+        assert!(y_step != 0.0, "y step must not be zero");
         self.stream.pair(Name(b"YStep"), y_step);
         self
     }
