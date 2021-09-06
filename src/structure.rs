@@ -42,13 +42,13 @@ impl<'a> Catalog<'a> {
     }
 
     /// Write the `/Dests` attribute pointing to a
-    /// [named destinations dictionary](Destinations). (1.1+)
+    /// [named destinations dictionary](Destinations). PDF 1.1+.
     pub fn destinations(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Dests"), id);
         self
     }
 
-    /// Start writing the `/ViewerPreferences` dictionary. (1.2+)
+    /// Start writing the `/ViewerPreferences` dictionary. PDF 1.2+.
     pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
         ViewerPreferences::new(self.key(Name(b"ViewerPreferences")))
     }
@@ -133,21 +133,21 @@ impl<'a> Page<'a> {
 
     /// Write the `/BleedBox` attribute. This is the size of the area within
     /// which content is visible in a print production environment. Most
-    /// production-aiding marks should be outside of this box. (1.3+)
+    /// production-aiding marks should be outside of this box. PDF 1.3+.
     pub fn bleed_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"BleedBox"), rect);
         self
     }
 
     /// Write the `/TrimBox` attribute. This is the size of the produced
-    /// document after trimming is applied. (1.3+)
+    /// document after trimming is applied. PDF 1.3+.
     pub fn trim_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"TrimBox"), rect);
         self
     }
 
     /// Write the `/ArtBox` attribute. This is the area that another program
-    /// importing this file should use. (1.3+)
+    /// importing this file should use. PDF 1.3+.
     pub fn art_box(&mut self, rect: Rect) -> &mut Self {
         self.pair(Name(b"ArtBox"), rect);
         self
@@ -165,14 +165,14 @@ impl<'a> Page<'a> {
     }
 
     /// Write the `/Dur` attribute. This is the amount of seconds the page
-    /// should be displayed before advancing to the next one. (1.1+)
+    /// should be displayed before advancing to the next one. PDF 1.1+.
     pub fn duration(&mut self, seconds: f32) -> &mut Self {
         self.pair(Name(b"Dur"), seconds);
         self
     }
 
     /// Start writing the `/Trans` dictionary. This sets a transition effect for
-    /// advancing to the next page. (1.1+)
+    /// advancing to the next page. PDF 1.1+.
     pub fn transition(&mut self) -> Transition<'_> {
         Transition::new(self.key(Name(b"Trans")))
     }
@@ -240,10 +240,10 @@ pub enum PageLayout {
     /// pages on the right (like in a left-bound book).
     TwoColumnRight,
     /// Only two pages are visible at a time, laid out with odd-numbered pages
-    /// on the left. (1.5+)
+    /// on the left. PDF 1.5+.
     TwoPageLeft,
     /// Only two pages are visible at a time, laid out with odd-numbered pages
-    /// on the right (like in a left-bound book). (1.5+)
+    /// on the right (like in a left-bound book). PDF 1.5+.
     TwoPageRight,
 }
 
@@ -406,13 +406,13 @@ impl<'a> OutlineItem<'a> {
     }
 
     /// Write the `/C` attribute using an RGB color. This sets the color in
-    /// which the outline item's title should be rendered. (1.4+)
+    /// which the outline item's title should be rendered. PDF 1.4+.
     pub fn color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.key(Name(b"C")).array().typed().items([r, g, b]);
         self
     }
 
-    /// Write the `/F` attribute. (1.4+)
+    /// Write the `/F` attribute. PDF 1.4+.
     pub fn flags(&mut self, flags: OutlineItemFlags) -> &mut Self {
         self.pair(Name(b"F"), flags.bits() as i32);
         self
@@ -504,20 +504,20 @@ impl<'a> Destination<'a> {
     }
 
     /// Write the `/FitB` command which fits all of the referenced page's
-    /// content on screen. (1.1+)
+    /// content on screen. PDF 1.1+.
     pub fn fit_bounding_box(mut self) {
         self.item(Name(b"FitB"));
     }
 
     /// Write the `/FitBH` command which fits the referenced page's content to
-    /// the screen width and skips to the specified offset. (1.1+)
+    /// the screen width and skips to the specified offset. PDF 1.1+.
     pub fn fit_bounding_box_horizontal(mut self, top: f32) {
         self.item(Name(b"FitBH"));
         self.item(top);
     }
 
     /// Write the `/FitBV` command which fits the referenced page's content to
-    /// the screen height and skips to the specified offset. (1.1+)
+    /// the screen height and skips to the specified offset. PDF 1.1+.
     pub fn fit_bounding_box_vertical(mut self, left: f32) {
         self.item(Name(b"FitBV"));
         self.item(left);
@@ -582,7 +582,7 @@ impl<'a> ViewerPreferences<'a> {
     }
 
     /// Write the `/Direction` attribute to aid the viewer in how to lay out the
-    /// pages visually. (1.3+)
+    /// pages visually. PDF 1.3+.
     pub fn direction(&mut self, dir: Direction) -> &mut Self {
         self.pair(Name(b"Direction"), dir.to_name());
         self

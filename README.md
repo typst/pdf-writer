@@ -12,6 +12,10 @@ general pattern: They borrow the main buffer mutably, expose a builder pattern
 for writing individual fields in a strongly typed fashion and finish up the
 object when dropped.
 
+There are a few more top-level structs with internal buffers, like the builder
+for `Content` streams, but wherever possible buffers are borrowed from parent
+writers to minimize allocations.
+
 ## Minimal example
 The following example creates a PDF with a single, empty A4 page.
 

@@ -49,13 +49,13 @@ impl<'a> Transition<'a> {
     }
 
     /// Write the `/SS` attribute to set the scale for the `Fly` transition.
-    /// (1.5+)
+    /// PDF 1.5+.
     pub fn scale(&mut self, scale: f32) -> &mut Self {
         self.pair(Name(b"SS"), scale);
         self
     }
 
-    /// Write the `/B` attribute for the `Fly` transition. (1.5+)
+    /// Write the `/B` attribute for the `Fly` transition. PDF 1.5+.
     pub fn opaque(&mut self, opaque: f32) -> &mut Self {
         self.pair(Name(b"F"), opaque);
         self
@@ -64,7 +64,7 @@ impl<'a> Transition<'a> {
 
 deref!('a, Transition<'a> => Dict<&'a mut PdfWriter>, dict);
 
-/// The kind of transition.
+/// A kind of transition.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TransitionStyle {
     /// Split the slide down the middle.
@@ -81,15 +81,15 @@ pub enum TransitionStyle {
     Glitter,
     /// No effect.
     R,
-    /// Changes are flown in. (1.5+)
+    /// Changes are flown in. PDF 1.5+.
     Fly,
-    /// Old page slides out, new page slides in. (1.5+)
+    /// Old page slides out, new page slides in. PDF 1.5+.
     Push,
-    /// New page slides in to cover the old one. (1.5+)
+    /// New page slides in to cover the old one. PDF 1.5+.
     Cover,
-    /// Old page slides out to uncover the new one. (1.5+)
+    /// Old page slides out to uncover the new one. PDF 1.5+.
     Uncover,
-    /// A cross-fade. (1.5+)
+    /// A cross-fade. PDF 1.5+.
     Fade,
 }
 
@@ -112,7 +112,7 @@ impl TransitionStyle {
     }
 }
 
-/// The angle at which the transition plays.
+/// The angle at which a transition plays.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum TransitionAngle {

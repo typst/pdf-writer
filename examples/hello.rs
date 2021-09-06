@@ -1,7 +1,5 @@
-use pdf_writer::{
-    ActionType, AnnotationType, BorderType, Content, Finish, Name, PdfWriter, Rect, Ref,
-    Str, TextStr,
-};
+use pdf_writer::types::{ActionType, AnnotationType, BorderType};
+use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref, Str, TextStr};
 
 fn main() -> std::io::Result<()> {
     // Start writing with PDF version 1.7 header. The version is not

@@ -299,7 +299,7 @@ impl<'a> CmapStream<'a> {
 
 deref!('a, CmapStream<'a> => Stream<'a>, stream);
 
-/// Builder for a `/ToUnicode` character map stream.
+/// A builder for a `/ToUnicode` character map stream.
 pub struct UnicodeCmap {
     buf: Vec<u8>,
     mappings: Vec<u8>,

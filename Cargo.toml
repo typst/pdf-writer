@@ -12,3 +12,6 @@ keywords = ["pdf", "writer"]
 
 [dependencies]
 bitflags = "1.2"
+
+[dev-dependencies]
+miniz_oxide = "0.4"

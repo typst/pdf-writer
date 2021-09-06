@@ -56,7 +56,7 @@ let mut writer = PdfWriter::new(1, 7);
 
 // The document catalog and a page tree with one A4 page that uses no resources.
 writer.catalog(catalog_id).pages(page_tree_id);
-writer.pages(page_tree_id).kids(vec![page_id]);
+writer.pages(page_tree_id).kids([page_id]);
 writer.page(page_id)
     .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
@@ -72,9 +72,9 @@ For a more comprehensive overview, check out the [hello world example] in the
 repository, which creates a document with text and a link in it.
 
 # Note
-This crate does not validate whether you use the correct indirect reference ids
-or whether you write all required fields for an object. Refer to the
-[PDF specification] to make sure you create valid PDFs.
+This crate is rather low-level. It does not allocate or validate indirect reference
+ids for you and it does not check you write all required fields for an object. Refer
+to the [PDF specification] to make sure you create valid PDFs.
 
 [page]: writers::Page
 [image stream]: writers::ImageStream
@@ -117,20 +117,26 @@ pub mod writers {
     pub use transitions::Transition;
 }
 
-pub use annotations::{
-    ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
-    HighlightEffect,
-};
-pub use content::{
-    ColorSpace, Content, LineCapStyle, PaintType, RenderingIntent, ShadingType,
-    TilingType,
-};
-pub use font::{CidFontType, FontFlags, SystemInfo, UnicodeCmap};
-pub use functions::{InterpolationOrder, PostScriptOp};
+/// Types used by specific PDF structures.
+pub mod types {
+    use super::*;
+    pub use annotations::{
+        ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
+        HighlightEffect,
+    };
+    pub use content::{
+        ColorSpace, LineCapStyle, PaintType, RenderingIntent, ShadingType, TilingType,
+    };
+    pub use font::{CidFontType, FontFlags, SystemInfo};
+    pub use functions::{InterpolationOrder, PostScriptOp};
+    pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};
+    pub use transitions::{TransitionAngle, TransitionStyle};
+}
+
+pub use content::Content;
+pub use font::UnicodeCmap;
 pub use object::*;
 pub use stream::*;
-pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};
-pub use transitions::{TransitionAngle, TransitionStyle};
 
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
@@ -138,6 +144,7 @@ use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
 use buf::BufExt;
+use types::CidFontType;
 use writers::*;
 
 /// The root writer.
@@ -348,6 +355,29 @@ impl PdfWriter {
     /// The stream data and the `/Length` field are written automatically. You
     /// can add additional key-value pairs to the stream dictionary with the
     /// returned stream writer.
+    ///
+    /// This crate does not do any compression for you. If you want to compress
+    /// a stream, you have to pass already compressed data into this function
+    /// and specify the appropriate filter in the stream dictionary.
+    ///
+    /// For example, if you want to have [content](Content) stream that is
+    /// compressed with DEFLATE, you could do something like this:
+    /// ```
+    /// use pdf_writer::{PdfWriter, Content, Ref, Filter, Name, Str};
+    /// use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
+    ///
+    /// // Create a writer and a simple content stream.
+    /// let mut writer = PdfWriter::new(1, 7);
+    /// let mut content = Content::new();
+    /// content.rect(50.0, 50.0, 50.0, 50.0, true, true);
+    ///
+    /// // Compress the stream.
+    /// let level = CompressionLevel::DefaultLevel as u8;
+    /// let compressed = compress_to_vec_zlib(&content.finish(), level);
+    /// writer.stream(Ref::new(1), compressed).filter(Filter::FlateDecode);
+    /// ```
+    /// For all the specialized stream functions below, it works the same way:
+    /// You can pass compressed data and specify a filter.
     pub fn stream<'a, T>(&'a mut self, id: Ref, data: T) -> Stream<'a>
     where
         T: Into<Cow<'a, [u8]>>,
@@ -357,15 +387,25 @@ impl PdfWriter {
 
     /// Start writing a character map stream.
     ///
-    /// If you want to use this for a `/ToUnicode` CMap, you can use the
-    /// [`UnicodeCmap`] builder to construct the data.
+    /// If you want to use this for a `/ToUnicode` CMap, you can create the
+    /// bytes using a [`UnicodeCmap`] builder.
     pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> CmapStream<'a> {
         CmapStream::start(self.stream(id, cmap))
     }
 
     /// Start writing an XObject image stream.
+    ///
+    /// The samples should be encoded according to the stream's filter, color
+    /// space and bits per component.
     pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> ImageStream<'a> {
         ImageStream::start(self.stream(id, samples))
+    }
+
+    /// Start writing a tiling pattern stream.
+    ///
+    /// You can create the content bytes using a [`Content`] builder.
+    pub fn tiling<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> TilingStream<'a> {
+        TilingStream::start(self.stream(id, content))
     }
 
     /// Start writing a sampled function stream.
@@ -378,20 +418,14 @@ impl PdfWriter {
     }
 
     /// Start writing a PostScript function stream.
+    ///
+    /// You can create the code bytes using [`PostScriptOp::encode`](types::PostScriptOp::encode).
     pub fn postscript_function<'a>(
         &'a mut self,
         id: Ref,
-        ops: &[PostScriptOp],
+        code: &'a [u8],
     ) -> PostScriptFunction<'a> {
-        let bytes = PostScriptOp::encode_slice(ops);
-        PostScriptFunction::start(self.stream(id, bytes))
-    }
-
-    /// Start writing a tiling pattern stream.
-    ///
-    /// Obtain the `bytes` from a [`Content`] builder.
-    pub fn tiling_stream<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> TilingStream<'_> {
-        TilingStream::start(self.stream(id, bytes))
+        PostScriptFunction::start(self.stream(id, code))
     }
 }
 

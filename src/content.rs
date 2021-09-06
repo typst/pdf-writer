@@ -1,6 +1,6 @@
 use super::*;
 
-/// Builder for a content stream.
+/// A builder for a content stream.
 pub struct Content {
     buf: Vec<u8>,
 }
@@ -714,19 +714,19 @@ impl<'a> ColorSpaces<'a> {
     /// Write an `Indexed` color space. PDF 1.2+.
     ///
     /// The length of the lookup slice must be the product of the dimensions of
-    /// the base color space and (`hival + 1`).
+    /// the base color space and (`hival + 1`) and `hival` shall be at most 255.
     pub fn indexed(
         &mut self,
         name: Name,
         base: Name,
         hival: i32,
-        lookup: &'a [u8],
+        lookup: &[u8],
     ) -> &mut Self {
         let mut array = self.dict.key(name).array();
         array.item(ColorSpaceType::Indexed.to_name());
         array.item(base);
         array.item(hival);
-        array.item(ByteStr(lookup));
+        array.item(Str(lookup));
         array.finish();
         self
     }
@@ -803,7 +803,7 @@ impl LineCapStyle {
     }
 }
 
-/// How the document should aim to render colors.
+/// How the output device should aim to render colors.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum RenderingIntent {
     /// Only consider the light source, not the output's white point.

@@ -56,14 +56,14 @@ impl<'a> Annotation<'a> {
     }
 
     /// Write the `/NM` attribute. This uniquely identifies the anotation on the
-    /// page. (1.3+)
+    /// page. PDF 1.3+.
     pub fn name(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"NM"), text);
         self
     }
 
     /// Write the `/M` attribute, specifying the date the annotation was last
-    /// modified. (1.1+)
+    /// modified. PDF 1.1+.
     pub fn modified(&mut self, date: Date) -> &mut Self {
         self.pair(Name(b"M"), date);
         self
@@ -102,34 +102,34 @@ impl<'a> Annotation<'a> {
     }
 
     /// Start writing the `/BS` attribute. These are some more elaborate border
-    /// settings taking precedence over `/B` for some annotation types. (1.2+)
+    /// settings taking precedence over `/B` for some annotation types. PDF 1.2+.
     pub fn border_style(&mut self) -> BorderStyle<'_> {
         BorderStyle::new(self.key(Name(b"BS")))
     }
 
     /// Write the `/C` attribute forcing a transparent color. This sets the
-    /// annotations background color and its popup title bar color. (1.1+)
+    /// annotations background color and its popup title bar color. PDF 1.1+.
     pub fn color_transparent(&mut self) -> &mut Self {
         self.key(Name(b"C")).array().typed::<f32>();
         self
     }
 
     /// Write the `/C` attribute using a grayscale color. This sets the
-    /// annotations background color and its popup title bar color. (1.1+)
+    /// annotations background color and its popup title bar color. PDF 1.1+.
     pub fn color_gray(&mut self, gray: f32) -> &mut Self {
         self.key(Name(b"C")).array().typed().item(gray);
         self
     }
 
     /// Write the `/C` attribute using an RGB color. This sets the annotations
-    /// background color and its popup title bar color. (1.1+)
+    /// background color and its popup title bar color. PDF 1.1+.
     pub fn color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.key(Name(b"C")).array().typed().items([r, g, b]);
         self
     }
 
     /// Write the `/C` attribute using a CMYK color. This sets the annotations
-    /// background color and its popup title bar color. (1.1+)
+    /// background color and its popup title bar color. PDF 1.1+.
     pub fn color_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
         self.key(Name(b"C")).array().typed().items([c, m, y, k]);
         self
@@ -143,28 +143,28 @@ impl<'a> Annotation<'a> {
 
     /// Write the `/H` attribute to set what effect is used to convey that the
     /// user is pressing a link annotation. Only permissible for the subtype
-    /// `Link`. (1.2+)
+    /// `Link`. PDF 1.2+.
     pub fn highlight(&mut self, effect: HighlightEffect) -> &mut Self {
         self.pair(Name(b"H"), effect.to_name());
         self
     }
 
     /// Write the `/T` attribute. This is in the title bar of markup annotations
-    /// and should be the name of the annotation author. (1.1+)
+    /// and should be the name of the annotation author. PDF 1.1+.
     pub fn author(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"T"), text);
         self
     }
 
     /// Write the `/Subj` attribute. This is the subject of the annotation.
-    /// (1.5+)
+    /// PDF 1.5+.
     pub fn subject(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"Subj"), text);
         self
     }
 
     /// Write the `/QuadPoints` attribute, specifying the region in which the
-    /// link should be activated. (1.6+)
+    /// link should be activated. PDF 1.6+.
     pub fn quad_points(
         &mut self,
         coordinates: impl IntoIterator<Item = f32>,
@@ -209,21 +209,21 @@ pub enum AnnotationType {
     Text,
     /// A link.
     Link,
-    /// A line. (1.3+)
+    /// A line. PDF 1.3+.
     Line,
-    /// A square. (1.3+)
+    /// A square. PDF 1.3+.
     Square,
-    /// A circle. (1.3+)
+    /// A circle. PDF 1.3+.
     Circle,
-    /// Highlighting the text on the page. (1.3+)
+    /// Highlighting the text on the page. PDF 1.3+.
     Highlight,
-    /// Underline the text on the page. (1.3+)
+    /// Underline the text on the page. PDF 1.3+.
     Underline,
-    /// Squiggly underline of the text on the page. (1.4+)
+    /// Squiggly underline of the text on the page. PDF 1.4+.
     Squiggly,
-    /// Strike out the text on the page. (1.3+)
+    /// Strike out the text on the page. PDF 1.3+.
     StrikeOut,
-    /// A reference to another file. (1.3+)
+    /// A reference to another file. PDF 1.3+.
     FileAttachment,
 }
 
@@ -296,29 +296,29 @@ bitflags::bitflags! {
         /// subtype. Otherwise, it will be rendered as specified in its apprearance
         /// stream.
         const INVISIBLE = 1 << 0;
-        /// This hides the annotation from view and disallows interaction. (1.2+)
+        /// This hides the annotation from view and disallows interaction. PDF 1.2+.
         const HIDDEN = 1 << 1;
         /// Print the annotation. If not set, it will be always hidden on print.
-        /// (1.2+)
+        /// PDF 1.2+.
         const PRINT = 1 << 2;
         /// Do not zoom the annotation appearance if the document is zoomed in.
-        /// (1.3+)
+        /// PDF 1.3+.
         const NO_ZOOM = 1 << 3;
         /// Do not rotate the annotation appearance if the document is zoomed in.
-        /// (1.3+)
+        /// PDF 1.3+.
         const NO_ROTATE = 1 << 4;
         /// Do not view the annotation on screen. It may still show on print.
-        /// (1.3+)
+        /// PDF 1.3+.
         const NO_VIEW = 1 << 5;
-        /// Do not allow interactions. (1.3+)
+        /// Do not allow interactions. PDF 1.3+.
         const READ_ONLY = 1 << 6;
         /// Do not allow the user to delete or reposition the annotation. Contents
-        /// may still be changed. (1.4+)
+        /// may still be changed. PDF 1.4+.
         const LOCKED = 1 << 7;
         /// Invert the interpretation of the `no_view` flag for certain events.
-        /// (1.5+)
+        /// PDF 1.5+.
         const TOGGLE_NO_VIEW = 1 << 8;
-        /// Do not allow content changes. (1.7+)
+        /// Do not allow content changes. PDF 1.7+.
         const LOCKED_CONTENTS = 1 << 9;
     }
 }
@@ -465,7 +465,7 @@ impl<'a> FileSpec<'a> {
     }
 
     /// Write the `/UF` attribute to set a Unicode-compatible path. Directories
-    /// are indicated by `/`, independent of the platform. (1.7+)
+    /// are indicated by `/`, independent of the platform. PDF 1.7+.
     pub fn unic_file(&mut self, path: TextStr) -> &mut Self {
         self.pair(Name(b"UF"), path);
         self
@@ -477,7 +477,7 @@ impl<'a> FileSpec<'a> {
         self
     }
 
-    /// Write the `/Desc` attribute to set a file description. (1.6+)
+    /// Write the `/Desc` attribute to set a file description. PDF 1.6+.
     pub fn description(&mut self, desc: TextStr) -> &mut Self {
         self.pair(Name(b"Desc"), desc);
         self
