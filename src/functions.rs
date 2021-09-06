@@ -225,7 +225,7 @@ pub enum FunctionType {
 }
 
 impl FunctionType {
-    fn to_int(self) -> i32 {
+    pub(crate) fn to_int(self) -> i32 {
         match self {
             Self::Sampled => 0,
             Self::Exponential => 2,
@@ -246,7 +246,7 @@ pub enum InterpolationOrder {
 }
 
 impl InterpolationOrder {
-    fn to_int(self) -> i32 {
+    pub(crate) fn to_int(self) -> i32 {
         match self {
             Self::Linear => 1,
             Self::Cubic => 3,
@@ -360,7 +360,7 @@ impl<'a> PostScriptOp<'a> {
     }
 
     fn write_slice(ops: &[Self], buf: &mut Vec<u8>) {
-        buf.push_bytes(b"{");
+        buf.push(b'{');
         if ops.len() > 1 {
             buf.push(b'\n');
         }

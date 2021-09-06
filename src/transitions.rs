@@ -94,7 +94,7 @@ pub enum TransitionStyle {
 }
 
 impl TransitionStyle {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Split => Name(b"Split"),
             Self::Blinds => Name(b"Blinds"),

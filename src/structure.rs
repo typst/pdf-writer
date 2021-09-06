@@ -248,7 +248,7 @@ pub enum PageLayout {
 }
 
 impl PageLayout {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::SinglePage => Name(b"SinglePage"),
             Self::OneColumn => Name(b"OneColumn"),
@@ -276,7 +276,7 @@ pub enum PageMode {
 }
 
 impl PageMode {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::UseNone => Name(b"UseNone"),
             Self::UseOutlines => Name(b"UseOutlines"),
@@ -597,7 +597,7 @@ pub enum Direction {
 }
 
 impl Direction {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::L2R => Name(b"L2R"),
             Self::R2L => Name(b"R2L"),

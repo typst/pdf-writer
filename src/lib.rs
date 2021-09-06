@@ -88,6 +88,7 @@ to the [PDF specification] to make sure you create valid PDFs.
 mod macros;
 mod annotations;
 mod buf;
+mod color;
 mod content;
 mod font;
 mod functions;
@@ -95,15 +96,14 @@ mod object;
 mod stream;
 mod structure;
 mod transitions;
+mod xobject;
 
 /// Writers for specific PDF structures.
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
-    pub use content::{
-        ColorSpaces, ImageStream, Path, PositionedText, Shading, ShadingPattern, Text,
-        TilingStream,
-    };
+    pub use color::{ColorSpaces, Shading, ShadingPattern, TilingStream};
+    pub use content::{Path, PositionedText, Text};
     pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -113,6 +113,7 @@ pub mod writers {
         ViewerPreferences,
     };
     pub use transitions::Transition;
+    pub use xobject::ImageStream;
 }
 
 /// Types used by specific PDF structures.
@@ -122,9 +123,8 @@ pub mod types {
         ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
         HighlightEffect,
     };
-    pub use content::{
-        ColorSpace, LineCapStyle, PaintType, RenderingIntent, ShadingType, TilingType,
-    };
+    pub use color::{ColorSpace, PaintType, ShadingType, TilingType};
+    pub use content::{LineCapStyle, RenderingIntent};
     pub use font::{CidFontType, FontFlags, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};
@@ -330,12 +330,7 @@ impl PdfWriter {
         FontDescriptor::start(self.indirect(id))
     }
 
-    /// Start writing a shading dictionary.
-    pub fn shading(&mut self, id: Ref) -> Shading<'_> {
-        Shading::start(self.indirect(id))
-    }
-
-    /// Start writing a pattern dictionary for a shading pattern.
+    /// Start writing a dictionary for a shading pattern.
     pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
         ShadingPattern::start(self.indirect(id))
     }

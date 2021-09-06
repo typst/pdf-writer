@@ -228,7 +228,7 @@ pub enum AnnotationType {
 }
 
 impl AnnotationType {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Text => Name(b"Text"),
             Self::Link => Name(b"Link"),
@@ -272,7 +272,7 @@ pub enum AnnotationIcon {
 }
 
 impl AnnotationIcon {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Comment => Name(b"Comment"),
             Self::Key => Name(b"Key"),
@@ -400,7 +400,7 @@ pub enum ActionType {
 }
 
 impl ActionType {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::GoTo => Name(b"GoTo"),
             Self::RemoteGoTo => Name(b"GoToR"),
@@ -425,7 +425,7 @@ pub enum HighlightEffect {
 }
 
 impl HighlightEffect {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::None => Name(b"N"),
             Self::Invert => Name(b"I"),
@@ -538,7 +538,7 @@ pub enum BorderType {
 }
 
 impl BorderType {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Solid => Name(b"S"),
             Self::Dashed => Name(b"D"),
