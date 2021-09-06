@@ -14,7 +14,7 @@ macro_rules! common_func_methods {
             for side in domain {
                 array.obj().array().typed().items(side);
             }
-            drop(array);
+            array.finish();
             self
         }
 
@@ -29,7 +29,7 @@ macro_rules! common_func_methods {
             for boundry in range {
                 array.obj().array().typed().items(boundry);
             }
-            drop(array);
+            array.finish();
             self
         }
     };
@@ -83,8 +83,7 @@ impl<'a> SampledFunction<'a> {
         for side in encode {
             array.obj().array().typed().items(side);
         }
-        drop(array);
-
+        array.finish();
         self
     }
 
@@ -99,8 +98,7 @@ impl<'a> SampledFunction<'a> {
         for side in decode {
             array.obj().array().typed().items(side);
         }
-        drop(array);
-
+        array.finish();
         self
     }
 }
@@ -112,11 +110,11 @@ deref!('a, SampledFunction<'a> => Stream<'a>, stream);
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
 pub struct ExponentialFunction<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> ExponentialFunction<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"FunctionType"), FunctionType::Exponential.to_int());
         Self { dict }
@@ -149,18 +147,18 @@ impl<'a> ExponentialFunction<'a> {
     }
 }
 
-deref!('a, ExponentialFunction<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, ExponentialFunction<'a> => Dict<IndirectGuard<'a>>, dict);
 
 /// Writer for a _stitching function dictionary_.
 ///
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
 pub struct StitchingFunction<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> StitchingFunction<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"FunctionType"), FunctionType::Stitching.to_int());
         Self { dict }
@@ -195,7 +193,7 @@ impl<'a> StitchingFunction<'a> {
     }
 }
 
-deref!('a, StitchingFunction<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, StitchingFunction<'a> => Dict<IndirectGuard<'a>>, dict);
 
 /// Writer for a _PostScript function stream_.
 pub struct PostScriptFunction<'a> {
@@ -390,7 +388,7 @@ impl<'a> PostScriptOp<'a> {
                 Self::write_slice(ops, buf);
                 buf.push(b'\n');
                 buf.push_bytes(self.operator());
-            },
+            }
             Self::IfElse(ops1, ops2) => {
                 Self::write_slice(ops1, buf);
                 buf.push(b'\n');
@@ -398,7 +396,7 @@ impl<'a> PostScriptOp<'a> {
                 buf.push(b'\n');
                 buf.push_bytes(self.operator());
             }
-            _ => buf.push_bytes(self.operator())
+            _ => buf.push_bytes(self.operator()),
         }
     }
 

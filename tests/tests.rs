@@ -107,15 +107,6 @@ fn test_xref_free_list_long() {
 }
 
 #[test]
-#[should_panic(expected = "unfinished object")]
-#[allow(unused_must_use)]
-fn test_object_unused() {
-    let mut w = PdfWriter::new(1, 7);
-    w.indirect(Ref::new(1));
-    w.finish(Ref::new(1));
-}
-
-#[test]
 fn test_primitive_objects() {
     // Test really simple objects.
     test_primitive!(true, b"true");
@@ -174,10 +165,16 @@ fn test_arrays() {
 
 #[test]
 fn test_dicts() {
-    test_obj!(|obj| obj.dict(), b"<<\n>>");
+    test_obj!(|obj| obj.dict(), b"<<>>");
     test_obj!(
         |obj| obj.dict().pair(Name(b"Quality"), Name(b"Good")),
         b"<<\n/Quality /Good\n>>",
+    );
+    test_obj!(
+        |obj| {
+            obj.dict().pair(Name(b"A"), 1).pair(Name(b"B"), 2);
+        },
+        b"<<\n/A 1\n/B 2\n>>",
     );
 }
 

@@ -4,11 +4,11 @@ use super::*;
 ///
 /// This struct is created by [`Page::transition`].
 pub struct Transition<'a> {
-    dict: Dict<'a>,
+    dict: Dict<&'a mut PdfWriter>,
 }
 
 impl<'a> Transition<'a> {
-    pub(crate) fn new(obj: Obj<'a>) -> Self {
+    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Trans"));
         Self { dict }
@@ -62,7 +62,7 @@ impl<'a> Transition<'a> {
     }
 }
 
-deref!('a, Transition<'a> => Dict<'a>, dict);
+deref!('a, Transition<'a> => Dict<&'a mut PdfWriter>, dict);
 
 /// The kind of transition.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -126,7 +126,7 @@ pub enum TransitionAngle {
 }
 
 impl TransitionAngle {
-    fn write_to_obj(&self, obj: Obj<'_>) {
+    fn write_to_obj(&self, obj: Obj<&mut PdfWriter>) {
         match self {
             Self::LeftToRight => obj.primitive(0),
             Self::BottomToTop => obj.primitive(90),

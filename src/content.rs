@@ -614,11 +614,11 @@ impl ColorSpaceType {
 ///
 /// This struct is created by [`Resources::color_spaces`].
 pub struct ColorSpaces<'a> {
-    dict: Dict<'a>,
+    dict: Dict<&'a mut PdfWriter>,
 }
 
 impl<'a> ColorSpaces<'a> {
-    pub(crate) fn new(obj: Obj<'a>) -> Self {
+    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
         Self { dict: obj.dict() }
     }
 
@@ -644,8 +644,9 @@ impl<'a> ColorSpaces<'a> {
             dict.pair(Name(b"Gamma"), gamma);
         }
 
-        drop(dict);
-        drop(array);
+        dict.finish();
+        array.finish();
+
         self
     }
 
@@ -676,8 +677,9 @@ impl<'a> ColorSpaces<'a> {
             dict.key(Name(b"Matrix")).array().typed().items(matrix);
         }
 
-        drop(dict);
-        drop(array);
+        dict.finish();
+        array.finish();
+
         self
     }
 
@@ -703,8 +705,9 @@ impl<'a> ColorSpaces<'a> {
             dict.key(Name(b"Range")).array().typed().items(range);
         }
 
-        drop(dict);
-        drop(array);
+        dict.finish();
+        array.finish();
+
         self
     }
 
@@ -724,7 +727,7 @@ impl<'a> ColorSpaces<'a> {
         array.item(base);
         array.item(hival);
         array.item(ByteStr(lookup));
-        drop(array);
+        array.finish();
         self
     }
 
@@ -741,7 +744,7 @@ impl<'a> ColorSpaces<'a> {
         array.item(color_name);
         array.item(base);
         array.item(tint);
-        drop(array);
+        array.finish();
         self
     }
 
@@ -758,7 +761,7 @@ impl<'a> ColorSpaces<'a> {
         array.obj().array().typed().items(names);
         array.item(alternate_space);
         array.item(tint);
-        drop(array);
+        array.finish();
         self
     }
 
@@ -770,12 +773,12 @@ impl<'a> ColorSpaces<'a> {
         let mut array = self.dict.key(name).array();
         array.item(ColorSpaceType::Pattern.to_name());
         array.item(base);
-        drop(array);
+        array.finish();
         self
     }
 }
 
-deref!('a, ColorSpaces<'a> => Dict<'a>, dict);
+deref!('a, ColorSpaces<'a> => Dict<&'a mut PdfWriter>, dict);
 
 /// How to terminate lines.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -963,11 +966,11 @@ impl TilingType {
 ///
 /// This struct is created by [`PdfWriter::shading`].
 pub struct Shading<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> Shading<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         Self { dict: obj.dict() }
     }
 
@@ -1063,7 +1066,7 @@ impl<'a> Shading<'a> {
     }
 }
 
-deref!('a, Shading<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, Shading<'a> => Dict<IndirectGuard<'a>>, dict);
 
 /// What kind of shading to use.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -1089,11 +1092,11 @@ impl ShadingType {
 
 /// Writer for a _shading pattern stream_.
 pub struct ShadingPattern<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> ShadingPattern<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Pattern"));
         dict.pair(Name(b"PatternType"), PatternType::Shading.to_int());
@@ -1117,4 +1120,4 @@ impl<'a> ShadingPattern<'a> {
     }
 }
 
-deref!('a, ShadingPattern<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, ShadingPattern<'a> => Dict< IndirectGuard<'a>>, dict);

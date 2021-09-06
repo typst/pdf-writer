@@ -318,45 +318,42 @@ impl Primitive for Date {
 }
 
 /// Writer for an arbitrary object.
-#[must_use = "not consuming this leaves the writer in an inconsistent state"]
-pub struct Obj<'a, G: Guard = ()> {
-    w: &'a mut PdfWriter,
-    guard: G,
+#[must_use = "an object is expected where this writer was created"]
+pub struct Obj<W> {
+    w: W,
 }
 
-impl<'a, G: Guard> Obj<'a, G> {
-    pub(crate) fn new(w: &'a mut PdfWriter, guard: G) -> Self {
-        Self { w, guard }
+impl<W: Guard> Obj<W> {
+    pub(crate) fn new(w: W) -> Self {
+        Self { w }
     }
 
     /// Write a primitive object.
-    pub fn primitive<T: Primitive>(self, value: T) {
+    pub fn primitive<T: Primitive>(mut self, value: T) {
         value.write(&mut self.w.buf);
-        self.guard.finish(self.w);
     }
 
     /// Write an array.
-    pub fn array(self) -> Array<'a, G> {
-        Array::start(self.w, self.guard)
+    pub fn array(self) -> Array<W> {
+        Array::start(self.w)
     }
 
     /// Write a dictionary.
-    pub fn dict(self) -> Dict<'a, G> {
-        Dict::start(self.w, self.guard)
+    pub fn dict(self) -> Dict<W> {
+        Dict::start(self.w)
     }
 }
 
 /// Writer for an array.
-pub struct Array<'a, G: Guard = ()> {
-    w: &'a mut PdfWriter,
+pub struct Array<W: Guard> {
+    w: W,
     len: i32,
-    guard: G,
 }
 
-impl<'a, G: Guard> Array<'a, G> {
-    pub(crate) fn start(w: &'a mut PdfWriter, guard: G) -> Self {
+impl<W: Guard> Array<W> {
+    pub(crate) fn start(mut w: W) -> Self {
         w.buf.push(b'[');
-        Self { w, len: 0, guard }
+        Self { w, len: 0 }
     }
 
     /// Write an item with a primitive object value.
@@ -368,12 +365,12 @@ impl<'a, G: Guard> Array<'a, G> {
     }
 
     /// Write an item with an arbitrary object value.
-    pub fn obj(&mut self) -> Obj<'_> {
+    pub fn obj(&mut self) -> Obj<&mut PdfWriter> {
         if self.len != 0 {
             self.w.buf.push(b' ');
         }
         self.len += 1;
-        Obj::new(self.w, ())
+        Obj::new(&mut self.w)
     }
 
     /// The number of written items.
@@ -382,27 +379,30 @@ impl<'a, G: Guard> Array<'a, G> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T, G> {
+    pub fn typed<T: Primitive>(self) -> TypedArray<T, W> {
         TypedArray::new(self)
     }
 }
 
-impl<G: Guard> Drop for Array<'_, G> {
+impl<W: Guard> Drop for Array<W> {
     fn drop(&mut self) {
         self.w.buf.push(b']');
-        self.guard.finish(self.w);
     }
 }
 
 /// Writer for an array with fixed primitive value type.
-pub struct TypedArray<'a, T, G: Guard = ()> {
-    array: Array<'a, G>,
+pub struct TypedArray<T, W: Guard> {
+    array: Array<W>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Primitive, G: Guard> TypedArray<'a, T, G> {
+impl<T, W> TypedArray<T, W>
+where
+    T: Primitive,
+    W: Guard,
+{
     /// Wrap an array to make it type-safe.
-    pub fn new(array: Array<'a, G>) -> Self {
+    pub fn new(array: Array<W>) -> Self {
         Self { array, phantom: PhantomData }
     }
 
@@ -427,17 +427,19 @@ impl<'a, T: Primitive, G: Guard> TypedArray<'a, T, G> {
 }
 
 /// Writer for a dictionary.
-pub struct Dict<'a, G: Guard = ()> {
-    w: &'a mut PdfWriter,
+pub struct Dict<W: Guard> {
+    w: W,
     len: i32,
-    guard: G,
 }
 
-impl<'a, G: Guard> Dict<'a, G> {
-    pub(crate) fn start(w: &'a mut PdfWriter, guard: G) -> Self {
-        w.buf.push_bytes(b"<<\n");
+impl<W> Dict<W>
+where
+    W: Guard,
+{
+    pub(crate) fn start(mut w: W) -> Self {
+        w.buf.push_bytes(b"<<");
         w.depth += 1;
-        Self { w, len: 0, guard }
+        Self { w, len: 0 }
     }
 
     /// Write a pair with a primitive object value.
@@ -449,15 +451,13 @@ impl<'a, G: Guard> Dict<'a, G> {
     }
 
     /// Write a pair with an arbitrary object value.
-    pub fn key(&mut self, key: Name) -> Obj<'_> {
-        if self.len != 0 {
-            self.w.buf.push(b'\n');
-        }
+    pub fn key(&mut self, key: Name) -> Obj<&mut PdfWriter> {
+        self.w.buf.push(b'\n');
         self.len += 1;
         self.w.push_indent();
         self.w.buf.push_val(key);
         self.w.buf.push(b' ');
-        Obj::new(self.w, ())
+        Obj::new(&mut self.w)
     }
 
     /// The number of written pairs.
@@ -466,32 +466,35 @@ impl<'a, G: Guard> Dict<'a, G> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T, G> {
+    pub fn typed<T: Primitive>(self) -> TypedDict<T, W> {
         TypedDict::new(self)
     }
 }
 
-impl<G: Guard> Drop for Dict<'_, G> {
+impl<W: Guard> Drop for Dict<W> {
     fn drop(&mut self) {
         self.w.depth -= 1;
         if self.len != 0 {
             self.w.buf.push(b'\n');
+            self.w.push_indent();
         }
-        self.w.push_indent();
         self.w.buf.push_bytes(b">>");
-        self.guard.finish(self.w);
     }
 }
 
 /// Writer for a dictionary with fixed primitive value type.
-pub struct TypedDict<'a, T, G: Guard = ()> {
-    dict: Dict<'a, G>,
+pub struct TypedDict<T, W: Guard> {
+    dict: Dict<W>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, T: Primitive, G: Guard> TypedDict<'a, T, G> {
+impl<T, W> TypedDict<T, W>
+where
+    T: Primitive,
+    W: Guard,
+{
     /// Wrap a dictionary to make it type-safe.
-    pub fn new(dict: Dict<'a, G>) -> Self {
+    pub fn new(dict: Dict<W>) -> Self {
         Self { dict, phantom: PhantomData }
     }
 

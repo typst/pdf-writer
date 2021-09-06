@@ -1,6 +1,6 @@
 use pdf_writer::{
-    ActionType, AnnotationType, BorderType, Content, Name, PdfWriter, Rect, Ref, Str,
-    TextStr,
+    ActionType, AnnotationType, BorderType, Content, Finish, Name, PdfWriter, Rect, Ref,
+    Str, TextStr,
 };
 
 fn main() -> std::io::Result<()> {
@@ -36,10 +36,9 @@ fn main() -> std::io::Result<()> {
     page.contents(text_id);
 
     // We also create the annotations list here that allows us to have things
-    // like links or comments on the page.
+    // like links or comments on the page and directly start with a new
+    // annotation.
     let mut annotations = page.annotations();
-
-    // Write a new annotation.
     let mut annotation = annotations.push();
 
     // Write the type, area, alt-text, and color for this annotation.
@@ -59,18 +58,18 @@ fn main() -> std::io::Result<()> {
     // Set border and style for the link annotation.
     annotation.border_style().width(2.0).style(BorderType::Underline);
 
-    // We have to drop all the writers that page depends on in order here
-    // because otherwise it would be mutably borrowed until the end of the
-    // block.
-    drop(annotation);
-    drop(annotations);
+    // We have to finish all the writers that the page depends on here because
+    // otherwise they would be mutably borrowed until the end of the block.
+    // Finishing is handled through the writer's `Drop` implementations, so that
+    // you cannot accidentally forget it. The `finish()` method from the `Finish`
+    // trait is just a postfix-style version of dropping.
+    annotation.finish();
+    annotations.finish();
 
     // We also need to specify which resources the page needs, which in our case
     // is only a font that we name "F1" (the specific name doesn't matter).
     page.resources().fonts().pair(font_name, font_id);
-
-    // We also need to drop the page, as with the annotations above.
-    drop(page);
+    page.finish();
 
     // Specify the font we want to use. Because Helvetica is one of the 14 base
     // fonts shipped with every PDF reader, we don't have to embed any font

@@ -4,11 +4,11 @@ use super::*;
 ///
 /// This struct is created by [`PdfWriter::type1_font`].
 pub struct Type1Font<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> Type1Font<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type1"));
@@ -22,17 +22,17 @@ impl<'a> Type1Font<'a> {
     }
 }
 
-deref!('a, Type1Font<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, Type1Font<'a> => Dict<IndirectGuard<'a>>, dict);
 
 /// Writer for a _Type-0 (composite) font_.
 ///
 /// This struct is created by [`PdfWriter::type0_font`].
 pub struct Type0Font<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> Type0Font<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type0"));
@@ -73,17 +73,17 @@ impl<'a> Type0Font<'a> {
     }
 }
 
-deref!('a, Type0Font<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, Type0Font<'a> => Dict<IndirectGuard<'a>>, dict);
 
 /// Writer for a _CID font_, a descendant of a [_Type-0 font_](Type0Font).
 ///
 /// This struct is created by [`PdfWriter::cid_font`].
 pub struct CidFont<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> CidFont<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>, subtype: CidFontType) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>, subtype: CidFontType) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), subtype.name());
@@ -127,7 +127,7 @@ impl<'a> CidFont<'a> {
     }
 }
 
-deref!('a, CidFont<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, CidFont<'a> => Dict<IndirectGuard<'a>>, dict);
 
 /// The subtype of a CID font.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -151,11 +151,11 @@ impl CidFontType {
 ///
 /// This struct is created by [`CidFont::widths`].
 pub struct Widths<'a> {
-    array: Array<'a>,
+    array: Array<&'a mut PdfWriter>,
 }
 
 impl<'a> Widths<'a> {
-    pub(crate) fn start(obj: Obj<'a>) -> Self {
+    pub(crate) fn start(obj: Obj<&'a mut PdfWriter>) -> Self {
         Self { array: obj.array() }
     }
 
@@ -179,17 +179,17 @@ impl<'a> Widths<'a> {
     }
 }
 
-deref!('a, Widths<'a> => Array<'a>, array);
+deref!('a, Widths<'a> => Array<&'a mut PdfWriter>, array);
 
 /// Writer for a _font descriptor_.
 ///
 /// This struct is created by [`PdfWriter::font_descriptor`].
 pub struct FontDescriptor<'a> {
-    dict: Dict<'a, IndirectGuard>,
+    dict: Dict<IndirectGuard<'a>>,
 }
 
 impl<'a> FontDescriptor<'a> {
-    pub(crate) fn start(obj: Obj<'a, IndirectGuard>) -> Self {
+    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"FontDescriptor"));
         Self { dict }
@@ -250,7 +250,7 @@ impl<'a> FontDescriptor<'a> {
     }
 }
 
-deref!('a, FontDescriptor<'a> => Dict<'a, IndirectGuard>, dict);
+deref!('a, FontDescriptor<'a> => Dict<IndirectGuard<'a>>, dict);
 
 pub use flags::*;
 mod flags {
@@ -425,7 +425,7 @@ pub struct SystemInfo<'a> {
 }
 
 impl SystemInfo<'_> {
-    fn write(&self, obj: Obj<'_>) {
+    fn write(&self, obj: Obj<&mut PdfWriter>) {
         obj.dict()
             .pair(Name(b"Registry"), self.registry)
             .pair(Name(b"Ordering"), self.ordering)

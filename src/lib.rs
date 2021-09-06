@@ -36,7 +36,8 @@ the core writer's capabilities in a strongly typed fashion.
   dictionary.
 
 When you bind a writer to a variable instead of just writing a chained builder
-pattern, you may need to manually [`drop()`] it before starting a new object.
+pattern, you may need to manually drop it before starting a new object using
+[`finish()`](Finish::finish) or [`drop()`].
 
 # Minimal example
 The following example creates a PDF with a single, empty A4 page.
@@ -134,6 +135,7 @@ pub use transitions::{TransitionAngle, TransitionStyle};
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
+use std::ops::{Deref, DerefMut};
 
 use buf::BufExt;
 use writers::*;
@@ -241,7 +243,7 @@ impl PdfWriter {
         // Write the trailer dictionary.
         self.buf.push_bytes(b"trailer\n");
 
-        Dict::start(self, ())
+        Dict::start(&mut *self)
             .pair(Name(b"Size"), xref_len)
             .pair(Name(b"Root"), catalog_id);
 
@@ -264,9 +266,8 @@ impl PdfWriter {
 /// Indirect objects.
 impl PdfWriter {
     /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Obj<'_, IndirectGuard> {
-        let indirect = IndirectGuard::start(self, id);
-        Obj::new(self, indirect)
+    pub fn indirect(&mut self, id: Ref) -> Obj<IndirectGuard<'_>> {
+        Obj::new(IndirectGuard::start(self, id))
     }
 
     /// Start writing a document catalog.
@@ -351,8 +352,7 @@ impl PdfWriter {
     where
         T: Into<Cow<'a, [u8]>>,
     {
-        let indirect = IndirectGuard::start(self, id);
-        Stream::start(self, data.into(), indirect)
+        Stream::start(IndirectGuard::start(self, id), data.into())
     }
 
     /// Start writing a character map stream.
@@ -401,38 +401,105 @@ impl Debug for PdfWriter {
     }
 }
 
-/// Finishes an entity when released.
+/// Finish objects in postfix-style.
 ///
-/// This is an implementation detail that you shouldn't need to worry about.
-pub trait Guard {
-    /// Finish the entity.
-    fn finish(&self, writer: &mut PdfWriter);
+/// In many cases you can use writers in builder-pattern style so that they are
+/// automatically dropped at the appropriate time. Sometimes though you need to
+/// bind a writer to a variable and still want to regain access to the
+/// [`PdfWriter`] in the same scope. In that case, you need to manually invoke
+/// the writer's `Drop` implementation. You can of course, just write
+/// `drop(array)` to finish your array, but you might find it more aesthetically
+/// pleasing to write `array.finish()`. That's what this trait is for.
+///
+/// ```
+/// # use pdf_writer::{PdfWriter, Ref, Finish, Name, Str};
+/// # let mut writer = PdfWriter::new(1, 7);
+/// let mut array = writer.indirect(Ref::new(1)).array();
+/// array.obj().dict().pair(Name(b"Key"), Str(b"Value"));
+/// array.item(2);
+/// array.finish(); // instead of drop(array)
+///
+/// // Do more stuff with the writer ...
+/// ```
+pub trait Finish: Sized {
+    /// Does nothing but move `self`, equivalent to [`drop`].
+    fn finish(self) {}
 }
 
-impl Guard for () {
-    fn finish(&self, _: &mut PdfWriter) {}
-}
+impl<T> Finish for T {}
 
-/// A guard that finishes an indirect object when released.
+/// A guard that ensures an indirect object is finished when it's dropped.
 ///
 /// This is an implementation detail that you shouldn't need to worry about.
-pub struct IndirectGuard;
+pub struct IndirectGuard<'a>(&'a mut PdfWriter);
 
-impl IndirectGuard {
-    pub(crate) fn start(w: &mut PdfWriter, id: Ref) -> Self {
+impl<'a> IndirectGuard<'a> {
+    pub(crate) fn start(w: &'a mut PdfWriter, id: Ref) -> Self {
         assert_eq!(w.depth, 0);
         w.depth += 1;
         w.offsets.push((id, w.buf.len()));
         w.buf.push_int(id.get());
         w.buf.push_bytes(b" 0 obj\n");
         w.push_indent();
-        Self
+        Self(w)
     }
 }
 
-impl Guard for IndirectGuard {
-    fn finish(&self, w: &mut PdfWriter) {
-        w.depth -= 1;
-        w.buf.push_bytes(b"\nendobj\n\n");
+impl Drop for IndirectGuard<'_> {
+    fn drop(&mut self) {
+        self.0.depth -= 1;
+        self.0.buf.push_bytes(b"\nendobj\n\n");
     }
+}
+
+impl Deref for IndirectGuard<'_> {
+    type Target = PdfWriter;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for IndirectGuard<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
+/// A trait for types that ensure some kind of structure is finished.
+///
+/// _This is an implementation detail that you shouldn't need to worry about._
+///
+/// If you're interested anyway, here's the explanation: Let's say you start
+/// writing an indirect array object with [`PdfWriter::indirect`]. First, the
+/// object header is written (`1 0 obj`). Then, you create an [`Array`] writer
+/// from the [`Obj`] writer, and write some items. Once you're done writing the
+/// array though, we somehow need to make sure that the closing phrase `endobj`
+/// is written. This is where the guard comes in: Before being able to do
+/// anything else with the [`PdfWriter`], you will need to drop your array
+/// writer (otherwise, you get an error about multiple mutable borrows). And
+/// since the array writer holds on to the guard internally, the guard's Drop
+/// implementation will then also be triggered and that's where the `endobj`
+/// part is written.
+///
+/// Guard types wrap the [`PdfWriter`], can act in its place (through the
+/// required deref implementation) and finish some kind of structure in their
+/// `Drop` implementation. When no special guarding is needed, the guard's type
+/// is simply `&mut PdfWriter` as that type's `Drop` implementation does
+/// nothing.
+///
+/// Note that this trait is sealed and cannot be implemented downstream.
+pub trait Guard: DerefMut<Target = PdfWriter> + private::Sealed {}
+
+impl Guard for &mut PdfWriter {}
+impl Guard for IndirectGuard<'_> {}
+impl Guard for StreamGuard<'_> {}
+
+mod private {
+    use super::{IndirectGuard, PdfWriter, StreamGuard};
+
+    pub trait Sealed {}
+    impl Sealed for &mut PdfWriter {}
+    impl Sealed for IndirectGuard<'_> {}
+    impl Sealed for StreamGuard<'_> {}
 }
