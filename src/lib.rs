@@ -101,7 +101,7 @@ pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
-    pub use content::{Operation, PositionedItems, ShowPositioned, Text};
+    pub use content::{Operation, PositionedItems, ShowPositioned};
     pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -122,7 +122,7 @@ pub mod types {
         HighlightEffect,
     };
     pub use color::{ColorSpace, PaintType, ShadingType, TilingType};
-    pub use content::{LineCapStyle, RenderingIntent};
+    pub use content::{LineCapStyle, LineJoinStyle, RenderingIntent, TextRenderingMode};
     pub use font::{CidFontType, FontFlags, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};

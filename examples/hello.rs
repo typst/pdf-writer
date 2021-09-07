@@ -77,10 +77,11 @@ fn main() -> std::io::Result<()> {
     // characters.
     let mut content = Content::new();
     content
-        .text()
-        .font(font_name, 14.0)
+        .begin_text()
+        .set_font(font_name, 14.0)
         .next_line(108.0, 734.0)
-        .show(Str(b"Hello World from Rust!"));
+        .show(Str(b"Hello World from Rust!"))
+        .end_text();
 
     writer.stream(text_id, &content.finish());
 

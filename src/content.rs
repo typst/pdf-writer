@@ -36,7 +36,7 @@ impl Content {
 
 /// Writer for an _operation_ in a content stream.
 ///
-/// This struct is created by [`Content::op`] and [`Text::op`].
+/// This struct is created by [`Content::op`].
 pub struct Operation<'a> {
     buf: &'a mut Vec<u8>,
     op: &'a str,
@@ -91,7 +91,7 @@ impl Drop for Operation<'_> {
     }
 }
 
-/// State.
+/// Graphics state.
 impl Content {
     /// `q`: Save the graphics state on the stack.
     #[inline]
@@ -127,112 +127,35 @@ impl Content {
     /// `J`: Set the line cap style.
     #[inline]
     pub fn set_line_cap(&mut self, cap: LineCapStyle) -> &mut Self {
-        self.buf.push_val(cap.to_int());
-        self.buf.push_bytes(b" J\n");
-        self
-    }
-}
-
-/// Color.
-impl Content {
-    /// `rg`: Set the fill color to the parameter and the color space to
-    /// `DeviceRGB`.
-    #[inline]
-    pub fn set_fill_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.op("rg").operands([r, g, b]);
+        self.op("J").operand(cap.to_int());
         self
     }
 
-    /// `k`: Set the fill color to the parameter and the color space to
-    /// `DeviceCMYK`.
+    /// `j`: Set the line join style.
     #[inline]
-    pub fn set_fill_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
-        self.op("k").operands([c, m, y, k]);
+    pub fn set_line_join(&mut self, join: LineJoinStyle) -> &mut Self {
+        self.op("j").operand(join.to_int());
         self
     }
 
-    /// `cs`: Set the fill color space to the parameter. PDF 1.1+.
-    ///
-    /// The parameter must be the name of a parameter-less color space or of a
-    /// color space dictionary within the current resource dictionary.
+    /// `M`: Set the miter limit.
     #[inline]
-    pub fn set_fill_color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.op("cs").operand(space.to_name());
+    pub fn set_miter_limit(&mut self, limit: f32) -> &mut Self {
+        self.op("M").operand(limit);
         self
     }
 
-    /// `scn`: Set the fill color to the parameter within the current color
-    /// space. PDF 1.2+.
+    /// `d`: Set the line dash pattern.
     #[inline]
-    pub fn set_fill_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.op("scn").operands(color);
-        self
-    }
-
-    /// `scn`: Set the fill pattern. PDF 1.2+.
-    ///
-    /// The `name` parameter is the name of a pattern. If this is an uncolored
-    /// pattern, a tint color in the current `Pattern` base color space must be
-    /// given, otherwise, the `color` iterator shall remain empty.
-    #[inline]
-    pub fn set_fill_pattern(
+    pub fn set_line_dash_pattern(
         &mut self,
-        color: impl IntoIterator<Item = f32>,
-        name: Name,
+        array: impl IntoIterator<Item = f32>,
+        phase: f32,
     ) -> &mut Self {
-        self.op("scn").operands(color).operand(name);
-        self
-    }
-
-    /// `RG`: Set the stroke color to the parameter and the color space to
-    /// `DeviceRGB`.
-    #[inline]
-    pub fn set_stroke_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.op("RG").operands([r, g, b]);
-        self
-    }
-
-    /// `K`: Set the stroke color to the parameter and the color space to
-    /// `DeviceCMYK`.
-    #[inline]
-    pub fn set_stroke_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
-        self.op("K").operands([c, m, y, k]);
-        self
-    }
-
-    /// `CS`: Set the stroke color space to the parameter. PDF 1.1+.
-    ///
-    /// The parameter must be the name of a parameter-less color space or of a
-    /// color space dictionary within the current resource dictionary.
-    #[inline]
-    pub fn set_stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.op("CS").operand(space.to_name());
-        self
-    }
-
-    /// `SCN`: Set the stroke color to the parameter within the current color
-    /// space. PDF 1.2+.
-    #[inline]
-    pub fn set_stroke_color(
-        &mut self,
-        color: impl IntoIterator<Item = f32>,
-    ) -> &mut Self {
-        self.op("SCN").operands(color);
-        self
-    }
-
-    /// `SCN`: Set the stroke pattern. PDF 1.2+.
-    ///
-    /// The `name` parameter is the name of a pattern. If this is an uncolored
-    /// pattern, a tint color in the current `Pattern` base color space must be
-    /// given, otherwise, the `color` iterator shall remain empty.
-    #[inline]
-    pub fn set_stroke_pattern(
-        &mut self,
-        color: impl IntoIterator<Item = f32>,
-        name: Name,
-    ) -> &mut Self {
-        self.op("SCN").operands(color).operand(name);
+        let mut op = self.op("d");
+        op.obj().array().typed().items(array);
+        op.operand(phase);
+        op.finish();
         self
     }
 
@@ -241,6 +164,97 @@ impl Content {
     pub fn set_rendering_intent(&mut self, intent: RenderingIntent) -> &mut Self {
         self.op("ri").operand(intent.to_name());
         self
+    }
+
+    /// `i`: Set the flatness tolerance in device pixels.
+    ///
+    /// Panics if `tolerance` is negative or larger than 100.
+    #[inline]
+    pub fn set_flatness(&mut self, tolerance: i32) -> &mut Self {
+        assert!(
+            matches!(tolerance, 0 ..= 100),
+            "flatness tolerance must be between 0 and 100",
+        );
+        self.op("i").operand(tolerance);
+        self
+    }
+
+    /// `gs`: Set the parameters from an `EXTGState` dictionary. PDF 1.2+.
+    #[inline]
+    pub fn set_parameters(&mut self, dict: Name) -> &mut Self {
+        self.op("gs").operand(dict);
+        self
+    }
+}
+
+/// How to terminate lines.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum LineCapStyle {
+    /// Square the line of at the endpoints of the path.
+    ButtCap,
+    /// Round the line off at its end with a semicircular arc as wide as the
+    /// stroke.
+    RoundCap,
+    /// End the line with a square cap that protrudes by half the width of the
+    /// stroke.
+    ProjectingSquareCap,
+}
+
+impl LineCapStyle {
+    #[inline]
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::ButtCap => 0,
+            Self::RoundCap => 1,
+            Self::ProjectingSquareCap => 2,
+        }
+    }
+}
+
+/// How to join lines at corners.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum LineJoinStyle {
+    /// Join the lines with a sharp corner where the outsides of the lines
+    /// intersect.
+    MiterJoin,
+    /// Join the lines with a smooth circular segment.
+    RoundJoin,
+    /// End both lines with butt caps and join them with a triangle.
+    BevelJoin,
+}
+
+impl LineJoinStyle {
+    #[inline]
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::MiterJoin => 0,
+            Self::RoundJoin => 1,
+            Self::BevelJoin => 2,
+        }
+    }
+}
+/// How the output device should aim to render colors.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum RenderingIntent {
+    /// Only consider the light source, not the output's white point.
+    AbsoluteColorimetric,
+    /// Consider both the light source and the output's white point.
+    RelativeColorimetric,
+    /// Preserve saturation.
+    Saturation,
+    /// Preserve a pleasing visual appearance.
+    Perceptual,
+}
+
+impl RenderingIntent {
+    #[inline]
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::AbsoluteColorimetric => Name(b"AbsoluteColorimetric"),
+            Self::RelativeColorimetric => Name(b"RelativeColorimetric"),
+            Self::Saturation => Name(b"Saturation"),
+            Self::Perceptual => Name(b"Perceptual"),
+        }
     }
 }
 
@@ -376,7 +390,10 @@ impl Content {
         self.op("n");
         self
     }
+}
 
+/// Clipping paths.
+impl Content {
     /// `W`: Intersect the current clipping path with the current path using the
     /// nonzero winding rule.
     #[inline]
@@ -394,57 +411,117 @@ impl Content {
     }
 }
 
-/// Other objects.
+/// Text objects.
 impl Content {
-    /// `BT ... ET`: Start writing a text object.
+    /// `BT`: Begin a text object.
     #[inline]
-    pub fn text(&mut self) -> Text<'_> {
-        Text::new(self)
-    }
-
-    /// `Do`: Write an external object.
-    #[inline]
-    pub fn x_object(&mut self, name: Name) -> &mut Self {
-        self.op("Do").operand(name);
+    pub fn begin_text(&mut self) -> &mut Self {
+        self.op("BT");
         self
     }
 
-    /// `sh`: Fill the whole drawing area with the specified shading.
+    /// `ET`: End a text object.
     #[inline]
-    pub fn shading(&mut self, shading: Name) -> &mut Self {
-        self.op("sh").operand(shading);
+    pub fn end_text(&mut self) -> &mut Self {
+        self.op("ET");
         self
     }
 }
 
-/// Writer for a _text object_ in a content stream.
-///
-/// This struct is created by [`Content::text`].
-pub struct Text<'a> {
-    buf: &'a mut Vec<u8>,
-}
-
-impl<'a> Text<'a> {
+/// Text state.
+impl Content {
+    /// `Tc`: Set the character spacing.
     #[inline]
-    fn new(content: &'a mut Content) -> Self {
-        content.op("BT");
-        let buf = &mut content.buf;
-        Self { buf }
+    pub fn set_char_spacing(&mut self, spacing: f32) -> &mut Self {
+        self.op("Tc").operand(spacing);
+        self
     }
 
-    /// Start writing an arbitrary operation.
+    /// `Tw`: Set the word spacing.
     #[inline]
-    pub fn op<'b>(&'b mut self, operator: &'b str) -> Operation<'b> {
-        Operation::new(self.buf, operator)
+    pub fn set_word_spacing(&mut self, spacing: f32) -> &mut Self {
+        self.op("Tw").operand(spacing);
+        self
+    }
+
+    /// `Tz`: Set the horizontal scaling.
+    #[inline]
+    pub fn set_horizontal_scaling(&mut self, scaling: f32) -> &mut Self {
+        self.op("Tz").operand(scaling);
+        self
+    }
+
+    /// `TL`: Set the leading.
+    #[inline]
+    pub fn set_leading(&mut self, leading: f32) -> &mut Self {
+        self.op("TL").operand(leading);
+        self
     }
 
     /// `Tf`: Set font and font size.
     #[inline]
-    pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
+    pub fn set_font(&mut self, font: Name, size: f32) -> &mut Self {
         self.op("Tf").operand(font).operand(size);
         self
     }
 
+    /// `Tr`: Set the text rendering mode.
+    #[inline]
+    pub fn set_text_rendering_mode(&mut self, mode: TextRenderingMode) -> &mut Self {
+        self.op("Tr").operand(mode.to_int());
+        self
+    }
+
+    /// `Ts`: Set the rise.
+    #[inline]
+    pub fn set_rise(&mut self, rise: f32) -> &mut Self {
+        self.op("Ts").operand(rise);
+        self
+    }
+}
+
+/// How to render text.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TextRenderingMode {
+    /// Just fill the text.
+    Fill,
+    /// Just stroke the text.
+    Stroke,
+    /// First fill and then stroke the text.
+    FillStroke,
+    /// Don't fill and don't stroke the text.
+    Invisible,
+    /// Fill the text, then apply the text outlines to the current clipping
+    /// path.
+    FillClip,
+    /// Stroke the text, then apply the text outlines to the current clipping
+    /// path.
+    StrokeClip,
+    /// First fill, then stroke the text and finally apply the text outlines to
+    /// the current clipping path.
+    FillStrokeClip,
+    /// Apply the text outlines to the current clipping path.
+    Clip,
+}
+
+impl TextRenderingMode {
+    #[inline]
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Fill => 0,
+            Self::Stroke => 1,
+            Self::FillStroke => 2,
+            Self::Invisible => 3,
+            Self::FillClip => 4,
+            Self::StrokeClip => 5,
+            Self::FillStrokeClip => 6,
+            Self::Clip => 7,
+        }
+    }
+}
+
+/// Text positioning.
+impl Content {
     /// `Td`: Move to the start of the next line.
     #[inline]
     pub fn next_line(&mut self, x: f32, y: f32) -> &mut Self {
@@ -452,19 +529,58 @@ impl<'a> Text<'a> {
         self
     }
 
+    /// `TD`: Move to the start of the next line and set the text state's
+    /// leading parameter to `-y`.
+    #[inline]
+    pub fn next_line_and_set_leading(&mut self, x: f32, y: f32) -> &mut Self {
+        self.op("TD").operands([x, y]);
+        self
+    }
+
     /// `Tm`: Set the text matrix.
     #[inline]
-    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+    pub fn set_text_matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
         self.op("Tm").operands(matrix);
         self
     }
 
+    /// `T*`: Move to the start of the next line, determing the vertical offset
+    /// through the text state's leading parameter.
+    #[inline]
+    pub fn next_line_using_leading(&mut self) -> &mut Self {
+        self.op("T*");
+        self
+    }
+}
+
+/// Text showing.
+impl Content {
     /// `Tj`: Show text.
     ///
-    /// The encoding of the text is up to you.
+    /// The encoding of the text depends on the font.
     #[inline]
     pub fn show(&mut self, text: Str) -> &mut Self {
         self.op("Tj").operand(text);
+        self
+    }
+
+    /// `'`: Move to the next line and show text.
+    #[inline]
+    pub fn next_line_show(&mut self, text: Str) -> &mut Self {
+        self.op("'").operand(text);
+        self
+    }
+
+    /// `"`: Move to the next line, show text and set the text state's word and
+    /// character spacing.
+    #[inline]
+    pub fn next_line_show_and_set_word_and_char_spacing(
+        &mut self,
+        word_spacing: f32,
+        char_spacing: f32,
+        text: Str,
+    ) -> &mut Self {
+        self.op("\"").operands([word_spacing, char_spacing]).operand(text);
         self
     }
 
@@ -475,16 +591,9 @@ impl<'a> Text<'a> {
     }
 }
 
-impl Drop for Text<'_> {
-    #[inline]
-    fn drop(&mut self) {
-        self.op("ET");
-    }
-}
-
 /// Writer for an _individual glyph positioning operation_.
 ///
-/// This struct is created by [`Text::show_positioned`].
+/// This struct is created by [`Content::show_positioned`].
 pub struct ShowPositioned<'a> {
     op: Operation<'a>,
 }
@@ -539,52 +648,166 @@ impl<'a> PositionedItems<'a> {
 
 deref!('a, PositionedItems<'a> => Array<'a>, array);
 
-/// How to terminate lines.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum LineCapStyle {
-    /// Square the line of at the endpoints of the path.
-    ButtCap,
-    /// Round the line off at its end with a semicircular arc as wide as the
-    /// stroke.
-    RoundCap,
-    /// End the line with a square cap that protrudes by half the width of the
-    /// stroke.
-    ProjectingSquareCap,
-}
+// TODO: Type 3 fonts.
 
-impl LineCapStyle {
+/// Color.
+impl Content {
+    /// `CS`: Set the stroke color space to the parameter. PDF 1.1+.
+    ///
+    /// The parameter must be the name of a parameter-less color space or of a
+    /// color space dictionary within the current resource dictionary.
     #[inline]
-    pub(crate) fn to_int(self) -> i32 {
-        match self {
-            Self::ButtCap => 0,
-            Self::RoundCap => 1,
-            Self::ProjectingSquareCap => 2,
-        }
+    pub fn set_stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
+        self.op("CS").operand(space.to_name());
+        self
+    }
+
+    /// `cs`: Set the fill color space to the parameter. PDF 1.1+.
+    ///
+    /// The parameter must be the name of a parameter-less color space or of a
+    /// color space dictionary within the current resource dictionary.
+    #[inline]
+    pub fn set_fill_color_space(&mut self, space: ColorSpace) -> &mut Self {
+        self.op("cs").operand(space.to_name());
+        self
+    }
+
+    /// `SCN`: Set the stroke color to the parameter within the current color
+    /// space. PDF 1.2+.
+    #[inline]
+    pub fn set_stroke_color(
+        &mut self,
+        color: impl IntoIterator<Item = f32>,
+    ) -> &mut Self {
+        self.op("SCN").operands(color);
+        self
+    }
+
+    /// `SCN`: Set the stroke pattern. PDF 1.2+.
+    ///
+    /// The `name` parameter is the name of a pattern. If this is an uncolored
+    /// pattern, a tint color in the current `Pattern` base color space must be
+    /// given, otherwise, the `color` iterator shall remain empty.
+    #[inline]
+    pub fn set_stroke_pattern(
+        &mut self,
+        color: impl IntoIterator<Item = f32>,
+        name: Name,
+    ) -> &mut Self {
+        self.op("SCN").operands(color).operand(name);
+        self
+    }
+
+    /// `scn`: Set the fill color to the parameter within the current color
+    /// space. PDF 1.2+.
+    #[inline]
+    pub fn set_fill_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.op("scn").operands(color);
+        self
+    }
+
+    /// `scn`: Set the fill pattern. PDF 1.2+.
+    ///
+    /// The `name` parameter is the name of a pattern. If this is an uncolored
+    /// pattern, a tint color in the current `Pattern` base color space must be
+    /// given, otherwise, the `color` iterator shall remain empty.
+    #[inline]
+    pub fn set_fill_pattern(
+        &mut self,
+        color: impl IntoIterator<Item = f32>,
+        name: Name,
+    ) -> &mut Self {
+        self.op("scn").operands(color).operand(name);
+        self
+    }
+
+    /// `G`: Set the stroke color to the parameter and the color space to
+    /// `DeviceGray`.
+    #[inline]
+    pub fn set_stroke_gray(&mut self, gray: f32) -> &mut Self {
+        self.op("G").operand(gray);
+        self
+    }
+
+    /// `g`: Set the fill color to the parameter and the color space to
+    /// `DeviceGray`.
+    #[inline]
+    pub fn set_fill_gray(&mut self, gray: f32) -> &mut Self {
+        self.op("g").operand(gray);
+        self
+    }
+
+    /// `RG`: Set the stroke color to the parameter and the color space to
+    /// `DeviceRGB`.
+    #[inline]
+    pub fn set_stroke_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.op("RG").operands([r, g, b]);
+        self
+    }
+
+    /// `rg`: Set the fill color to the parameter and the color space to
+    /// `DeviceRGB`.
+    #[inline]
+    pub fn set_fill_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.op("rg").operands([r, g, b]);
+        self
+    }
+
+    /// `K`: Set the stroke color to the parameter and the color space to
+    /// `DeviceCMYK`.
+    #[inline]
+    pub fn set_stroke_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
+        self.op("K").operands([c, m, y, k]);
+        self
+    }
+
+    /// `k`: Set the fill color to the parameter and the color space to
+    /// `DeviceCMYK`.
+    #[inline]
+    pub fn set_fill_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
+        self.op("k").operands([c, m, y, k]);
+        self
     }
 }
 
-/// How the output device should aim to render colors.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum RenderingIntent {
-    /// Only consider the light source, not the output's white point.
-    AbsoluteColorimetric,
-    /// Consider both the light source and the output's white point.
-    RelativeColorimetric,
-    /// Preserve saturation.
-    Saturation,
-    /// Preserve a pleasing visual appearance.
-    Perceptual,
+/// Shading patterns.
+impl Content {
+    /// `sh`: Fill the whole drawing area with the specified shading.
+    #[inline]
+    pub fn shading(&mut self, shading: Name) -> &mut Self {
+        self.op("sh").operand(shading);
+        self
+    }
 }
 
-impl RenderingIntent {
+// TODO: Inline images.
+
+/// XObjects.
+impl Content {
+    /// `Do`: Write an external object.
     #[inline]
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::AbsoluteColorimetric => Name(b"AbsoluteColorimetric"),
-            Self::RelativeColorimetric => Name(b"RelativeColorimetric"),
-            Self::Saturation => Name(b"Saturation"),
-            Self::Perceptual => Name(b"Perceptual"),
-        }
+    pub fn x_object(&mut self, name: Name) -> &mut Self {
+        self.op("Do").operand(name);
+        self
+    }
+}
+
+// TODO: Marked content.
+
+/// Compatibility.
+impl Content {
+    /// `BX`: Begin a compatability section.
+    #[inline]
+    pub fn begin_compat(&mut self) -> &mut Self {
+        self.op("BX");
+        self
+    }
+
+    /// `EX`: End a compatability section.
+    #[inline]
+    pub fn end_compat(&mut self) -> &mut Self {
+        self.op("EX");
+        self
     }
 }
 
@@ -594,31 +817,40 @@ mod tests {
 
     #[test]
     fn test_content_encoding() {
-        let mut c = Content::new();
-        c.save_state();
-        c.rect(1.0, 2.0, 3.0, 4.0);
-        c.fill_nonzero();
-        c.x_object(Name(b"MyImage"));
-        c.set_fill_pattern([2.0, 3.5], Name(b"MyPattern"));
-        c.restore_state();
+        let mut content = Content::new();
+        content
+            .save_state()
+            .rect(1.0, 2.0, 3.0, 4.0)
+            .fill_nonzero()
+            .set_line_dash_pattern([7.0, 2.0], 4.0)
+            .x_object(Name(b"MyImage"))
+            .set_fill_pattern([2.0, 3.5], Name(b"MyPattern"))
+            .restore_state();
+
         assert_eq!(
-            c.finish(),
-            b"q\n1 2 3 4 re\nf\n/MyImage Do\n2 3.5 /MyPattern scn\nQ"
+            content.finish(),
+            b"q\n1 2 3 4 re\nf\n[7 2] 4 d\n/MyImage Do\n2 3.5 /MyPattern scn\nQ"
         );
     }
 
     #[test]
     fn test_content_text() {
-        let mut c = Content::new();
-        let mut t = c.text();
-        t.font(Name(b"F1"), 12.0);
-        t.show_positioned().items();
-        t.show_positioned()
+        let mut content = Content::new();
+
+        content.set_font(Name(b"F1"), 12.0);
+        content.begin_text();
+        content.show_positioned().items();
+        content
+            .show_positioned()
             .items()
             .show(Str(b"AB"))
             .adjust(2.0)
             .show(Str(b"CD"));
-        t.finish();
-        assert_eq!(c.finish(), b"BT\n/F1 12 Tf\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
+        content.end_text();
+
+        assert_eq!(
+            content.finish(),
+            b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
+        );
     }
 }
