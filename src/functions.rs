@@ -2,6 +2,30 @@ use std::io::Write;
 
 use super::*;
 
+/// Way the function is defined in.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum FunctionType {
+    /// A function that is derived from a set of sampled data.
+    Sampled,
+    /// A exponential function.
+    Exponential,
+    /// A composite function made up of multiple other functions.
+    Stitching,
+    /// A postscript function.
+    PostScript,
+}
+
+impl FunctionType {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Sampled => 0,
+            Self::Exponential => 2,
+            Self::Stitching => 3,
+            Self::PostScript => 4,
+        }
+    }
+}
+
 macro_rules! common_func_methods {
     () => {
         /// Write the `/Domain` attribute to set where the function is defined.
@@ -36,12 +60,15 @@ macro_rules! common_func_methods {
 }
 
 /// Writer for a _sampled function stream_.
+///
+/// This struct is created by [`PdfWriter::sampled_function`].
 pub struct SampledFunction<'a> {
     stream: Stream<'a>,
 }
 
 impl<'a> SampledFunction<'a> {
-    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+    /// Create a new sampled function writer.
+    pub fn new(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"FunctionType"), FunctionType::Sampled.to_int());
         Self { stream }
     }
@@ -105,16 +132,38 @@ impl<'a> SampledFunction<'a> {
 
 deref!('a, SampledFunction<'a> => Stream<'a>, stream);
 
+/// How to interpolate between the samples in a function of the
+/// sampled type.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum InterpolationOrder {
+    /// Linear spline interpolation.
+    Linear,
+    /// Cubic spline interpolation.
+    Cubic,
+}
+
+impl InterpolationOrder {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Linear => 1,
+            Self::Cubic => 3,
+        }
+    }
+}
+
 /// Writer for an _exponential function dictionary_.
 ///
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
+///
+/// This struct is created by [`PdfWriter::exponential_function`].
 pub struct ExponentialFunction<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> ExponentialFunction<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new exponential function writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"FunctionType"), FunctionType::Exponential.to_int());
         Self { dict }
@@ -147,18 +196,21 @@ impl<'a> ExponentialFunction<'a> {
     }
 }
 
-deref!('a, ExponentialFunction<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, ExponentialFunction<'a> => Dict<'a>, dict);
 
 /// Writer for a _stitching function dictionary_.
 ///
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
+///
+/// This struct is created by [`PdfWriter::stitching_function`].
 pub struct StitchingFunction<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> StitchingFunction<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new stitching function writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"FunctionType"), FunctionType::Stitching.to_int());
         Self { dict }
@@ -193,15 +245,18 @@ impl<'a> StitchingFunction<'a> {
     }
 }
 
-deref!('a, StitchingFunction<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, StitchingFunction<'a> => Dict<'a>, dict);
 
 /// Writer for a _PostScript function stream_.
+///
+/// This struct is created by [`PdfWriter::post_script_function`].
 pub struct PostScriptFunction<'a> {
     stream: Stream<'a>,
 }
 
 impl<'a> PostScriptFunction<'a> {
-    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+    /// Create a new postscript function writer.
+    pub fn new(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"FunctionType"), FunctionType::PostScript.to_int());
         Self { stream }
     }
@@ -210,49 +265,6 @@ impl<'a> PostScriptFunction<'a> {
 }
 
 deref!('a, PostScriptFunction<'a> => Stream<'a>, stream);
-
-/// Way the function is defined in.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum FunctionType {
-    /// A function that is derived from a set of sampled data.
-    Sampled,
-    /// A exponential function.
-    Exponential,
-    /// A composite function made up of multiple other functions.
-    Stitching,
-    /// A postscript function.
-    PostScript,
-}
-
-impl FunctionType {
-    pub(crate) fn to_int(self) -> i32 {
-        match self {
-            Self::Sampled => 0,
-            Self::Exponential => 2,
-            Self::Stitching => 3,
-            Self::PostScript => 4,
-        }
-    }
-}
-
-/// How to interpolate between the samples in a function of the
-/// sampled type.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum InterpolationOrder {
-    /// Linear spline interpolation.
-    Linear,
-    /// Cubic spline interpolation.
-    Cubic,
-}
-
-impl InterpolationOrder {
-    pub(crate) fn to_int(self) -> i32 {
-        match self {
-            Self::Linear => 1,
-            Self::Cubic => 3,
-        }
-    }
-}
 
 /// PostScript operators for use in Type 4 functions.
 #[derive(Debug, Copy, Clone, PartialEq)]

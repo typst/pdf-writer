@@ -1,15 +1,16 @@
 use super::*;
 use crate::types::{ColorSpace, RenderingIntent};
 
-/// Writer for an _image XObject_.
+/// Writer for an _image XObject stream_.
 ///
 /// This struct is created by [`PdfWriter::image`].
-pub struct ImageStream<'a> {
+pub struct Image<'a> {
     stream: Stream<'a>,
 }
 
-impl<'a> ImageStream<'a> {
-    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+impl<'a> Image<'a> {
+    /// Create a new image stream writer.
+    pub fn new(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"XObject"));
         stream.pair(Name(b"Subtype"), Name(b"Image"));
         Self { stream }
@@ -52,4 +53,4 @@ impl<'a> ImageStream<'a> {
     }
 }
 
-deref!('a, ImageStream<'a> => Stream<'a>, stream);
+deref!('a, Image<'a> => Stream<'a>, stream);

@@ -1,14 +1,15 @@
 use super::*;
 
-/// Writer for the _annotations array_ in a [_page_](Page).
+/// Writer for the _annotations array_.
 ///
 /// This struct is created by [`Page::annotations`].
 pub struct Annotations<'a> {
-    array: Array<&'a mut PdfWriter>,
+    array: Array<'a>,
 }
 
 impl<'a> Annotations<'a> {
-    pub(crate) fn start(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new annotations array writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
 
@@ -18,17 +19,18 @@ impl<'a> Annotations<'a> {
     }
 }
 
-deref!('a, Annotations<'a> => Array<&'a mut PdfWriter>, array);
+deref!('a, Annotations<'a> => Array<'a>, array);
 
 /// Writer for an _annotation dictionary_.
 ///
 /// This struct is created by [`Annotations::push`].
 pub struct Annotation<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Annotation<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new annotation writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Annot"));
         Self { dict }
@@ -200,7 +202,7 @@ impl<'a> Annotation<'a> {
     }
 }
 
-deref!('a, Annotation<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, Annotation<'a> => Dict<'a>, dict);
 
 /// Kind of the annotation to produce.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -327,11 +329,12 @@ bitflags::bitflags! {
 ///
 /// This struct is created by [`Annotation::action`].
 pub struct Action<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Action<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new action writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Action"));
         Self { dict }
@@ -346,7 +349,7 @@ impl<'a> Action<'a> {
     /// Start writing the `/D` attribute to set the destination of this
     /// GoTo-type action.
     pub fn dest_direct(&mut self, page: Ref) -> Destination<'_> {
-        Destination::start(self.key(Name(b"D")), page)
+        Destination::new(self.key(Name(b"D")), page)
     }
 
     /// Write the `/D` attribute to set the destination of this GoTo-type action
@@ -384,7 +387,7 @@ impl<'a> Action<'a> {
     }
 }
 
-deref!('a, Action<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, Action<'a> => Dict<'a>, dict);
 
 /// What kind of action to perform when clicking a link annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -439,11 +442,12 @@ impl HighlightEffect {
 ///
 /// This struct is created by [`Annotation::file`] and [`Action::file`].
 pub struct FileSpec<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> FileSpec<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new file specification writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Filespec"));
         Self { dict }
@@ -484,17 +488,18 @@ impl<'a> FileSpec<'a> {
     }
 }
 
-deref!('a, FileSpec<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, FileSpec<'a> => Dict<'a>, dict);
 
 /// Writer for an _border style dictionary_.
 ///
 /// This struct is created by [`Annotation::border_style`].
 pub struct BorderStyle<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> BorderStyle<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new border style writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Border"));
         Self { dict }
@@ -520,7 +525,7 @@ impl<'a> BorderStyle<'a> {
     }
 }
 
-deref!('a, BorderStyle<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, BorderStyle<'a> => Dict<'a>, dict);
 
 /// The kind of line to draw on the border.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

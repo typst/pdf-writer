@@ -2,9 +2,8 @@ use pdf_writer::types::{ActionType, AnnotationType, BorderType};
 use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref, Str, TextStr};
 
 fn main() -> std::io::Result<()> {
-    // Start writing and make the output more readable by indenting things.
+    // Start writing.
     let mut writer = PdfWriter::new();
-    writer.set_indent(2);
 
     // Define some indirect reference ids we'll use.
     let catalog_id = Ref::new(1);

@@ -1,6 +1,4 @@
-use pdf_writer::{
-    Date, Filter, IndirectGuard, Name, Null, Obj, PdfWriter, Ref, Str, TextStr,
-};
+use pdf_writer::{Date, Filter, Name, Null, Obj, PdfWriter, Ref, Str, TextStr};
 
 /// Test that `buf` is the same as the result of concatenating the strings.
 macro_rules! test {
@@ -41,7 +39,7 @@ where
 /// Return the slice of bytes written for an object.
 fn slice_obj<F>(f: F) -> Vec<u8>
 where
-    F: FnOnce(Obj<IndirectGuard>),
+    F: FnOnce(Obj<'_>),
 {
     let buf = slice(|w| f(w.indirect(Ref::new(1))));
     buf[8 .. buf.len() - 9].to_vec()
@@ -54,7 +52,7 @@ fn test_minimal() {
         w.finish(Ref::new(1)),
         b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"xref\n0 1\n0000000000 65535 f\r\n",
-        b"trailer\n<<\n/Size 1\n/Root 1 0 R\n>>\n",
+        b"trailer\n<<\n  /Size 1\n  /Root 1 0 R\n>>\n",
         b"startxref\n16\n%%EOF",
     );
 }
@@ -75,7 +73,7 @@ fn test_xref_free_list_short() {
         b"0000000016 00000 n\r\n",
         b"0000000034 00000 n\r\n",
         b"trailer\n",
-        b"<<\n/Size 3\n/Root 1 0 R\n>>\n",
+        b"<<\n  /Size 3\n  /Root 1 0 R\n>>\n",
         b"startxref\n52\n%%EOF",
     )
 }
@@ -102,7 +100,7 @@ fn test_xref_free_list_long() {
         b"0000000000 00000 f\r\n",
         b"0000000052 00000 n\r\n",
         b"trailer\n",
-        b"<<\n/Size 6\n/Root 2 0 R\n>>\n",
+        b"<<\n  /Size 6\n  /Root 2 0 R\n>>\n",
         b"startxref\n70\n%%EOF",
     )
 }
@@ -169,13 +167,13 @@ fn test_dicts() {
     test_obj!(|obj| obj.dict(), b"<<>>");
     test_obj!(
         |obj| obj.dict().pair(Name(b"Quality"), Name(b"Good")),
-        b"<<\n/Quality /Good\n>>",
+        b"<<\n  /Quality /Good\n>>",
     );
     test_obj!(
         |obj| {
             obj.dict().pair(Name(b"A"), 1).pair(Name(b"B"), 2);
         },
-        b"<<\n/A 1\n/B 2\n>>",
+        b"<<\n  /A 1\n  /B 2\n>>",
     );
 }
 
@@ -187,7 +185,7 @@ fn test_streams() {
         w.finish(Ref::new(1)),
         b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n",
-        b"<<\n/Length 9\n/Filter /Crypt\n>>\n",
+        b"<<\n  /Length 9\n  /Filter /Crypt\n>>\n",
         b"stream\n",
         b"Hi there!\n",
         b"endstream\n",
@@ -197,7 +195,7 @@ fn test_streams() {
         b"0000000000 65535 f\r\n",
         b"0000000016 00000 n\r\n",
         b"trailer\n",
-        b"<<\n/Size 2\n/Root 1 0 R\n>>\n",
-        b"startxref\n90\n%%EOF",
+        b"<<\n  /Size 2\n  /Root 1 0 R\n>>\n",
+        b"startxref\n94\n%%EOF",
     )
 }

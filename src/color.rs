@@ -33,11 +33,12 @@ impl<'a> ColorSpace<'a> {
 ///
 /// This struct is created by [`Resources::color_spaces`].
 pub struct ColorSpaces<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> ColorSpaces<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new color space dictionary writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 
@@ -197,7 +198,7 @@ impl<'a> ColorSpaces<'a> {
     }
 }
 
-deref!('a, ColorSpaces<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, ColorSpaces<'a> => Dict<'a>, dict);
 
 /// A color space type that requires further parameters. These are for internal
 /// use. Instances of these color spaces may be used by defining them and their
@@ -231,12 +232,15 @@ impl ColorSpaceType {
 }
 
 /// Writer for a _tiling pattern stream_.
-pub struct TilingStream<'a> {
+///
+/// This struct is created by [`PdfWriter::tiling_pattern`].
+pub struct TilingPattern<'a> {
     stream: Stream<'a>,
 }
 
-impl<'a> TilingStream<'a> {
-    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+impl<'a> TilingPattern<'a> {
+    /// Create a new tiling pattern writer.
+    pub fn new(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"Pattern"));
         stream.pair(Name(b"PatternType"), PatternType::Tiling.to_int());
         Self { stream }
@@ -306,7 +310,7 @@ impl<'a> TilingStream<'a> {
     }
 }
 
-deref!('a, TilingStream<'a> => Stream<'a>, stream);
+deref!('a, TilingPattern<'a> => Stream<'a>, stream);
 
 /// Type of paint for a tiling pattern.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -347,13 +351,16 @@ impl TilingType {
     }
 }
 
-/// Writer for a _shading pattern_.
+/// Writer for a _shading pattern dictionary_.
+///
+/// This struct is created by [`PdfWriter::shading_pattern`].
 pub struct ShadingPattern<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> ShadingPattern<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new shading pattern writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Pattern"));
         dict.pair(Name(b"PatternType"), PatternType::Shading.to_int());
@@ -362,7 +369,7 @@ impl<'a> ShadingPattern<'a> {
 
     /// Start writing the `/Shading` dictionary.
     pub fn shading(&mut self) -> Shading<'_> {
-        Shading::start(self.dict.key(Name(b"Shading")))
+        Shading::new(self.dict.key(Name(b"Shading")))
     }
 
     /// Write the `/Matrix` attribute.
@@ -374,17 +381,18 @@ impl<'a> ShadingPattern<'a> {
     }
 }
 
-deref!('a, ShadingPattern<'a> => Dict< IndirectGuard<'a>>, dict);
+deref!('a, ShadingPattern<'a> => Dict< 'a>, dict);
 
 /// Writer for a _shading dictionary_.
 ///
 /// This struct is created by [`ShadingPattern::shading`].
 pub struct Shading<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Shading<'a> {
-    pub(crate) fn start(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new shading writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 
@@ -480,7 +488,7 @@ impl<'a> Shading<'a> {
     }
 }
 
-deref!('a, Shading<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, Shading<'a> => Dict<'a>, dict);
 
 /// What kind of shading to use.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]

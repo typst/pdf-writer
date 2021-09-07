@@ -1,14 +1,15 @@
 use super::*;
 
-/// Writer for a _document catalog_.
+/// Writer for a _document catalog dictionary_.
 ///
 /// This struct is created by [`PdfWriter::catalog`].
 pub struct Catalog<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Catalog<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new catalog writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Catalog"));
         Self { dict }
@@ -54,17 +55,18 @@ impl<'a> Catalog<'a> {
     }
 }
 
-deref!('a, Catalog<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, Catalog<'a> => Dict<'a>, dict);
 
-/// Writer for a _page tree_.
+/// Writer for a _page tree dictionary_.
 ///
 /// This struct is created by [`PdfWriter::pages`].
 pub struct Pages<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Pages<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new page tree writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Pages"));
         Self { dict }
@@ -95,17 +97,18 @@ impl<'a> Pages<'a> {
     }
 }
 
-deref!('a, Pages<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, Pages<'a> => Dict<'a>, dict);
 
-/// Writer for a _page_.
+/// Writer for a _page dictionary_.
 ///
 /// This struct is created by [`PdfWriter::page`].
 pub struct Page<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Page<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new page writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Page"));
         Self { dict }
@@ -179,32 +182,33 @@ impl<'a> Page<'a> {
 
     /// Start writing the `/Annots` (annotations) array.
     pub fn annotations(&mut self) -> Annotations<'_> {
-        Annotations::start(self.key(Name(b"Annots")))
+        Annotations::new(self.key(Name(b"Annots")))
     }
 }
 
-deref!('a, Page<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, Page<'a> => Dict<'a>, dict);
 
 /// Writer for a _resource dictionary_.
 ///
 /// This struct is created by [`Pages::resources`], [`Page::resources`] and
-/// [`TilingStream::resources`].
+/// [`TilingPattern::resources`].
 pub struct Resources<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Resources<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new resource dictionary writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 
     /// Start writing the `/XObject` dictionary.
-    pub fn x_objects(&mut self) -> TypedDict<Ref, &mut PdfWriter> {
+    pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"XObject")).dict().typed()
     }
 
     /// Start writing the `/Font` dictionary.
-    pub fn fonts(&mut self) -> TypedDict<Ref, &mut PdfWriter> {
+    pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"Font")).dict().typed()
     }
 
@@ -214,17 +218,17 @@ impl<'a> Resources<'a> {
     }
 
     /// Start writing the `/Pattern` dictionary. PDF 1.2+.
-    pub fn patterns(&mut self) -> TypedDict<Ref, &mut PdfWriter> {
+    pub fn patterns(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"Pattern")).dict().typed()
     }
 
     /// Start writing the `/Shading` dictionary. PDF 1.3+.
-    pub fn shadings(&mut self) -> TypedDict<Ref, &mut PdfWriter> {
+    pub fn shadings(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"Shading")).dict().typed()
     }
 }
 
-deref!('a, Resources<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, Resources<'a> => Dict<'a>, dict);
 
 /// How the viewer should lay out the pages in the document.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -290,11 +294,12 @@ impl PageMode {
 ///
 /// This struct is created by [`PdfWriter::outline`].
 pub struct Outline<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Outline<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new outline writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Outlines"));
         Self { dict }
@@ -325,17 +330,18 @@ impl<'a> Outline<'a> {
     }
 }
 
-deref!('a, Outline<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, Outline<'a> => Dict<'a>, dict);
 
 /// Writer for an _outline item dictionary_.
 ///
 /// This struct is created by [`PdfWriter::outline_item`].
 pub struct OutlineItem<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> OutlineItem<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new outline item writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Outlines"));
         Self { dict }
@@ -392,7 +398,7 @@ impl<'a> OutlineItem<'a> {
     /// Start writing the `/Dest` attribute to set the destination of this
     /// outline item.
     pub fn dest_direct(&mut self, page: Ref) -> Destination<'_> {
-        Destination::start(self.key(Name(b"Dest")), page)
+        Destination::new(self.key(Name(b"Dest")), page)
     }
 
     /// Write the `/Dest` attribute to set the destination of this
@@ -416,7 +422,7 @@ impl<'a> OutlineItem<'a> {
     }
 }
 
-deref!('a, OutlineItem<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, OutlineItem<'a> => Dict<'a>, dict);
 
 bitflags::bitflags! {
     /// Bitflags describing the appearance of an outline item.
@@ -432,31 +438,33 @@ bitflags::bitflags! {
 ///
 /// This struct is created by [`PdfWriter::destinations`].
 pub struct Destinations<'a> {
-    dict: Dict<IndirectGuard<'a>>,
+    dict: Dict<'a>,
 }
 
 impl<'a> Destinations<'a> {
-    pub(crate) fn start(obj: Obj<IndirectGuard<'a>>) -> Self {
+    /// Create a new destinations writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 
     /// Start adding another named destination.
     pub fn insert(&mut self, name: Name, page: Ref) -> Destination<'_> {
-        Destination::start(self.key(name), page)
+        Destination::new(self.key(name), page)
     }
 }
 
-deref!('a, Destinations<'a> => Dict<IndirectGuard<'a>>, dict);
+deref!('a, Destinations<'a> => Dict<'a>, dict);
 
 /// Writer for a _destination array_.
 ///
 /// This struct is created by [`Destinations::insert`] and [`Action::dest_direct`].
 pub struct Destination<'a> {
-    array: Array<&'a mut PdfWriter>,
+    array: Array<'a>,
 }
 
 impl<'a> Destination<'a> {
-    pub(crate) fn start(obj: Obj<&'a mut PdfWriter>, page: Ref) -> Self {
+    /// Create a new destination writer.
+    pub fn new(obj: Obj<'a>, page: Ref) -> Self {
         let mut array = obj.array();
         array.item(page);
         Self { array }
@@ -521,17 +529,18 @@ impl<'a> Destination<'a> {
     }
 }
 
-deref!('a, Destination<'a> => Array<&'a mut PdfWriter>, array);
+deref!('a, Destination<'a> => Array<'a>, array);
 
 /// Writer for a _viewer preference dictionary_.
 ///
 /// This struct is created by [`Catalog::viewer_preferences`].
 pub struct ViewerPreferences<'a> {
-    dict: Dict<&'a mut PdfWriter>,
+    dict: Dict<'a>,
 }
 
 impl<'a> ViewerPreferences<'a> {
-    pub(crate) fn new(obj: Obj<&'a mut PdfWriter>) -> Self {
+    /// Create a new viewer preference writer.
+    pub fn new(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 
@@ -583,7 +592,7 @@ impl<'a> ViewerPreferences<'a> {
     }
 }
 
-deref!('a, ViewerPreferences<'a> => Dict<&'a mut PdfWriter>, dict);
+deref!('a, ViewerPreferences<'a> => Dict<'a>, dict);
 
 /// Predominant reading order of text.
 ///

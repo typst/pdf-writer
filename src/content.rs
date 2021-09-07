@@ -21,7 +21,7 @@ impl Content {
 
     /// Start writing an arbitrary operation.
     pub fn op<'a>(&'a mut self, operator: &'a str) -> Operation<'a> {
-        Operation::start(&mut self.buf, operator)
+        Operation::new(&mut self.buf, operator)
     }
 
     /// Return the raw constructed byte stream.
@@ -39,17 +39,17 @@ impl Content {
 pub struct Operation<'a> {
     buf: &'a mut Vec<u8>,
     op: &'a str,
+    first: bool,
 }
 
 impl<'a> Operation<'a> {
-    pub(crate) fn start(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
-        Self { buf, op }
+    fn new(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
+        Self { buf, op, first: true }
     }
 
     /// Write a primitive operand.
     pub fn operand<T: Primitive>(&mut self, value: T) -> &mut Self {
-        self.buf.push_val(value);
-        self.buf.push(b' ');
+        self.obj().primitive(value);
         self
     }
 
@@ -66,13 +66,20 @@ impl<'a> Operation<'a> {
     }
 
     /// Write an an arbitrary object operand.
-    pub fn obj(&mut self) -> Obj<&mut PdfWriter> {
-        todo!()
+    pub fn obj(&mut self) -> Obj<'_> {
+        if !self.first {
+            self.buf.push(b' ');
+        }
+        self.first = false;
+        Obj::direct(&mut self.buf, 0)
     }
 }
 
 impl Drop for Operation<'_> {
     fn drop(&mut self) {
+        if !self.first {
+            self.buf.push(b' ');
+        }
         self.buf.push_bytes(self.op.as_bytes());
         self.buf.push(b'\n');
     }
@@ -351,7 +358,7 @@ impl Content {
 impl Content {
     /// `BT ... ET`: Start writing a text object.
     pub fn text(&mut self) -> Text<'_> {
-        Text::start(self)
+        Text::new(self)
     }
 
     /// `Do`: Write an external object.
@@ -367,7 +374,7 @@ impl Content {
     }
 }
 
-/// Writer for a _text object_.
+/// Writer for a _text object_ in a content stream.
 ///
 /// This struct is created by [`Content::text`].
 pub struct Text<'a> {
@@ -375,15 +382,15 @@ pub struct Text<'a> {
 }
 
 impl<'a> Text<'a> {
-    pub(crate) fn start(content: &'a mut Content) -> Self {
+    fn new(content: &'a mut Content) -> Self {
+        content.op("BT");
         let buf = &mut content.buf;
-        buf.push_bytes(b"BT\n");
         Self { buf }
     }
 
     /// Start writing an arbitrary operation.
     pub fn op<'b>(&'b mut self, operator: &'b str) -> Operation<'b> {
-        Operation::start(self.buf, operator)
+        Operation::new(self.buf, operator)
     }
 
     /// `Tf`: Set font and font size.
@@ -413,41 +420,54 @@ impl<'a> Text<'a> {
     }
 
     /// `TJ`: Show text with individual glyph positioning.
-    pub fn show_positioned(&mut self) -> PositionedText<'_> {
-        PositionedText::start(self)
+    pub fn show_positioned(&mut self) -> ShowPositioned<'_> {
+        ShowPositioned::new(self.op("TJ"))
     }
 }
 
 impl Drop for Text<'_> {
     fn drop(&mut self) {
-        self.buf.push_bytes(b"ET\n");
+        self.op("ET");
     }
 }
 
-/// Writer for text with _individual glyph positioning_ in a text object.
+/// Writer for an _individual glyph positioning operation_.
 ///
 /// This struct is created by [`Text::show_positioned`].
-pub struct PositionedText<'a> {
-    buf: &'a mut Vec<u8>,
-    first: bool,
+pub struct ShowPositioned<'a> {
+    op: Operation<'a>,
 }
 
-impl<'a> PositionedText<'a> {
-    pub(crate) fn start(text: &'a mut Text) -> Self {
-        let buf = &mut text.buf;
-        buf.push(b'[');
-        Self { buf, first: true }
+impl<'a> ShowPositioned<'a> {
+    fn new(op: Operation<'a>) -> Self {
+        Self { op }
     }
 
-    /// Show a continous text string without adjustments.
+    /// Write the array of strings and adjustments. Required.
+    pub fn items(&mut self) -> PositionedItems<'_> {
+        PositionedItems::new(self.op.obj())
+    }
+}
+
+deref!('a, ShowPositioned<'a> => Operation<'a>, op);
+
+/// Writer for a _positioned items array_.
+///
+/// This struct is created by [`ShowPositioned::items`].
+pub struct PositionedItems<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> PositionedItems<'a> {
+    fn new(obj: Obj<'a>) -> Self {
+        Self { array: obj.array() }
+    }
+
+    /// Show a continous string without adjustments.
     ///
     /// The encoding of the text is up to you.
     pub fn show(&mut self, text: Str) -> &mut Self {
-        if !self.first {
-            self.buf.push(b' ');
-        }
-        self.first = false;
-        self.buf.push_val(text);
+        self.array.item(text);
         self
     }
 
@@ -456,20 +476,12 @@ impl<'a> PositionedText<'a> {
     /// The `amount` is specified in thousands of units of text space and is
     /// subtracted from the current writing-mode dependent coordinate.
     pub fn adjust(&mut self, amount: f32) -> &mut Self {
-        if !self.first {
-            self.buf.push(b' ');
-        }
-        self.first = false;
-        self.buf.push_val(amount);
+        self.array.item(amount);
         self
     }
 }
 
-impl Drop for PositionedText<'_> {
-    fn drop(&mut self) {
-        self.buf.push_bytes(b"] TJ\n");
-    }
-}
+deref!('a, PositionedItems<'a> => Array<'a>, array);
 
 /// How to terminate lines.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -535,5 +547,20 @@ mod tests {
             c.finish(),
             b"q\n1 2 3 4 re\nf\n/MyImage Do\n2 3.5 /MyPattern scn\nQ"
         );
+    }
+
+    #[test]
+    fn test_content_text() {
+        let mut c = Content::new();
+        let mut t = c.text();
+        t.font(Name(b"F1"), 12.0);
+        t.show_positioned().items();
+        t.show_positioned()
+            .items()
+            .show(Str(b"AB"))
+            .adjust(2.0)
+            .show(Str(b"CD"));
+        t.finish();
+        assert_eq!(c.finish(), b"BT\n/F1 12 Tf\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
     }
 }

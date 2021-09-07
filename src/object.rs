@@ -1,4 +1,6 @@
+use std::convert::TryFrom;
 use std::marker::PhantomData;
+use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
 
 use super::*;
@@ -313,42 +315,57 @@ impl Primitive for Date {
 }
 
 /// Writer for an arbitrary object.
-#[must_use = "an object is expected where this writer was created"]
-pub struct Obj<W> {
-    w: W,
+#[must_use = "not consuming this leaves the writer in an inconsistent state"]
+pub struct Obj<'a> {
+    buf: &'a mut Vec<u8>,
+    indirect: bool,
+    indent: u8,
 }
 
-impl<W: Guard> Obj<W> {
-    pub(crate) fn new(w: W) -> Self {
-        Self { w }
+impl<'a> Obj<'a> {
+    /// Start a new direct object.
+    pub(crate) fn direct(buf: &'a mut Vec<u8>, indent: u8) -> Self {
+        Self { buf, indirect: false, indent }
+    }
+
+    /// Start a new indirect object.
+    pub(crate) fn indirect(buf: &'a mut Vec<u8>, id: Ref) -> Self {
+        buf.push_int(id.get());
+        buf.push_bytes(b" 0 obj\n");
+        Self { buf, indirect: true, indent: 0 }
     }
 
     /// Write a primitive object.
-    pub fn primitive<T: Primitive>(mut self, value: T) {
-        value.write(&mut self.w.buf);
+    pub fn primitive<T: Primitive>(self, value: T) {
+        value.write(self.buf);
+        if self.indirect {
+            self.buf.push_bytes(b"\nendobj\n\n");
+        }
     }
 
     /// Write an array.
-    pub fn array(self) -> Array<W> {
-        Array::start(self.w)
+    pub fn array(self) -> Array<'a> {
+        Array::new(self.buf, self.indirect, self.indent)
     }
 
     /// Write a dictionary.
-    pub fn dict(self) -> Dict<W> {
-        Dict::start(self.w)
+    pub fn dict(self) -> Dict<'a> {
+        Dict::new(self.buf, self.indirect, self.indent)
     }
 }
 
 /// Writer for an array.
-pub struct Array<W: Guard> {
-    w: W,
+pub struct Array<'a> {
+    buf: &'a mut Vec<u8>,
+    indirect: bool,
+    indent: u8,
     len: i32,
 }
 
-impl<W: Guard> Array<W> {
-    pub(crate) fn start(mut w: W) -> Self {
-        w.buf.push(b'[');
-        Self { w, len: 0 }
+impl<'a> Array<'a> {
+    fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
+        buf.push(b'[');
+        Self { buf, indirect, indent, len: 0 }
     }
 
     /// Write an item with a primitive object value.
@@ -360,12 +377,12 @@ impl<W: Guard> Array<W> {
     }
 
     /// Write an item with an arbitrary object value.
-    pub fn obj(&mut self) -> Obj<&mut PdfWriter> {
+    pub fn obj(&mut self) -> Obj<'_> {
         if self.len != 0 {
-            self.w.buf.push(b' ');
+            self.buf.push(b' ');
         }
         self.len += 1;
-        Obj::new(&mut self.w)
+        Obj::direct(self.buf, self.indent)
     }
 
     /// The number of written items.
@@ -374,30 +391,29 @@ impl<W: Guard> Array<W> {
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedArray<T, W> {
+    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
         TypedArray::new(self)
     }
 }
 
-impl<W: Guard> Drop for Array<W> {
+impl Drop for Array<'_> {
     fn drop(&mut self) {
-        self.w.buf.push(b']');
+        self.buf.push(b']');
+        if self.indirect {
+            self.buf.push_bytes(b"\nendobj\n\n");
+        }
     }
 }
 
 /// Writer for an array with fixed primitive value type.
-pub struct TypedArray<T, W: Guard> {
-    array: Array<W>,
+pub struct TypedArray<'a, T> {
+    array: Array<'a>,
     phantom: PhantomData<T>,
 }
 
-impl<T, W> TypedArray<T, W>
-where
-    T: Primitive,
-    W: Guard,
-{
+impl<'a, T: Primitive> TypedArray<'a, T> {
     /// Wrap an array to make it type-safe.
-    pub fn new(array: Array<W>) -> Self {
+    pub fn new(array: Array<'a>) -> Self {
         Self { array, phantom: PhantomData }
     }
 
@@ -422,19 +438,22 @@ where
 }
 
 /// Writer for a dictionary.
-pub struct Dict<W: Guard> {
-    w: W,
+pub struct Dict<'a> {
+    buf: &'a mut Vec<u8>,
+    indirect: bool,
+    indent: u8,
     len: i32,
 }
 
-impl<W> Dict<W>
-where
-    W: Guard,
-{
-    pub(crate) fn start(mut w: W) -> Self {
-        w.buf.push_bytes(b"<<");
-        w.depth += 1;
-        Self { w, len: 0 }
+impl<'a> Dict<'a> {
+    fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
+        buf.push_bytes(b"<<");
+        Self {
+            buf,
+            indirect,
+            indent: indent.saturating_add(2),
+            len: 0,
+        }
     }
 
     /// Write a pair with a primitive object value.
@@ -446,13 +465,18 @@ where
     }
 
     /// Write a pair with an arbitrary object value.
-    pub fn key(&mut self, key: Name) -> Obj<&mut PdfWriter> {
-        self.w.buf.push(b'\n');
+    pub fn key(&mut self, key: Name) -> Obj<'_> {
         self.len += 1;
-        self.w.push_indent();
-        self.w.buf.push_val(key);
-        self.w.buf.push(b' ');
-        Obj::new(&mut self.w)
+        self.buf.push(b'\n');
+
+        for _ in 0 .. self.indent {
+            self.buf.push(b' ');
+        }
+
+        self.buf.push_val(key);
+        self.buf.push(b' ');
+
+        Obj::direct(self.buf, self.indent)
     }
 
     /// The number of written pairs.
@@ -461,35 +485,35 @@ where
     }
 
     /// Convert into the typed version.
-    pub fn typed<T: Primitive>(self) -> TypedDict<T, W> {
+    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
         TypedDict::new(self)
     }
 }
 
-impl<W: Guard> Drop for Dict<W> {
+impl Drop for Dict<'_> {
     fn drop(&mut self) {
-        self.w.depth -= 1;
         if self.len != 0 {
-            self.w.buf.push(b'\n');
-            self.w.push_indent();
+            self.buf.push(b'\n');
+            for _ in 0 .. self.indent - 2 {
+                self.buf.push(b' ');
+            }
         }
-        self.w.buf.push_bytes(b">>");
+        self.buf.push_bytes(b">>");
+        if self.indirect {
+            self.buf.push_bytes(b"\nendobj\n\n");
+        }
     }
 }
 
 /// Writer for a dictionary with fixed primitive value type.
-pub struct TypedDict<T, W: Guard> {
-    dict: Dict<W>,
+pub struct TypedDict<'a, T> {
+    dict: Dict<'a>,
     phantom: PhantomData<T>,
 }
 
-impl<T, W> TypedDict<T, W>
-where
-    T: Primitive,
-    W: Guard,
-{
+impl<'a, T: Primitive> TypedDict<'a, T> {
     /// Wrap a dictionary to make it type-safe.
-    pub fn new(dict: Dict<W>) -> Self {
+    pub fn new(dict: Dict<'a>) -> Self {
         Self { dict, phantom: PhantomData }
     }
 
@@ -502,5 +526,81 @@ where
     /// The number of written pairs.
     pub fn len(&self) -> i32 {
         self.dict.len()
+    }
+}
+
+/// Writer for an indirect stream object.
+pub struct Stream<'a> {
+    dict: ManuallyDrop<Dict<'a>>,
+    data: Cow<'a, [u8]>,
+}
+
+impl<'a> Stream<'a> {
+    /// Create a new stream writer.
+    ///
+    /// Panics if the object writer is not indirect.
+    pub(crate) fn new(obj: Obj<'a>, data: Cow<'a, [u8]>) -> Self {
+        assert!(obj.indirect);
+
+        let mut dict = obj.dict();
+        dict.pair(
+            Name(b"Length"),
+            i32::try_from(data.len()).unwrap_or_else(|_| {
+                panic!("data length (is `{}`) must be <= i32::MAX", data.len());
+            }),
+        );
+
+        Self { dict: ManuallyDrop::new(dict), data }
+    }
+
+    /// Write the `/Filter` attribute.
+    pub fn filter(&mut self, filter: Filter) -> &mut Self {
+        self.pair(Name(b"Filter"), filter.to_name());
+        self
+    }
+}
+
+impl Drop for Stream<'_> {
+    fn drop(&mut self) {
+        self.dict.buf.push_bytes(b"\n>>");
+        self.dict.buf.push_bytes(b"\nstream\n");
+        self.dict.buf.push_bytes(&self.data);
+        self.dict.buf.push_bytes(b"\nendstream");
+        self.dict.buf.push_bytes(b"\nendobj\n\n");
+    }
+}
+
+deref!('a, Stream<'a> => Dict<'a>, dict);
+
+/// A compression filter for a stream.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum Filter {
+    AsciiHexDecode,
+    Ascii85Decode,
+    LzwDecode,
+    FlateDecode,
+    RunLengthDecode,
+    CcittFaxDecode,
+    Jbig2Decode,
+    DctDecode,
+    JpxDecode,
+    Crypt,
+}
+
+impl Filter {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::AsciiHexDecode => Name(b"ASCIIHexDecode"),
+            Self::Ascii85Decode => Name(b"ASCII85Decode"),
+            Self::LzwDecode => Name(b"LZWDecode"),
+            Self::FlateDecode => Name(b"FlateDecode"),
+            Self::RunLengthDecode => Name(b"RunLengthDecode"),
+            Self::CcittFaxDecode => Name(b"CCITTFaxDecode"),
+            Self::Jbig2Decode => Name(b"JBIG2Decode"),
+            Self::DctDecode => Name(b"DCTDecode"),
+            Self::JpxDecode => Name(b"JPXDecode"),
+            Self::Crypt => Name(b"Crypt"),
+        }
     }
 }

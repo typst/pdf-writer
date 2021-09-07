@@ -24,16 +24,15 @@ The writers contained is this crate fall roughly into two categories.
 - Streams are exposed through a separate [`PdfWriter::stream`] method since they
   _must_ be indirect objects.
 
-**Specialized writers** for things like a _[page]_ or an _[image stream]_ expose
-the core writer's capabilities in a strongly typed fashion.
+**Specialized writers** for things like a _[page]_ or an _[image]_ expose the
+core writer's capabilities in a strongly typed fashion.
 
 - A [`Page`] writer, for example, is just a thin wrapper around a [`Dict`] and
   it even derefs to a dictionary in case you need to write a field that is not
   yet exposed by the typed API.
-- Similarly, the [`ImageStream`] derefs to a [`Stream`], so that the
-  [`filter()`] function can be shared by all kinds of streams. The [`Stream`] in
-  turn derefs to a [`Dict`] so that you can add arbitrary fields to the stream
-  dictionary.
+- Similarly, the [`Image`] derefs to a [`Stream`], so that the [`filter()`]
+  function can be shared by all kinds of streams. The [`Stream`] in turn derefs
+  to a [`Dict`] so that you can add arbitrary fields to the stream dictionary.
 
 When you bind a writer to a variable instead of just writing a chained builder
 pattern, you may need to manually drop it before starting a new object using
@@ -75,7 +74,7 @@ ids for you and it does not check you write all required fields for an object. R
 to the [PDF specification] to make sure you create valid PDFs.
 
 [page]: writers::Page
-[image stream]: writers::ImageStream
+[image]: writers::Image
 [`filter()`]: Stream::filter
 [hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 [PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
@@ -93,7 +92,6 @@ mod content;
 mod font;
 mod functions;
 mod object;
-mod stream;
 mod structure;
 mod transitions;
 mod xobject;
@@ -102,9 +100,9 @@ mod xobject;
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
-    pub use color::{ColorSpaces, Shading, ShadingPattern, TilingStream};
-    pub use content::{Operation, PositionedText, Text};
-    pub use font::{CidFont, CmapStream, FontDescriptor, Type0Font, Type1Font, Widths};
+    pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
+    pub use content::{Operation, PositionedItems, ShowPositioned, Text};
+    pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
@@ -113,7 +111,7 @@ pub mod writers {
         ViewerPreferences,
     };
     pub use transitions::Transition;
-    pub use xobject::ImageStream;
+    pub use xobject::Image;
 }
 
 /// Types used by specific PDF structures.
@@ -134,12 +132,10 @@ pub mod types {
 pub use content::Content;
 pub use font::UnicodeCmap;
 pub use object::*;
-pub use stream::*;
 
 use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
-use std::ops::{Deref, DerefMut};
 
 use buf::BufExt;
 use types::CidFontType;
@@ -149,8 +145,6 @@ use writers::*;
 pub struct PdfWriter {
     buf: Vec<u8>,
     offsets: Vec<(Ref, usize)>,
-    depth: usize,
-    indent: usize,
 }
 
 /// Core methods.
@@ -165,12 +159,7 @@ impl PdfWriter {
     pub fn with_capacity(capacity: usize) -> Self {
         let mut buf = Vec::with_capacity(capacity);
         buf.push_bytes(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
-        Self {
-            buf,
-            offsets: vec![],
-            depth: 0,
-            indent: 0,
-        }
+        Self { buf, offsets: vec![] }
     }
 
     /// Set the PDF version.
@@ -188,17 +177,9 @@ impl PdfWriter {
         }
     }
 
-    /// Set the indent level per layer of nested objects.
-    ///
-    /// _Default value_: 0.
-    pub fn set_indent(&mut self, indent: usize) {
-        self.indent = indent;
-    }
-
     /// Write the cross-reference table and file trailer and return the
     /// underlying buffer.
     pub fn finish(mut self, catalog_id: Ref) -> Vec<u8> {
-        assert_eq!(self.depth, 0, "unfinished object");
         let (xref_len, xref_offset) = self.xref_table();
         self.trailer(catalog_id, xref_len, xref_offset);
         self.buf
@@ -253,7 +234,8 @@ impl PdfWriter {
         // Write the trailer dictionary.
         self.buf.push_bytes(b"trailer\n");
 
-        Dict::start(&mut *self)
+        Obj::direct(&mut self.buf, 0)
+            .dict()
             .pair(Name(b"Size"), xref_len)
             .pair(Name(b"Root"), catalog_id);
 
@@ -264,85 +246,79 @@ impl PdfWriter {
         // Write the end of file marker.
         self.buf.push_bytes(b"\n%%EOF");
     }
-
-    fn push_indent(&mut self) {
-        let width = self.indent * self.depth;
-        for _ in 0 .. width {
-            self.buf.push(b' ');
-        }
-    }
 }
 
 /// Indirect objects.
 impl PdfWriter {
     /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Obj<IndirectGuard<'_>> {
-        Obj::new(IndirectGuard::start(self, id))
+    pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
+        self.offsets.push((id, self.buf.len()));
+        Obj::indirect(&mut self.buf, id)
     }
 
     /// Start writing a document catalog.
     pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
-        Catalog::start(self.indirect(id))
+        Catalog::new(self.indirect(id))
     }
 
     /// Start writing a page tree.
     pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        Pages::start(self.indirect(id))
+        Pages::new(self.indirect(id))
     }
 
     /// Start writing a page.
     pub fn page(&mut self, id: Ref) -> Page<'_> {
-        Page::start(self.indirect(id))
+        Page::new(self.indirect(id))
     }
 
     /// Start writing an outline.
     pub fn outline(&mut self, id: Ref) -> Outline<'_> {
-        Outline::start(self.indirect(id))
+        Outline::new(self.indirect(id))
     }
 
     /// Start writing an outline item.
     pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
-        OutlineItem::start(self.indirect(id))
+        OutlineItem::new(self.indirect(id))
     }
 
     /// Start writing a named destination dictionary.
     pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
-        Destinations::start(self.indirect(id))
+        Destinations::new(self.indirect(id))
     }
 
     /// Start writing a Type-1 font.
     pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        Type1Font::start(self.indirect(id))
+        Type1Font::new(self.indirect(id))
     }
 
     /// Start writing a Type-0 font.
     pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
-        Type0Font::start(self.indirect(id))
+        Type0Font::new(self.indirect(id))
     }
 
     /// Start writing a CID font.
     pub fn cid_font(&mut self, id: Ref, subtype: CidFontType) -> CidFont<'_> {
-        CidFont::start(self.indirect(id), subtype)
+        CidFont::new(self.indirect(id), subtype)
     }
 
     /// Start writing a font descriptor.
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
-        FontDescriptor::start(self.indirect(id))
+        FontDescriptor::new(self.indirect(id))
     }
 
     /// Start writing a dictionary for a shading pattern.
     pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
-        ShadingPattern::start(self.indirect(id))
+        ShadingPattern::new(self.indirect(id))
     }
 
     /// Start writing an exponential function dictionary.
     pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
-        ExponentialFunction::start(self.indirect(id))
+        ExponentialFunction::new(self.indirect(id))
     }
 
     /// Start writing a stitching function dictionary.
     pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
-        StitchingFunction::start(self.indirect(id))
+        StitchingFunction::new(self.indirect(id))
     }
 }
 
@@ -381,30 +357,34 @@ impl PdfWriter {
     where
         T: Into<Cow<'a, [u8]>>,
     {
-        Stream::start(IndirectGuard::start(self, id), data.into())
+        Stream::new(self.indirect(id), data.into())
     }
 
     /// Start writing a character map stream.
     ///
     /// If you want to use this for a `/ToUnicode` CMap, you can create the
     /// bytes using a [`UnicodeCmap`] builder.
-    pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> CmapStream<'a> {
-        CmapStream::start(self.stream(id, cmap))
+    pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
+        Cmap::new(self.stream(id, cmap))
     }
 
     /// Start writing an XObject image stream.
     ///
     /// The samples should be encoded according to the stream's filter, color
     /// space and bits per component.
-    pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> ImageStream<'a> {
-        ImageStream::start(self.stream(id, samples))
+    pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> Image<'a> {
+        Image::new(self.stream(id, samples))
     }
 
     /// Start writing a tiling pattern stream.
     ///
     /// You can create the content bytes using a [`Content`] builder.
-    pub fn tiling<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> TilingStream<'a> {
-        TilingStream::start(self.stream(id, content))
+    pub fn tiling_pattern<'a>(
+        &'a mut self,
+        id: Ref,
+        content: &'a [u8],
+    ) -> TilingPattern<'a> {
+        TilingPattern::new(self.stream(id, content))
     }
 
     /// Start writing a sampled function stream.
@@ -413,18 +393,18 @@ impl PdfWriter {
         id: Ref,
         samples: &'a [u8],
     ) -> SampledFunction<'a> {
-        SampledFunction::start(self.stream(id, samples))
+        SampledFunction::new(self.stream(id, samples))
     }
 
     /// Start writing a PostScript function stream.
     ///
     /// You can create the code bytes using [`PostScriptOp::encode`](types::PostScriptOp::encode).
-    pub fn postscript_function<'a>(
+    pub fn post_script_function<'a>(
         &'a mut self,
         id: Ref,
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
-        PostScriptFunction::start(self.stream(id, code))
+        PostScriptFunction::new(self.stream(id, code))
     }
 }
 
@@ -460,79 +440,3 @@ pub trait Finish: Sized {
 }
 
 impl<T> Finish for T {}
-
-/// A guard that ensures an indirect object is finished when it's dropped.
-///
-/// This is an implementation detail that you shouldn't need to worry about.
-pub struct IndirectGuard<'a>(&'a mut PdfWriter);
-
-impl<'a> IndirectGuard<'a> {
-    pub(crate) fn start(w: &'a mut PdfWriter, id: Ref) -> Self {
-        assert_eq!(w.depth, 0);
-        w.depth += 1;
-        w.offsets.push((id, w.buf.len()));
-        w.buf.push_int(id.get());
-        w.buf.push_bytes(b" 0 obj\n");
-        w.push_indent();
-        Self(w)
-    }
-}
-
-impl Drop for IndirectGuard<'_> {
-    fn drop(&mut self) {
-        self.0.depth -= 1;
-        self.0.buf.push_bytes(b"\nendobj\n\n");
-    }
-}
-
-impl Deref for IndirectGuard<'_> {
-    type Target = PdfWriter;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for IndirectGuard<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0
-    }
-}
-
-/// A trait for types that ensure some kind of structure is finished.
-///
-/// _This is an implementation detail that you shouldn't need to worry about._
-///
-/// If you're interested anyway, here's the explanation: Let's say you start
-/// writing an indirect array object with [`PdfWriter::indirect`]. First, the
-/// object header is written (`1 0 obj`). Then, you create an [`Array`] writer
-/// from the [`Obj`] writer, and write some items. Once you're done writing the
-/// array though, we somehow need to make sure that the closing phrase `endobj`
-/// is written. This is where the guard comes in: Before being able to do
-/// anything else with the [`PdfWriter`], you will need to drop your array
-/// writer (otherwise, you get an error about multiple mutable borrows). And
-/// since the array writer holds on to the guard internally, the guard's Drop
-/// implementation will then also be triggered and that's where the `endobj`
-/// part is written.
-///
-/// Guard types wrap the [`PdfWriter`], can act in its place (through the
-/// required deref implementation) and finish some kind of structure in their
-/// `Drop` implementation. When no special guarding is needed, the guard's type
-/// is simply `&mut PdfWriter` as that type's `Drop` implementation does
-/// nothing.
-///
-/// Note that this trait is sealed and cannot be implemented downstream.
-pub trait Guard: DerefMut<Target = PdfWriter> + private::Sealed {}
-
-impl Guard for &mut PdfWriter {}
-impl Guard for IndirectGuard<'_> {}
-impl Guard for StreamGuard<'_> {}
-
-mod private {
-    use super::{IndirectGuard, PdfWriter, StreamGuard};
-
-    pub trait Sealed {}
-    impl Sealed for &mut PdfWriter {}
-    impl Sealed for IndirectGuard<'_> {}
-    impl Sealed for StreamGuard<'_> {}
-}
