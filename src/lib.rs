@@ -186,6 +186,7 @@ impl PdfWriter {
     }
 
     /// The number of bytes that were written so far.
+    #[inline]
     pub fn len(&self) -> usize {
         self.buf.len()
     }
@@ -436,6 +437,7 @@ impl Debug for PdfWriter {
 /// ```
 pub trait Finish: Sized {
     /// Does nothing but move `self`, equivalent to [`drop`].
+    #[inline]
     fn finish(self) {}
 }
 

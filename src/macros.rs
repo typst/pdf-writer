@@ -4,12 +4,14 @@ macro_rules! deref {
         impl<$a> std::ops::Deref for $from {
             type Target = $to;
 
+            #[inline]
             fn deref(&self) -> &Self::Target {
                 &self.$field
             }
         }
 
         impl<$a> std::ops::DerefMut for $from {
+            #[inline]
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.$field
             }

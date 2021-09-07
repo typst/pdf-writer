@@ -12,12 +12,14 @@ pub trait Primitive {
 }
 
 impl<T: Primitive> Primitive for &T {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         (*self).write(buf);
     }
 }
 
 impl Primitive for bool {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         if *self {
             buf.push_bytes(b"true");
@@ -28,12 +30,14 @@ impl Primitive for bool {
 }
 
 impl Primitive for i32 {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push_int(*self);
     }
 }
 
 impl Primitive for f32 {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push_float(*self);
     }
@@ -48,6 +52,7 @@ impl Primitive for f32 {
 pub struct Str<'a>(pub &'a [u8]);
 
 impl Primitive for Str<'_> {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         // Fall back to hex formatting if the string contains a:
         // - backslash because it is used for escaping,
@@ -77,6 +82,7 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         let mut bytes = vec![254, 255];
         for v in self.0.encode_utf16() {
@@ -93,6 +99,7 @@ impl Primitive for TextStr<'_> {
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         for &byte in self.0 {
@@ -111,6 +118,7 @@ impl Primitive for Name<'_> {
 pub struct Null;
 
 impl Primitive for Null {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push_bytes(b"null");
     }
@@ -126,18 +134,21 @@ impl Ref {
     /// The provided value must be greater than zero.
     ///
     /// Panics if `id` is out of the valid range.
+    #[inline]
     pub fn new(id: i32) -> Ref {
         let val = if id > 0 { NonZeroI32::new(id) } else { None };
         Self(val.expect("indirect reference out of valid range"))
     }
 
     /// Return the underlying number as a primitive type.
+    #[inline]
     pub fn get(self) -> i32 {
         self.0.get()
     }
 }
 
 impl Primitive for Ref {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push_int(self.0.get());
         buf.push_bytes(b" 0 R");
@@ -159,12 +170,14 @@ pub struct Rect {
 
 impl Rect {
     /// Create a new rectangle from four coordinate values.
+    #[inline]
     pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
         Self { x1, y1, x2, y2 }
     }
 
     /// Convert this rectangle into 8 floats describing the four corners of the
     /// rectangle in counterclockwise order.
+    #[inline]
     pub fn to_quad_points(self) -> [f32; 8] {
         [
             self.x1, self.y1, self.x2, self.y1, self.x2, self.y2, self.x1, self.y2,
@@ -173,6 +186,7 @@ impl Rect {
 }
 
 impl Primitive for Rect {
+    #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push(b'[');
         buf.push_val(self.x1);
@@ -217,6 +231,7 @@ pub struct Date {
 impl Date {
     /// Create a new, minimal date. The year will be clamped within the range
     /// 0-9999.
+    #[inline]
     pub fn new(year: u16) -> Self {
         Self {
             year: year.min(9999),
@@ -231,30 +246,35 @@ impl Date {
     }
 
     /// Add the month field. It will be clamped within the range 1-12.
+    #[inline]
     pub fn month(mut self, month: u8) -> Self {
         self.month = Some(month.clamp(1, 12));
         self
     }
 
     /// Add the day field. It will be clamped within the range 1-31.
+    #[inline]
     pub fn day(mut self, day: u8) -> Self {
         self.day = Some(day.clamp(1, 31));
         self
     }
 
     /// Add the hour field. It will be clamped within the range 0-23.
+    #[inline]
     pub fn hour(mut self, hour: u8) -> Self {
         self.hour = Some(hour.min(23));
         self
     }
 
     /// Add the minute field. It will be clamped within the range 0-59.
+    #[inline]
     pub fn minute(mut self, minute: u8) -> Self {
         self.minute = Some(minute.min(59));
         self
     }
 
     /// Add the second field. It will be clamped within the range 0-59.
+    #[inline]
     pub fn second(mut self, second: u8) -> Self {
         self.second = Some(second.min(59));
         self
@@ -263,6 +283,7 @@ impl Date {
     /// Add the offset from UTC in hours. If not specified, the time will be
     /// assumed to be local to the viewer's time zone. It will be clamped within
     /// the range -23-23.
+    #[inline]
     pub fn utc_offset_hour(mut self, hour: i8) -> Self {
         self.utc_offset_hour = Some(hour.clamp(-23, 23));
         self
@@ -270,6 +291,7 @@ impl Date {
 
     /// Add the offset from UTC in minutes. This will have the same sign as set in
     /// [`Self::utc_offset_hour`]. It will be clamped within the range 0-59.
+    #[inline]
     pub fn utc_offset_minute(mut self, minute: u8) -> Self {
         self.utc_offset_minute = minute.min(59);
         self
@@ -324,11 +346,13 @@ pub struct Obj<'a> {
 
 impl<'a> Obj<'a> {
     /// Start a new direct object.
+    #[inline]
     pub(crate) fn direct(buf: &'a mut Vec<u8>, indent: u8) -> Self {
         Self { buf, indirect: false, indent }
     }
 
     /// Start a new indirect object.
+    #[inline]
     pub(crate) fn indirect(buf: &'a mut Vec<u8>, id: Ref) -> Self {
         buf.push_int(id.get());
         buf.push_bytes(b" 0 obj\n");
@@ -336,6 +360,7 @@ impl<'a> Obj<'a> {
     }
 
     /// Write a primitive object.
+    #[inline]
     pub fn primitive<T: Primitive>(self, value: T) {
         value.write(self.buf);
         if self.indirect {
@@ -344,11 +369,13 @@ impl<'a> Obj<'a> {
     }
 
     /// Write an array.
+    #[inline]
     pub fn array(self) -> Array<'a> {
         Array::new(self.buf, self.indirect, self.indent)
     }
 
     /// Write a dictionary.
+    #[inline]
     pub fn dict(self) -> Dict<'a> {
         Dict::new(self.buf, self.indirect, self.indent)
     }
@@ -363,6 +390,7 @@ pub struct Array<'a> {
 }
 
 impl<'a> Array<'a> {
+    #[inline]
     fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
         buf.push(b'[');
         Self { buf, indirect, indent, len: 0 }
@@ -371,12 +399,14 @@ impl<'a> Array<'a> {
     /// Write an item with a primitive object value.
     ///
     /// This is a shorthand for `array.obj().primitive(value)`.
+    #[inline]
     pub fn item<T: Primitive>(&mut self, value: T) -> &mut Self {
         self.obj().primitive(value);
         self
     }
 
     /// Write an item with an arbitrary object value.
+    #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
         if self.len != 0 {
             self.buf.push(b' ');
@@ -386,17 +416,20 @@ impl<'a> Array<'a> {
     }
 
     /// The number of written items.
+    #[inline]
     pub fn len(&self) -> i32 {
         self.len
     }
 
     /// Convert into the typed version.
+    #[inline]
     pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
         TypedArray::new(self)
     }
 }
 
 impl Drop for Array<'_> {
+    #[inline]
     fn drop(&mut self) {
         self.buf.push(b']');
         if self.indirect {
@@ -413,17 +446,20 @@ pub struct TypedArray<'a, T> {
 
 impl<'a, T: Primitive> TypedArray<'a, T> {
     /// Wrap an array to make it type-safe.
+    #[inline]
     pub fn new(array: Array<'a>) -> Self {
         Self { array, phantom: PhantomData }
     }
 
     /// Write an item.
+    #[inline]
     pub fn item(&mut self, value: T) -> &mut Self {
         self.array.obj().primitive(value);
         self
     }
 
     /// Write a sequence of items.
+    #[inline]
     pub fn items(&mut self, values: impl IntoIterator<Item = T>) -> &mut Self {
         for value in values {
             self.item(value);
@@ -432,6 +468,7 @@ impl<'a, T: Primitive> TypedArray<'a, T> {
     }
 
     /// The number of written items.
+    #[inline]
     pub fn len(&self) -> i32 {
         self.array.len()
     }
@@ -446,6 +483,7 @@ pub struct Dict<'a> {
 }
 
 impl<'a> Dict<'a> {
+    #[inline]
     fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
         buf.push_bytes(b"<<");
         Self {
@@ -459,12 +497,14 @@ impl<'a> Dict<'a> {
     /// Write a pair with a primitive object value.
     ///
     /// This is a shorthand for `dict.key(key).primitive(value)`.
+    #[inline]
     pub fn pair<T: Primitive>(&mut self, key: Name, value: T) -> &mut Self {
         self.key(key).primitive(value);
         self
     }
 
     /// Write a pair with an arbitrary object value.
+    #[inline]
     pub fn key(&mut self, key: Name) -> Obj<'_> {
         self.len += 1;
         self.buf.push(b'\n');
@@ -480,17 +520,20 @@ impl<'a> Dict<'a> {
     }
 
     /// The number of written pairs.
+    #[inline]
     pub fn len(&self) -> i32 {
         self.len
     }
 
     /// Convert into the typed version.
+    #[inline]
     pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
         TypedDict::new(self)
     }
 }
 
 impl Drop for Dict<'_> {
+    #[inline]
     fn drop(&mut self) {
         if self.len != 0 {
             self.buf.push(b'\n');
@@ -513,17 +556,20 @@ pub struct TypedDict<'a, T> {
 
 impl<'a, T: Primitive> TypedDict<'a, T> {
     /// Wrap a dictionary to make it type-safe.
+    #[inline]
     pub fn new(dict: Dict<'a>) -> Self {
         Self { dict, phantom: PhantomData }
     }
 
     /// Write a key-value pair.
+    #[inline]
     pub fn pair(&mut self, key: Name, value: T) -> &mut Self {
         self.dict.pair(key, value);
         self
     }
 
     /// The number of written pairs.
+    #[inline]
     pub fn len(&self) -> i32 {
         self.dict.len()
     }

@@ -20,6 +20,7 @@ impl Content {
     }
 
     /// Start writing an arbitrary operation.
+    #[inline]
     pub fn op<'a>(&'a mut self, operator: &'a str) -> Operation<'a> {
         Operation::new(&mut self.buf, operator)
     }
@@ -43,17 +44,20 @@ pub struct Operation<'a> {
 }
 
 impl<'a> Operation<'a> {
+    #[inline]
     fn new(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
         Self { buf, op, first: true }
     }
 
     /// Write a primitive operand.
+    #[inline]
     pub fn operand<T: Primitive>(&mut self, value: T) -> &mut Self {
         self.obj().primitive(value);
         self
     }
 
     /// Write a sequence of primitive operands.
+    #[inline]
     pub fn operands<T, I>(&mut self, values: I) -> &mut Self
     where
         T: Primitive,
@@ -66,6 +70,7 @@ impl<'a> Operation<'a> {
     }
 
     /// Write an an arbitrary object operand.
+    #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
         if !self.first {
             self.buf.push(b' ');
@@ -76,6 +81,7 @@ impl<'a> Operation<'a> {
 }
 
 impl Drop for Operation<'_> {
+    #[inline]
     fn drop(&mut self) {
         if !self.first {
             self.buf.push(b' ');
@@ -88,18 +94,21 @@ impl Drop for Operation<'_> {
 /// State.
 impl Content {
     /// `q`: Save the graphics state on the stack.
+    #[inline]
     pub fn save_state(&mut self) -> &mut Self {
         self.op("q");
         self
     }
 
     /// `Q`: Restore the graphics state from the stack.
+    #[inline]
     pub fn restore_state(&mut self) -> &mut Self {
         self.op("Q");
         self
     }
 
     /// `cm`: Modify the current transformation matrix.
+    #[inline]
     pub fn set_matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
         self.op("cm").operands(matrix);
         self
@@ -108,6 +117,7 @@ impl Content {
     /// `w`: Set the stroke line width.
     ///
     /// Panics if `width` is negative.
+    #[inline]
     pub fn set_line_width(&mut self, width: f32) -> &mut Self {
         assert!(width >= 0.0, "line width must be positive");
         self.op("w").operand(width);
@@ -115,6 +125,7 @@ impl Content {
     }
 
     /// `J`: Set the line cap style.
+    #[inline]
     pub fn set_line_cap(&mut self, cap: LineCapStyle) -> &mut Self {
         self.buf.push_val(cap.to_int());
         self.buf.push_bytes(b" J\n");
@@ -126,6 +137,7 @@ impl Content {
 impl Content {
     /// `rg`: Set the fill color to the parameter and the color space to
     /// `DeviceRGB`.
+    #[inline]
     pub fn set_fill_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.op("rg").operands([r, g, b]);
         self
@@ -133,6 +145,7 @@ impl Content {
 
     /// `k`: Set the fill color to the parameter and the color space to
     /// `DeviceCMYK`.
+    #[inline]
     pub fn set_fill_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
         self.op("k").operands([c, m, y, k]);
         self
@@ -142,6 +155,7 @@ impl Content {
     ///
     /// The parameter must be the name of a parameter-less color space or of a
     /// color space dictionary within the current resource dictionary.
+    #[inline]
     pub fn set_fill_color_space(&mut self, space: ColorSpace) -> &mut Self {
         self.op("cs").operand(space.to_name());
         self
@@ -149,6 +163,7 @@ impl Content {
 
     /// `scn`: Set the fill color to the parameter within the current color
     /// space. PDF 1.2+.
+    #[inline]
     pub fn set_fill_color(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
         self.op("scn").operands(color);
         self
@@ -159,6 +174,7 @@ impl Content {
     /// The `name` parameter is the name of a pattern. If this is an uncolored
     /// pattern, a tint color in the current `Pattern` base color space must be
     /// given, otherwise, the `color` iterator shall remain empty.
+    #[inline]
     pub fn set_fill_pattern(
         &mut self,
         color: impl IntoIterator<Item = f32>,
@@ -170,6 +186,7 @@ impl Content {
 
     /// `RG`: Set the stroke color to the parameter and the color space to
     /// `DeviceRGB`.
+    #[inline]
     pub fn set_stroke_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.op("RG").operands([r, g, b]);
         self
@@ -177,6 +194,7 @@ impl Content {
 
     /// `K`: Set the stroke color to the parameter and the color space to
     /// `DeviceCMYK`.
+    #[inline]
     pub fn set_stroke_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
         self.op("K").operands([c, m, y, k]);
         self
@@ -186,6 +204,7 @@ impl Content {
     ///
     /// The parameter must be the name of a parameter-less color space or of a
     /// color space dictionary within the current resource dictionary.
+    #[inline]
     pub fn set_stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
         self.op("CS").operand(space.to_name());
         self
@@ -193,6 +212,7 @@ impl Content {
 
     /// `SCN`: Set the stroke color to the parameter within the current color
     /// space. PDF 1.2+.
+    #[inline]
     pub fn set_stroke_color(
         &mut self,
         color: impl IntoIterator<Item = f32>,
@@ -206,6 +226,7 @@ impl Content {
     /// The `name` parameter is the name of a pattern. If this is an uncolored
     /// pattern, a tint color in the current `Pattern` base color space must be
     /// given, otherwise, the `color` iterator shall remain empty.
+    #[inline]
     pub fn set_stroke_pattern(
         &mut self,
         color: impl IntoIterator<Item = f32>,
@@ -216,6 +237,7 @@ impl Content {
     }
 
     /// `ri`: Set the color rendering intent to the parameter. PDF 1.1+.
+    #[inline]
     pub fn set_rendering_intent(&mut self, intent: RenderingIntent) -> &mut Self {
         self.op("ri").operand(intent.to_name());
         self
@@ -225,12 +247,14 @@ impl Content {
 /// Path construction.
 impl Content {
     /// `m`: Begin a new subpath at (x, y).
+    #[inline]
     pub fn move_to(&mut self, x: f32, y: f32) -> &mut Self {
         self.op("m").operands([x, y]);
         self
     }
 
     /// `l`: Append a straight line to (x, y).
+    #[inline]
     pub fn line_to(&mut self, x: f32, y: f32) -> &mut Self {
         self.op("l").operands([x, y]);
         self
@@ -238,6 +262,7 @@ impl Content {
 
     /// `c`: Append a cubic Bézier segment to (x3, y3) with (x1, y1), (x2, y2)
     /// as control points.
+    #[inline]
     pub fn cubic_to(
         &mut self,
         x1: f32,
@@ -253,6 +278,7 @@ impl Content {
 
     /// `v`: Append a cubic Bézier segment to (x3, y3) with (x2, y2) as control
     /// point.
+    #[inline]
     pub fn cubic_to_initial(&mut self, x2: f32, y2: f32, x3: f32, y3: f32) -> &mut Self {
         self.op("v").operands([x2, y2, x3, y3]);
         self
@@ -260,18 +286,21 @@ impl Content {
 
     /// `y`: Append a cubic Bézier segment to (x3, y3) with (x1, y1) as control
     /// point.
+    #[inline]
     pub fn cubic_to_final(&mut self, x1: f32, y1: f32, x3: f32, y3: f32) -> &mut Self {
         self.op("y").operands([x1, y1, x3, y3]);
         self
     }
 
     /// `h`: Close the current subpath with a straight line.
+    #[inline]
     pub fn close_path(&mut self) -> &mut Self {
         self.op("h");
         self
     }
 
     /// `re`: Append a rectangle to the current path.
+    #[inline]
     pub fn rect(&mut self, x: f32, y: f32, width: f32, height: f32) -> &mut Self {
         self.op("re").operands([x, y, width, height]);
         self
@@ -281,24 +310,28 @@ impl Content {
 /// Path painting.
 impl Content {
     /// `S`: Stroke the current path.
+    #[inline]
     pub fn stroke(&mut self) -> &mut Self {
         self.op("S");
         self
     }
 
     /// `s`: Close and stroke the current path.
+    #[inline]
     pub fn close_and_stroke(&mut self) -> &mut Self {
         self.op("s");
         self
     }
 
     /// `f`: Fill the current path using the nonzero winding rule.
+    #[inline]
     pub fn fill_nonzero(&mut self) -> &mut Self {
         self.op("f");
         self
     }
 
     /// `f*`: Fill the current path using the even-odd rule.
+    #[inline]
     pub fn fill_even_odd(&mut self) -> &mut Self {
         self.op("f*");
         self
@@ -306,12 +339,14 @@ impl Content {
 
     /// `B`: Fill and then stroke the current path using the nonzero winding
     /// rule.
+    #[inline]
     pub fn fill_and_stroke_nonzero(&mut self) -> &mut Self {
         self.op("B");
         self
     }
 
     /// `B*`: Fill and then stroke the current path using the even-odd rule.
+    #[inline]
     pub fn fill_and_stroke_even_odd(&mut self) -> &mut Self {
         self.op("B*");
         self
@@ -319,6 +354,7 @@ impl Content {
 
     /// `b`: Close, fill and then stroke the current path using the nonzero
     /// winding rule.
+    #[inline]
     pub fn close_fill_and_stroke_nonzero(&mut self) -> &mut Self {
         self.op("b");
         self
@@ -326,6 +362,7 @@ impl Content {
 
     /// `b*`: Close, fill and then stroke the current path using the even-odd
     /// rule.
+    #[inline]
     pub fn close_fill_and_stroke_even_odd(&mut self) -> &mut Self {
         self.op("b*");
         self
@@ -334,6 +371,7 @@ impl Content {
     /// `n`: End the current path without filling or stroking it.
     ///
     /// This is primarily used for clipping paths.
+    #[inline]
     pub fn end_path(&mut self) -> &mut Self {
         self.op("n");
         self
@@ -341,6 +379,7 @@ impl Content {
 
     /// `W`: Intersect the current clipping path with the current path using the
     /// nonzero winding rule.
+    #[inline]
     pub fn clip_nonzero(&mut self) -> &mut Self {
         self.op("W");
         self
@@ -348,6 +387,7 @@ impl Content {
 
     /// `W*`: Intersect the current clipping path with the current path using
     /// the even-odd rule.
+    #[inline]
     pub fn clip_even_odd(&mut self) -> &mut Self {
         self.op("W*");
         self
@@ -357,17 +397,20 @@ impl Content {
 /// Other objects.
 impl Content {
     /// `BT ... ET`: Start writing a text object.
+    #[inline]
     pub fn text(&mut self) -> Text<'_> {
         Text::new(self)
     }
 
     /// `Do`: Write an external object.
+    #[inline]
     pub fn x_object(&mut self, name: Name) -> &mut Self {
         self.op("Do").operand(name);
         self
     }
 
     /// `sh`: Fill the whole drawing area with the specified shading.
+    #[inline]
     pub fn shading(&mut self, shading: Name) -> &mut Self {
         self.op("sh").operand(shading);
         self
@@ -382,6 +425,7 @@ pub struct Text<'a> {
 }
 
 impl<'a> Text<'a> {
+    #[inline]
     fn new(content: &'a mut Content) -> Self {
         content.op("BT");
         let buf = &mut content.buf;
@@ -389,23 +433,27 @@ impl<'a> Text<'a> {
     }
 
     /// Start writing an arbitrary operation.
+    #[inline]
     pub fn op<'b>(&'b mut self, operator: &'b str) -> Operation<'b> {
         Operation::new(self.buf, operator)
     }
 
     /// `Tf`: Set font and font size.
+    #[inline]
     pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
         self.op("Tf").operand(font).operand(size);
         self
     }
 
     /// `Td`: Move to the start of the next line.
+    #[inline]
     pub fn next_line(&mut self, x: f32, y: f32) -> &mut Self {
         self.op("Td").operands([x, y]);
         self
     }
 
     /// `Tm`: Set the text matrix.
+    #[inline]
     pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
         self.op("Tm").operands(matrix);
         self
@@ -414,18 +462,21 @@ impl<'a> Text<'a> {
     /// `Tj`: Show text.
     ///
     /// The encoding of the text is up to you.
+    #[inline]
     pub fn show(&mut self, text: Str) -> &mut Self {
         self.op("Tj").operand(text);
         self
     }
 
     /// `TJ`: Show text with individual glyph positioning.
+    #[inline]
     pub fn show_positioned(&mut self) -> ShowPositioned<'_> {
         ShowPositioned::new(self.op("TJ"))
     }
 }
 
 impl Drop for Text<'_> {
+    #[inline]
     fn drop(&mut self) {
         self.op("ET");
     }
@@ -439,11 +490,13 @@ pub struct ShowPositioned<'a> {
 }
 
 impl<'a> ShowPositioned<'a> {
+    #[inline]
     fn new(op: Operation<'a>) -> Self {
         Self { op }
     }
 
     /// Write the array of strings and adjustments. Required.
+    #[inline]
     pub fn items(&mut self) -> PositionedItems<'_> {
         PositionedItems::new(self.op.obj())
     }
@@ -459,6 +512,7 @@ pub struct PositionedItems<'a> {
 }
 
 impl<'a> PositionedItems<'a> {
+    #[inline]
     fn new(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
@@ -466,6 +520,7 @@ impl<'a> PositionedItems<'a> {
     /// Show a continous string without adjustments.
     ///
     /// The encoding of the text is up to you.
+    #[inline]
     pub fn show(&mut self, text: Str) -> &mut Self {
         self.array.item(text);
         self
@@ -475,6 +530,7 @@ impl<'a> PositionedItems<'a> {
     ///
     /// The `amount` is specified in thousands of units of text space and is
     /// subtracted from the current writing-mode dependent coordinate.
+    #[inline]
     pub fn adjust(&mut self, amount: f32) -> &mut Self {
         self.array.item(amount);
         self
@@ -497,6 +553,7 @@ pub enum LineCapStyle {
 }
 
 impl LineCapStyle {
+    #[inline]
     pub(crate) fn to_int(self) -> i32 {
         match self {
             Self::ButtCap => 0,
@@ -520,6 +577,7 @@ pub enum RenderingIntent {
 }
 
 impl RenderingIntent {
+    #[inline]
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::AbsoluteColorimetric => Name(b"AbsoluteColorimetric"),
