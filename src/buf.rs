@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use super::Primitive;
 
 /// Additional methods for byte buffers.
@@ -8,6 +6,7 @@ pub trait BufExt {
     fn push_bytes(&mut self, bytes: &[u8]);
     fn push_int(&mut self, value: i32);
     fn push_float(&mut self, value: f32);
+    fn push_decimal(&mut self, value: f32);
     fn push_hex(&mut self, value: u8);
     fn push_hex_u16(&mut self, value: u16);
 }
@@ -25,12 +24,24 @@ impl BufExt for Vec<u8> {
 
     #[inline]
     fn push_int(&mut self, value: i32) {
-        write!(self, "{}", value).unwrap();
+        self.push_bytes(itoa::Buffer::new().format(value).as_bytes());
     }
 
     #[inline]
     fn push_float(&mut self, value: f32) {
-        write!(self, "{}", value).unwrap();
+        // Don't write the decimal point if we don't need it.
+        // Also, integer formatting is way faster.
+        if value as i32 as f32 == value {
+            self.push_int(value as i32);
+        } else {
+            self.push_decimal(value);
+        }
+    }
+
+    /// Like `push_float`, but forces the decimal point.
+    #[inline]
+    fn push_decimal(&mut self, value: f32) {
+        self.push_bytes(ryu::Buffer::new().format(value).as_bytes());
     }
 
     #[inline]

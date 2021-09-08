@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use super::*;
 
 /// Way the function is defined in.
@@ -388,14 +386,7 @@ impl<'a> PostScriptOp<'a> {
 
     fn write(&self, buf: &mut Vec<u8>) {
         match *self {
-            Self::Real(r) => {
-                // We want to force a decimal point.
-                if r.fract() == 0.0 {
-                    write!(buf, "{:.1}", r).unwrap();
-                } else {
-                    buf.push_float(r);
-                }
-            }
+            Self::Real(r) => buf.push_decimal(r),
             Self::Integer(i) => buf.push_val(i),
             Self::If(ops) => {
                 Self::write_slice(ops, buf);
