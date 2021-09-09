@@ -28,30 +28,16 @@ macro_rules! common_func_methods {
     () => {
         /// Write the `/Domain` attribute to set where the function is defined.
         /// Required.
-        pub fn domain(
-            &mut self,
-            domain: impl IntoIterator<Item = impl IntoIterator<Item = f32>>,
-        ) -> &mut Self {
-            let mut array = self.key(Name(b"Domain")).array();
-            for side in domain {
-                array.obj().array().typed().items(side);
-            }
-            array.finish();
+        pub fn domain(&mut self, domain: impl IntoIterator<Item = f32>) -> &mut Self {
+            self.key(Name(b"Domain")).array().typed().items(domain);
             self
         }
 
         /// Write the `/Range` attribute.
         ///
         /// Required for sampled and PostScript functions.
-        pub fn range(
-            &mut self,
-            range: impl IntoIterator<Item = impl IntoIterator<Item = f32>>,
-        ) -> &mut Self {
-            let mut array = self.key(Name(b"Range")).array();
-            for boundry in range {
-                array.obj().array().typed().items(boundry);
-            }
-            array.finish();
+        pub fn range(&mut self, range: impl IntoIterator<Item = f32>) -> &mut Self {
+            self.key(Name(b"Range")).array().typed().items(range);
             self
         }
     };
@@ -100,30 +86,16 @@ impl<'a> SampledFunction<'a> {
     /// Write the `/Encode` attribute.
     ///
     /// For each sample, define how the input is mapped to the domain range.
-    pub fn encode(
-        &mut self,
-        encode: impl IntoIterator<Item = impl IntoIterator<Item = f32>>,
-    ) -> &mut Self {
-        let mut array = self.key(Name(b"Encode")).array();
-        for side in encode {
-            array.obj().array().typed().items(side);
-        }
-        array.finish();
+    pub fn encode(&mut self, encode: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"Encode")).array().typed().items(encode);
         self
     }
 
     /// Write the `/Decode` attribute.
     ///
     /// For each sample, define how the output is mapped to the output range.
-    pub fn decode(
-        &mut self,
-        decode: impl IntoIterator<Item = impl IntoIterator<Item = f32>>,
-    ) -> &mut Self {
-        let mut array = self.key(Name(b"Decode")).array();
-        for side in decode {
-            array.obj().array().typed().items(side);
-        }
-        array.finish();
+    pub fn decode(&mut self, decode: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"Decode")).array().typed().items(decode);
         self
     }
 }

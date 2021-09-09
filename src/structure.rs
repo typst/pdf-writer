@@ -226,6 +226,11 @@ impl<'a> Resources<'a> {
     pub fn shadings(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"Shading")).dict().typed()
     }
+
+    /// Start writing the `/ExtGState` dictionary. PDF 1.2+.
+    pub fn ext_g_states(&mut self) -> TypedDict<'_, Ref> {
+        self.key(Name(b"ExtGState")).dict().typed()
+    }
 }
 
 deref!('a, Resources<'a> => Dict<'a>, dict);

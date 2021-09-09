@@ -101,7 +101,7 @@ pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
-    pub use content::{Operation, PositionedItems, ShowPositioned};
+    pub use content::{ExtGraphicsState, Operation, PositionedItems, ShowPositioned};
     pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -320,6 +320,11 @@ impl PdfWriter {
     /// Start writing a stitching function dictionary.
     pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
         StitchingFunction::new(self.indirect(id))
+    }
+
+    /// Start writing an external graphics state dictionary.
+    pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
+        ExtGraphicsState::new(self.indirect(id))
     }
 }
 

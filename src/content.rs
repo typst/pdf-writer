@@ -147,7 +147,7 @@ impl Content {
 
     /// `d`: Set the line dash pattern.
     #[inline]
-    pub fn set_line_dash_pattern(
+    pub fn set_dash_pattern(
         &mut self,
         array: impl IntoIterator<Item = f32>,
         phase: f32,
@@ -179,7 +179,7 @@ impl Content {
         self
     }
 
-    /// `gs`: Set the parameters from an `EXTGState` dictionary. PDF 1.2+.
+    /// `gs`: Set the parameters from an `ExtGState` dictionary. PDF 1.2+.
     #[inline]
     pub fn set_parameters(&mut self, dict: Name) -> &mut Self {
         self.op("gs").operand(dict);
@@ -811,6 +811,247 @@ impl Content {
     }
 }
 
+/// Additional parameters for the graphics state.
+pub struct ExtGraphicsState<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> ExtGraphicsState<'a> {
+    /// Create a new external graphics dictionary writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"ExtGState"));
+        Self { dict }
+    }
+
+    /// `LW`: Set the line width. PDF 1.3+.
+    pub fn line_width(&mut self, width: f32) -> &mut Self {
+        self.dict.pair(Name(b"LW"), width);
+        self
+    }
+
+    /// `LC`: Set the line cap style. PDF 1.3+.
+    pub fn line_cap(&mut self, cap: LineCapStyle) -> &mut Self {
+        self.dict.pair(Name(b"LC"), cap.to_int());
+        self
+    }
+
+    /// `LJ`: Set the line join style. PDF 1.3+.
+    pub fn line_join(&mut self, join: LineJoinStyle) -> &mut Self {
+        self.dict.pair(Name(b"LJ"), join.to_int());
+        self
+    }
+
+    /// `ML`: Set the miter limit. PDF 1.3+.
+    pub fn miter_limit(&mut self, limit: f32) -> &mut Self {
+        self.dict.pair(Name(b"ML"), limit);
+        self
+    }
+
+    /// `D`: Set the dash pattern. PDF 1.3+.
+    pub fn dash_pattern(
+        &mut self,
+        pattern: impl IntoIterator<Item = f32>,
+        phase: f32,
+    ) -> &mut Self {
+        let mut array = self.dict.key(Name(b"D")).array();
+        array.obj().array().typed().items(pattern);
+        array.item(phase);
+        array.finish();
+        self
+    }
+
+    /// `RI`: Set the rendering intent. PDF 1.3+.
+    pub fn rendering_intent(&mut self, intent: RenderingIntent) -> &mut Self {
+        self.dict.pair(Name(b"RI"), intent.to_name());
+        self
+    }
+
+    /// `OP`: Set the overprint mode for all operations, except if an `op` entry
+    /// is present. If so, only influence the stroking operations. PDF 1.2+.
+    pub fn overprint(&mut self, overprint: bool) -> &mut Self {
+        self.dict.pair(Name(b"OP"), overprint);
+        self
+    }
+
+    /// `op`: Set the overprint mode for fill operations. PDF 1.3+.
+    pub fn overprint_fill(&mut self, overprint: bool) -> &mut Self {
+        self.dict.pair(Name(b"op"), overprint);
+        self
+    }
+
+    // TODO: `OPM`
+
+    /// `Font`: Set the font. PDF 1.3+.
+    pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
+        let mut array = self.dict.key(Name(b"Font")).array();
+        array.item(font);
+        array.item(size);
+        array.finish();
+        self
+    }
+
+    /// `BG`: Set the black generation function.
+    pub fn black_generation(&mut self, func: Ref) -> &mut Self {
+        self.dict.pair(Name(b"BG"), func);
+        self
+    }
+
+    /// `BG2`: Set the black-generation function back to the function that has
+    /// been in effect at the beginning of the page. PDF 1.3+.
+    pub fn black_generation_default(&mut self) -> &mut Self {
+        self.dict.pair(Name(b"BG2"), Name(b"Default"));
+        self
+    }
+
+    /// `UCR`: Set the undercolor removal function.
+    pub fn undercolor_removal(&mut self, func: Ref) -> &mut Self {
+        self.dict.pair(Name(b"UCR"), func);
+        self
+    }
+
+    /// `UCR2`: Set the undercolor removal function back to the function that
+    /// has been in effect at the beginning of the page. PDF 1.3+.
+    pub fn undercolor_removal_default(&mut self) -> &mut Self {
+        self.dict.pair(Name(b"UCR2"), Name(b"Default"));
+        self
+    }
+
+    /// `TR`: Set the transfer function.
+    pub fn transfer(&mut self, func: Ref) -> &mut Self {
+        self.dict.pair(Name(b"TR"), func);
+        self
+    }
+
+    /// `TR2`: Set the transfer function back to the function that has been in
+    /// effect at the beginning of the page. PDF 1.3+.
+    pub fn transfer_default(&mut self) -> &mut Self {
+        self.dict.pair(Name(b"TR2"), Name(b"Default"));
+        self
+    }
+
+    /// `HT`: Set the halftone.
+    pub fn halftone(&mut self, ht: Ref) -> &mut Self {
+        self.dict.pair(Name(b"HT"), ht);
+        self
+    }
+
+    /// `HT`: Set the halftone back to the halftone that has been in effect at
+    /// the beginning of the page.
+    pub fn halftone_default(&mut self) -> &mut Self {
+        self.dict.pair(Name(b"HT"), Name(b"Default"));
+        self
+    }
+
+    /// `FL`: Set the flatness tolerance. PDF 1.3+.
+    pub fn flatness(&mut self, tolerance: f32) -> &mut Self {
+        self.dict.pair(Name(b"FL"), tolerance);
+        self
+    }
+
+    /// `SM`: Set the smoothness tolerance. PDF 1.3+.
+    pub fn smoothness(&mut self, tolerance: f32) -> &mut Self {
+        self.dict.pair(Name(b"SM"), tolerance);
+        self
+    }
+
+    /// `SA`: Set automatic stroke adjustment.
+    pub fn stroke_adjustment(&mut self, adjust: bool) -> &mut Self {
+        self.dict.pair(Name(b"SA"), adjust);
+        self
+    }
+
+    /// `BM`: Set the blend mode. PDF 1.4+.
+    pub fn blend_mode(&mut self, mode: BlendMode) -> &mut Self {
+        self.dict.pair(Name(b"BM"), mode.to_name());
+        self
+    }
+
+    /// `SMask`: Set the soft mask using a dictionary. PDF 1.4+.
+    pub fn soft_mask(&mut self, mask: Ref) -> &mut Self {
+        self.dict.pair(Name(b"SMask"), mask);
+        self
+    }
+
+    /// `SMask`: Set the soft mask using a name. PDF 1.4+.
+    pub fn soft_mask_name(&mut self, mask: Name) -> &mut Self {
+        self.dict.pair(Name(b"SMask"), mask);
+        self
+    }
+
+    /// `CA`: Set the stroking alpha constant. PDF 1.4+.
+    pub fn stroking_alpha(&mut self, alpha: f32) -> &mut Self {
+        self.dict.pair(Name(b"CA"), alpha);
+        self
+    }
+
+    /// `ca`: Set the non-stroking alpha constant. PDF 1.4+.
+    pub fn non_stroking_alpha(&mut self, alpha: f32) -> &mut Self {
+        self.dict.pair(Name(b"ca"), alpha);
+        self
+    }
+
+    /// `AIS`: Set the alpha source flag. `CA` and `ca` values as well as the
+    /// `SMask` will be interpreted as shape instead of opacity. PDF 1.4+.
+    pub fn alpha_source(&mut self, source: bool) -> &mut Self {
+        self.dict.pair(Name(b"AIS"), source);
+        self
+    }
+
+    /// `TK`: Set the text knockout flag. PDF 1.4+.
+    pub fn text_knockout(&mut self, knockout: bool) -> &mut Self {
+        self.dict.pair(Name(b"TK"), knockout);
+        self
+    }
+}
+
+deref!('a, ExtGraphicsState<'a> => Dict<'a>, dict);
+
+/// How to render text.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum BlendMode {
+    Normal,
+    Multiply,
+    Screen,
+    Overlay,
+    Darken,
+    Lighten,
+    ColorDodge,
+    ColorBurn,
+    HardLight,
+    SoftLight,
+    Difference,
+    Exclusion,
+    Hue,
+    Saturation,
+    Color,
+    Luminosity,
+}
+
+impl BlendMode {
+    fn to_name(&self) -> Name<'static> {
+        match self {
+            BlendMode::Normal => Name(b"Normal"),
+            BlendMode::Multiply => Name(b"Multiply"),
+            BlendMode::Screen => Name(b"Screen"),
+            BlendMode::Overlay => Name(b"Overlay"),
+            BlendMode::Darken => Name(b"Darken"),
+            BlendMode::Lighten => Name(b"Lighten"),
+            BlendMode::ColorDodge => Name(b"ColorDodge"),
+            BlendMode::ColorBurn => Name(b"ColorBurn"),
+            BlendMode::HardLight => Name(b"HardLight"),
+            BlendMode::SoftLight => Name(b"SoftLight"),
+            BlendMode::Difference => Name(b"Difference"),
+            BlendMode::Exclusion => Name(b"Exclusion"),
+            BlendMode::Hue => Name(b"Hue"),
+            BlendMode::Saturation => Name(b"Saturation"),
+            BlendMode::Color => Name(b"Color"),
+            BlendMode::Luminosity => Name(b"Luminosity"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -822,7 +1063,7 @@ mod tests {
             .save_state()
             .rect(1.0, 2.0, 3.0, 4.0)
             .fill_nonzero()
-            .set_line_dash_pattern([7.0, 2.0], 4.0)
+            .set_dash_pattern([7.0, 2.0], 4.0)
             .x_object(Name(b"MyImage"))
             .set_fill_pattern([2.0, 3.5], Name(b"MyPattern"))
             .restore_state();
