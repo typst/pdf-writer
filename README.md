@@ -3,7 +3,7 @@
 [![Crates.io](https://img.shields.io/crates/v/pdf-writer.svg)](https://crates.io/crates/pdf-writer)
 [![Documentation](https://docs.rs/pdf-writer/badge.svg)](https://docs.rs/pdf-writer)
 
-A step-by-step, zero-unsafe PDF writer.
+A step-by-step PDF writer.
 
 The entry point into the API is the main `PdfWriter`, which constructs the
 document into one big internal buffer. The top-level writer has many methods to
@@ -42,6 +42,10 @@ std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
 
 For a more comprehensive overview, check out the [hello world example], which
 creates a document with text and a link in it.
+
+## Safety
+This crate forbids unsafe code, but it depends on widespread crates that use
+unsafe internally.
 
 ## License
 This crate is dual-licensed under the MIT and Apache 2.0 licenses.

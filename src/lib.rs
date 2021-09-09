@@ -1,5 +1,5 @@
 /*!
-A step-by-step, zero-unsafe PDF writer.
+A step-by-step PDF writer.
 
 The entry point into the API is the main [`PdfWriter`], which constructs the
 document into one big internal buffer. The top-level writer has many methods to

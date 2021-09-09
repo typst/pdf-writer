@@ -40,7 +40,7 @@ impl<'a> Image<'a> {
         self
     }
 
-    /// Write the `/SMask` attribute.
+    /// Write the `/SMask` attribute. PDF 1.4+.
     pub fn s_mask(&mut self, x_object: Ref) -> &mut Self {
         self.pair(Name(b"SMask"), x_object);
         self
