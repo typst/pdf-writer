@@ -320,51 +320,51 @@ impl UnicodeCmap {
         let mut buf = Vec::new();
 
         // Static header.
-        buf.push_bytes(b"%!PS-Adobe-3.0 Resource-CMap\n");
-        buf.push_bytes(b"%%DocumentNeededResources: procset CIDInit\n");
-        buf.push_bytes(b"%%IncludeResource: procset CIDInit\n");
+        buf.extend(b"%!PS-Adobe-3.0 Resource-CMap\n");
+        buf.extend(b"%%DocumentNeededResources: procset CIDInit\n");
+        buf.extend(b"%%IncludeResource: procset CIDInit\n");
 
         // Dynamic header.
-        buf.push_bytes(b"%%BeginResource: CMap ");
-        buf.push_bytes(name.0);
+        buf.extend(b"%%BeginResource: CMap ");
+        buf.extend(name.0);
         buf.push(b'\n');
-        buf.push_bytes(b"%%Title: (");
-        buf.push_bytes(name.0);
+        buf.extend(b"%%Title: (");
+        buf.extend(name.0);
         buf.push(b' ');
-        buf.push_bytes(info.registry.0);
+        buf.extend(info.registry.0);
         buf.push(b' ');
-        buf.push_bytes(info.ordering.0);
+        buf.extend(info.ordering.0);
         buf.push(b' ');
         buf.push_int(info.supplement);
-        buf.push_bytes(b")\n");
-        buf.push_bytes(b"%%Version: 1\n");
-        buf.push_bytes(b"%%EndComments\n");
+        buf.extend(b")\n");
+        buf.extend(b"%%Version: 1\n");
+        buf.extend(b"%%EndComments\n");
 
         // General body.
-        buf.push_bytes(b"/CIDInit /ProcSet findresource begin\n");
-        buf.push_bytes(b"12 dict begin\n");
-        buf.push_bytes(b"begincmap\n");
-        buf.push_bytes(b"/CIDSystemInfo 3 dict dup begin\n");
-        buf.push_bytes(b"    /Registry ");
+        buf.extend(b"/CIDInit /ProcSet findresource begin\n");
+        buf.extend(b"12 dict begin\n");
+        buf.extend(b"begincmap\n");
+        buf.extend(b"/CIDSystemInfo 3 dict dup begin\n");
+        buf.extend(b"    /Registry ");
         buf.push_val(info.registry);
-        buf.push_bytes(b" def\n");
-        buf.push_bytes(b"    /Ordering ");
+        buf.extend(b" def\n");
+        buf.extend(b"    /Ordering ");
         buf.push_val(info.ordering);
-        buf.push_bytes(b" def\n");
-        buf.push_bytes(b"    /Supplement ");
+        buf.extend(b" def\n");
+        buf.extend(b"    /Supplement ");
         buf.push_val(info.supplement);
-        buf.push_bytes(b" def\n");
-        buf.push_bytes(b"end def\n");
-        buf.push_bytes(b"/CMapName ");
+        buf.extend(b" def\n");
+        buf.extend(b"end def\n");
+        buf.extend(b"/CMapName ");
         buf.push_val(name);
-        buf.push_bytes(b" def\n");
-        buf.push_bytes(b"/CMapVersion 1 def\n");
-        buf.push_bytes(b"/CMapType 0 def\n");
+        buf.extend(b" def\n");
+        buf.extend(b"/CMapVersion 1 def\n");
+        buf.extend(b"/CMapType 0 def\n");
 
         // We just cover the whole unicode codespace.
-        buf.push_bytes(b"1 begincodespacerange\n");
-        buf.push_bytes(b"<0000> <ffff>\n");
-        buf.push_bytes(b"endcodespacerange\n");
+        buf.extend(b"1 begincodespacerange\n");
+        buf.extend(b"<0000> <ffff>\n");
+        buf.extend(b"endcodespacerange\n");
 
         Self { buf, mappings: vec![], count: 0 }
     }
@@ -373,14 +373,14 @@ impl UnicodeCmap {
     pub fn pair(&mut self, glyph: u16, codepoint: char) {
         self.mappings.push(b'<');
         self.mappings.push_hex_u16(glyph);
-        self.mappings.push_bytes(b"> <");
+        self.mappings.extend(b"> <");
 
         let mut utf16 = [0u16; 2];
         for &mut part in codepoint.encode_utf16(&mut utf16) {
             self.mappings.push_hex_u16(part);
         }
 
-        self.mappings.push_bytes(b">\n");
+        self.mappings.extend(b">\n");
         self.count += 1;
 
         // At most 100 lines per range.
@@ -395,13 +395,12 @@ impl UnicodeCmap {
         self.flush_range();
 
         // End of body.
-        self.buf.push_bytes(b"endcmap\n");
-        self.buf
-            .push_bytes(b"CMapName currentdict /CMap defineresource pop\n");
-        self.buf.push_bytes(b"end\n");
-        self.buf.push_bytes(b"end\n");
-        self.buf.push_bytes(b"%%EndResource\n");
-        self.buf.push_bytes(b"%%EOF");
+        self.buf.extend(b"endcmap\n");
+        self.buf.extend(b"CMapName currentdict /CMap defineresource pop\n");
+        self.buf.extend(b"end\n");
+        self.buf.extend(b"end\n");
+        self.buf.extend(b"%%EndResource\n");
+        self.buf.extend(b"%%EOF");
 
         self.buf
     }
@@ -409,9 +408,9 @@ impl UnicodeCmap {
     fn flush_range(&mut self) {
         if self.count > 0 {
             self.buf.push_int(self.count);
-            self.buf.push_bytes(b" beginbfchar\n");
-            self.buf.push_bytes(&self.mappings);
-            self.buf.push_bytes(b"endbfchar\n");
+            self.buf.extend(b" beginbfchar\n");
+            self.buf.extend(&self.mappings);
+            self.buf.extend(b"endbfchar\n");
         }
 
         self.count = 0;

@@ -22,9 +22,9 @@ impl Primitive for bool {
     #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         if *self {
-            buf.push_bytes(b"true");
+            buf.extend(b"true");
         } else {
-            buf.push_bytes(b"false");
+            buf.extend(b"false");
         }
     }
 }
@@ -68,7 +68,7 @@ impl Primitive for Str<'_> {
             buf.push(b'>');
         } else {
             buf.push(b'(');
-            buf.push_bytes(self.0);
+            buf.extend(self.0);
             buf.push(b')');
         }
     }
@@ -120,7 +120,7 @@ pub struct Null;
 impl Primitive for Null {
     #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
-        buf.push_bytes(b"null");
+        buf.extend(b"null");
     }
 }
 
@@ -151,7 +151,7 @@ impl Primitive for Ref {
     #[inline]
     fn write(&self, buf: &mut Vec<u8>) {
         buf.push_int(self.0.get());
-        buf.push_bytes(b" 0 R");
+        buf.extend(b" 0 R");
     }
 }
 
@@ -355,7 +355,7 @@ impl<'a> Obj<'a> {
     #[inline]
     pub(crate) fn indirect(buf: &'a mut Vec<u8>, id: Ref) -> Self {
         buf.push_int(id.get());
-        buf.push_bytes(b" 0 obj\n");
+        buf.extend(b" 0 obj\n");
         Self { buf, indirect: true, indent: 0 }
     }
 
@@ -364,7 +364,7 @@ impl<'a> Obj<'a> {
     pub fn primitive<T: Primitive>(self, value: T) {
         value.write(self.buf);
         if self.indirect {
-            self.buf.push_bytes(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n\n");
         }
     }
 
@@ -433,7 +433,7 @@ impl Drop for Array<'_> {
     fn drop(&mut self) {
         self.buf.push(b']');
         if self.indirect {
-            self.buf.push_bytes(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n\n");
         }
     }
 }
@@ -485,7 +485,7 @@ pub struct Dict<'a> {
 impl<'a> Dict<'a> {
     #[inline]
     fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
-        buf.push_bytes(b"<<");
+        buf.extend(b"<<");
         Self {
             buf,
             indirect,
@@ -541,9 +541,9 @@ impl Drop for Dict<'_> {
                 self.buf.push(b' ');
             }
         }
-        self.buf.push_bytes(b">>");
+        self.buf.extend(b">>");
         if self.indirect {
-            self.buf.push_bytes(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n\n");
         }
     }
 }
@@ -608,11 +608,11 @@ impl<'a> Stream<'a> {
 
 impl Drop for Stream<'_> {
     fn drop(&mut self) {
-        self.dict.buf.push_bytes(b"\n>>");
-        self.dict.buf.push_bytes(b"\nstream\n");
-        self.dict.buf.push_bytes(&self.data);
-        self.dict.buf.push_bytes(b"\nendstream");
-        self.dict.buf.push_bytes(b"\nendobj\n\n");
+        self.dict.buf.extend(b"\n>>");
+        self.dict.buf.extend(b"\nstream\n");
+        self.dict.buf.extend(self.data.as_ref());
+        self.dict.buf.extend(b"\nendstream");
+        self.dict.buf.extend(b"\nendobj\n\n");
     }
 }
 

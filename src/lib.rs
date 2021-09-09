@@ -158,7 +158,7 @@ impl PdfWriter {
     /// Create a new PDF writer with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         let mut buf = Vec::with_capacity(capacity);
-        buf.push_bytes(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
+        buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self { buf, offsets: vec![] }
     }
 
@@ -197,7 +197,7 @@ impl PdfWriter {
         let xref_len = 1 + self.offsets.last().map_or(0, |p| p.0.get());
         let xref_offset = self.buf.len();
 
-        self.buf.push_bytes(b"xref\n0 ");
+        self.buf.extend(b"xref\n0 ");
         self.buf.push_int(xref_len);
         self.buf.push(b'\n');
 
@@ -233,7 +233,7 @@ impl PdfWriter {
 
     fn trailer(&mut self, catalog_id: Ref, xref_len: i32, xref_offset: usize) {
         // Write the trailer dictionary.
-        self.buf.push_bytes(b"trailer\n");
+        self.buf.extend(b"trailer\n");
 
         Obj::direct(&mut self.buf, 0)
             .dict()
@@ -241,11 +241,11 @@ impl PdfWriter {
             .pair(Name(b"Root"), catalog_id);
 
         // Write where the cross-reference table starts.
-        self.buf.push_bytes(b"\nstartxref\n");
+        self.buf.extend(b"\nstartxref\n");
         write!(self.buf, "{}", xref_offset).unwrap();
 
         // Write the end of file marker.
-        self.buf.push_bytes(b"\n%%EOF");
+        self.buf.extend(b"\n%%EOF");
     }
 }
 

@@ -391,16 +391,16 @@ impl<'a> PostScriptOp<'a> {
             Self::If(ops) => {
                 Self::write_slice(ops, buf);
                 buf.push(b'\n');
-                buf.push_bytes(self.operator());
+                buf.extend(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
                 Self::write_slice(ops1, buf);
                 buf.push(b'\n');
                 Self::write_slice(ops2, buf);
                 buf.push(b'\n');
-                buf.push_bytes(self.operator());
+                buf.extend(self.operator());
             }
-            _ => buf.push_bytes(self.operator()),
+            _ => buf.extend(self.operator()),
         }
     }
 
