@@ -111,7 +111,7 @@ pub mod writers {
         ViewerPreferences,
     };
     pub use transitions::Transition;
-    pub use xobject::Image;
+    pub use xobject::{FormXObject, Group, Image, Reference};
 }
 
 /// Types used by specific PDF structures.
@@ -125,7 +125,7 @@ pub mod types {
     pub use content::{LineCapStyle, LineJoinStyle, RenderingIntent, TextRenderingMode};
     pub use font::{CidFontType, FontFlags, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
-    pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode};
+    pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode, TabOrder};
     pub use transitions::{TransitionAngle, TransitionStyle};
 }
 
@@ -380,6 +380,13 @@ impl PdfWriter {
     /// space and bits per component.
     pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> Image<'a> {
         Image::new(self.stream(id, samples))
+    }
+
+    /// Start writing an form XObject stream.
+    ///
+    /// These can be used as transparency groups.
+    pub fn form_xobject<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> FormXObject<'a> {
+        FormXObject::new(self.stream(id, data))
     }
 
     /// Start writing a tiling pattern stream.

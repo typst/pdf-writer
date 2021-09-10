@@ -114,9 +114,15 @@ impl<'a> Page<'a> {
         Self { dict }
     }
 
-    /// Write the `/Parent` attribute.
+    /// Write the `/Parent` attribute. Required.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.pair(Name(b"Parent"), parent);
+        self
+    }
+
+    /// Write the `/LastModified` attribute. PDF 1.3+.
+    pub fn last_modified(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"LastModified"), date);
         self
     }
 
@@ -167,6 +173,20 @@ impl<'a> Page<'a> {
         self
     }
 
+    /// Write the `/Rotate` attribute. This is the number of degrees the page
+    /// should be rotated clockwise when displayed. This should be a multiple
+    /// of 90.
+    pub fn rotate(&mut self, degrees: i32) -> &mut Self {
+        self.pair(Name(b"Rotate"), degrees);
+        self
+    }
+
+    /// Start writing the `/Group` dictionary to set the transparency settings
+    /// for the page. PDF 1.4+.
+    pub fn group(&mut self) -> Group<'_> {
+        Group::new(self.key(Name(b"Group")))
+    }
+
     /// Write the `/Dur` attribute. This is the amount of seconds the page
     /// should be displayed before advancing to the next one. PDF 1.1+.
     pub fn duration(&mut self, seconds: f32) -> &mut Self {
@@ -184,14 +204,21 @@ impl<'a> Page<'a> {
     pub fn annotations(&mut self) -> Annotations<'_> {
         Annotations::new(self.key(Name(b"Annots")))
     }
+
+    /// Write the `/Tabs` attribute. This specifies the order in which the
+    /// annotations should be focussed by hitting tab. PDF 1.5+.
+    pub fn tab_order(&mut self, order: TabOrder) -> &mut Self {
+        self.pair(Name(b"Tabs"), order.to_name());
+        self
+    }
 }
 
 deref!('a, Page<'a> => Dict<'a>, dict);
 
 /// Writer for a _resource dictionary_.
 ///
-/// This struct is created by [`Pages::resources`], [`Page::resources`] and
-/// [`TilingPattern::resources`].
+/// This struct is created by [`Pages::resources`], [`Page::resources`],
+/// [`FormXObject::resources`], and [`TilingPattern::resources`].
 pub struct Resources<'a> {
     dict: Dict<'a>,
 }
@@ -615,6 +642,25 @@ impl Direction {
         match self {
             Self::L2R => Name(b"L2R"),
             Self::R2L => Name(b"R2L"),
+        }
+    }
+}
+
+/// What order to tab through the annotations on a page.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum TabOrder {
+    RowOrder,
+    ColumnOrder,
+    StructureOrder,
+}
+
+impl TabOrder {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::RowOrder => Name(b"R"),
+            Self::ColumnOrder => Name(b"C"),
+            Self::StructureOrder => Name(b"S"),
         }
     }
 }
