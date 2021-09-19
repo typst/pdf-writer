@@ -29,20 +29,20 @@ impl<'a> Image<'a> {
     }
 
     /// Write the `/ColorSpace` attribute.
+    ///
+    /// Required for all images except if using the `JPXDecode` filter.
+    /// If this is an image soft mask, the color space must be `DeviceGray`.
+    /// Must not be `Pattern`.
     pub fn color_space(&mut self, space: ColorSpace) -> &mut Self {
         self.pair(Name(b"ColorSpace"), space.to_name());
         self
     }
 
-    /// Write the `/BitsPerComponent` attribute.
+    /// Write the `/BitsPerComponent` attribute. Required.
+    ///
+    /// Required for all images except if using the `JPXDecode` filter.
     pub fn bits_per_component(&mut self, bits: i32) -> &mut Self {
         self.pair(Name(b"BitsPerComponent"), bits);
-        self
-    }
-
-    /// Write the `/SMask` attribute. PDF 1.4+.
-    pub fn s_mask(&mut self, x_object: Ref) -> &mut Self {
-        self.pair(Name(b"SMask"), x_object);
         self
     }
 
@@ -51,9 +51,69 @@ impl<'a> Image<'a> {
         self.pair(Name(b"Intent"), intent.to_name());
         self
     }
+
+    /// Write the `/Interpolate` attribute.
+    pub fn interpolate(&mut self, interpolate: bool) -> &mut Self {
+        self.pair(Name(b"Interpolate"), interpolate);
+        self
+    }
+
+    /// Write the `/Alternates` attribute. PDF 1.3+.
+    ///
+    /// Images that may replace this image. The order is not relevant.
+    pub fn alternates(&mut self, alternates: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.key(Name(b"Alternates")).array().typed().items(alternates);
+        self
+    }
+
+    /// Start writing the `/SMask` attribute. PDF 1.4+.
+    ///
+    /// Must not be used if this image already is an image soft mask.
+    pub fn s_mask(&mut self) -> SoftMask<'_> {
+        SoftMask::new(self.key(Name(b"SMask")))
+    }
+
+    /// Write the `/SMaskInData` attribute. PDF 1.5+.
+    ///
+    /// May only be used for images that use the `JPXDecode` filter. If set to
+    /// something other than `Ignore`, the `SMask` attribute must not be used.
+    pub fn s_mask_in_data(&mut self, mode: DataSMaskUsage) -> &mut Self {
+        self.pair(Name(b"SMaskInData"), mode.to_int());
+        self
+    }
+
+    /// Write the `/Matte` attribute for image soft masks. PDF 1.4+.
+    ///
+    /// This shall be the matte color of the parent image encoded in its color
+    /// space.
+    pub fn matte(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"Matte")).array().typed().items(color);
+        self
+    }
 }
 
 deref!('a, Image<'a> => Stream<'a>, stream);
+
+/// What to do with mask information in `JPXDecode` images.
+pub enum DataSMaskUsage {
+    /// Discard the mask.
+    Ignore,
+    /// Use the mask.
+    Use,
+    /// Use the mask on the image whose backdrop has been pre-blended with a
+    /// matte color.
+    Preblended,
+}
+
+impl DataSMaskUsage {
+    fn to_int(&self) -> i32 {
+        match self {
+            Self::Ignore => 0,
+            Self::Use => 1,
+            Self::Preblended => 2,
+        }
+    }
+}
 
 /// Writer for an _form XObject stream_. PDF 1.1+.
 ///
@@ -72,6 +132,8 @@ impl<'a> FormXObject<'a> {
     }
 
     /// Write the `/BBox` attribute. Required.
+    ///
+    /// This clips the form xobject to coordinates in its coordinate system.
     pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
         self.pair(Name(b"BBox"), bbox);
         self

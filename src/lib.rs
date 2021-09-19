@@ -103,7 +103,9 @@ pub mod writers {
         Action, Annotation, Annotations, BorderStyle, EmbedParams, EmbeddedFile, FileSpec,
     };
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
-    pub use content::{ExtGraphicsState, Operation, PositionedItems, ShowPositioned};
+    pub use content::{
+        ExtGraphicsState, Operation, PositionedItems, ShowPositioned, SoftMask,
+    };
     pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -124,11 +126,14 @@ pub mod types {
         HighlightEffect,
     };
     pub use color::{ColorSpace, PaintType, ShadingType, TilingType};
-    pub use content::{LineCapStyle, LineJoinStyle, RenderingIntent, TextRenderingMode};
+    pub use content::{
+        LineCapStyle, LineJoinStyle, MaskType, RenderingIntent, TextRenderingMode,
+    };
     pub use font::{CidFontType, FontFlags, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode, TabOrder};
     pub use transitions::{TransitionAngle, TransitionStyle};
+    pub use xobject::DataSMaskUsage;
 }
 
 pub use content::Content;

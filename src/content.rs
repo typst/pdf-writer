@@ -1051,6 +1051,71 @@ impl BlendMode {
     }
 }
 
+/// Writer for a _soft mask dictionary_.
+///
+/// This struct is created by [`ExtGraphicsState::soft_mask`].
+pub struct SoftMask<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> SoftMask<'a> {
+    /// Create a new soft mask.
+    pub fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Mask"));
+        Self { dict }
+    }
+
+    /// `S`: Set the soft mask subtype. Required.
+    pub fn subtype(&mut self, subtype: MaskType) -> &mut Self {
+        self.pair(Name(b"S"), subtype.to_name());
+        self
+    }
+
+    /// `G`: Set the soft mask. Must be a transparency group XObject. The group
+    /// has to have a color space set in the `/CS` attribute if the mask subtype
+    /// is `Luminosity`. Required.
+    pub fn group(&mut self, group: Ref) -> &mut Self {
+        self.pair(Name(b"G"), group);
+        self
+    }
+
+    /// `BC`: Set the background color for the transparency group. Only
+    /// applicable if the mask subtype is `Luminosity`. Has to be set in the
+    /// group's color space.
+    pub fn backdrop(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"BC")).array().typed().items(color);
+        self
+    }
+
+    /// `TR`: A function that maps from the group's output values to the mask
+    /// opacity.
+    pub fn transfer_function(&mut self, function: Ref) -> &mut Self {
+        self.pair(Name(b"TR"), function);
+        self
+    }
+}
+
+deref!('a, SoftMask<'a> => Dict<'a>, dict);
+
+/// What property in the mask influences the target alpha.
+pub enum MaskType {
+    /// The alpha values from the mask are applied to the target.
+    Alpha,
+    /// A single-channel luminosity value is calculated for the colors in the
+    /// mask.
+    Luminosity,
+}
+
+impl MaskType {
+    fn to_name(&self) -> Name<'static> {
+        match self {
+            MaskType::Alpha => Name(b"Alpha"),
+            MaskType::Luminosity => Name(b"Luminosity"),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
