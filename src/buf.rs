@@ -27,6 +27,8 @@ impl BufExt for Vec<u8> {
         // Also, integer formatting is way faster.
         if value as i32 as f32 == value {
             self.push_int(value as i32);
+        } else if value.abs() < 0.00001 {
+            self.push_int(0);
         } else {
             self.push_decimal(value);
         }
