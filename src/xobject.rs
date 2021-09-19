@@ -184,16 +184,14 @@ impl<'a> Reference<'a> {
         Self { dict: obj.dict() }
     }
 
-    /// Write the `/F` attribute to set the file path. Directories are indicated
-    /// by `/`, independent of the platform. Required.
-    pub fn file(&mut self, file: Str) -> &mut Self {
-        self.pair(Name(b"F"), file);
-        self
+    /// Start writing the `/F` attribute to set a file specification dictionary. Required.
+    pub fn file(&mut self) -> FileSpec<'_> {
+        FileSpec::new(self.key(Name(b"F")))
     }
 
     /// Write the `/Page` attribute to set the page number. Setting the
     /// attribute through either this function or [`Self::page_label`] is
-    /// required.
+    /// required. Page indices start at 0.
     pub fn page_no(&mut self, page: i32) -> &mut Self {
         self.pair(Name(b"Page"), page);
         self

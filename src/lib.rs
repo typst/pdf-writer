@@ -99,7 +99,9 @@ mod xobject;
 /// Writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
+    pub use annotations::{
+        Action, Annotation, Annotations, BorderStyle, EmbedParams, EmbeddedFile, FileSpec,
+    };
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
     pub use content::{ExtGraphicsState, Operation, PositionedItems, ShowPositioned};
     pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
@@ -326,6 +328,11 @@ impl PdfWriter {
     pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
         ExtGraphicsState::new(self.indirect(id))
     }
+
+    /// Start writing a file specification dictionary.
+    pub fn file_spec(&mut self, id: Ref) -> FileSpec<'_> {
+        FileSpec::new(self.indirect(id))
+    }
 }
 
 /// Streams.
@@ -418,6 +425,11 @@ impl PdfWriter {
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
         PostScriptFunction::new(self.stream(id, code))
+    }
+
+    /// Start writing an embedded file stream.
+    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
+        EmbeddedFile::new(self.stream(id, bytes))
     }
 }
 
