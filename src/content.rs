@@ -811,7 +811,7 @@ impl Content {
     }
 }
 
-/// Additional parameters for the graphics state.
+/// Writer for a dictionary with _additional parameters for the graphics state._
 pub struct ExtGraphicsState<'a> {
     dict: Dict<'a>,
 }
@@ -1029,7 +1029,7 @@ pub enum BlendMode {
 }
 
 impl BlendMode {
-    fn to_name(&self) -> Name<'static> {
+    fn to_name(self) -> Name<'static> {
         match self {
             BlendMode::Normal => Name(b"Normal"),
             BlendMode::Multiply => Name(b"Multiply"),
@@ -1099,6 +1099,7 @@ impl<'a> SoftMask<'a> {
 deref!('a, SoftMask<'a> => Dict<'a>, dict);
 
 /// What property in the mask influences the target alpha.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum MaskType {
     /// The alpha values from the mask are applied to the target.
     Alpha,
@@ -1108,7 +1109,7 @@ pub enum MaskType {
 }
 
 impl MaskType {
-    fn to_name(&self) -> Name<'static> {
+    fn to_name(self) -> Name<'static> {
         match self {
             MaskType::Alpha => Name(b"Alpha"),
             MaskType::Luminosity => Name(b"Luminosity"),

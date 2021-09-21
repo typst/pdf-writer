@@ -77,7 +77,7 @@ impl<'a> Image<'a> {
     ///
     /// May only be used for images that use the `JPXDecode` filter. If set to
     /// something other than `Ignore`, the `SMask` attribute must not be used.
-    pub fn s_mask_in_data(&mut self, mode: DataSMaskUsage) -> &mut Self {
+    pub fn s_mask_in_data(&mut self, mode: SMaskInData) -> &mut Self {
         self.pair(Name(b"SMaskInData"), mode.to_int());
         self
     }
@@ -95,7 +95,7 @@ impl<'a> Image<'a> {
 deref!('a, Image<'a> => Stream<'a>, stream);
 
 /// What to do with mask information in `JPXDecode` images.
-pub enum DataSMaskUsage {
+pub enum SMaskInData {
     /// Discard the mask.
     Ignore,
     /// Use the mask.
@@ -105,7 +105,7 @@ pub enum DataSMaskUsage {
     Preblended,
 }
 
-impl DataSMaskUsage {
+impl SMaskInData {
     fn to_int(&self) -> i32 {
         match self {
             Self::Ignore => 0,
@@ -118,6 +118,9 @@ impl DataSMaskUsage {
 /// Writer for an _form XObject stream_. PDF 1.1+.
 ///
 /// This struct is created by [`PdfWriter::form_xobject`].
+///
+/// Note that these have nothing to do with forms that have fields to fill out.
+/// Rather, they are a way to encapsulate and reuse content across the file.
 pub struct FormXObject<'a> {
     stream: Stream<'a>,
 }
