@@ -112,6 +112,8 @@ fn test_primitive_objects() {
     test_primitive!(false, b"false");
     test_primitive!(78, b"78");
     test_primitive!(4.22, b"4.22");
+    test_primitive!(1.184e-7, b"0.0000001184");
+    test_primitive!(4.2e13, b"42000000000000");
     test_primitive!(Ref::new(7), b"7 0 R");
     test_primitive!(Null, b"null");
 

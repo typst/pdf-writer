@@ -53,6 +53,18 @@ impl<'a> Catalog<'a> {
     pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
         ViewerPreferences::new(self.key(Name(b"ViewerPreferences")))
     }
+
+    /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
+    pub fn page_labels(&mut self) -> PageLabels<'_> {
+        PageLabels::new(self.key(Name(b"PageLabels")))
+    }
+
+    /// Write the `/Lang` attribute to specify the language of the document as a
+    /// RFC 3066 language tag. PDF 1.4+.
+    pub fn lang(&mut self, lang: TextStr) -> &mut Self {
+        self.pair(Name(b"Lang"), lang);
+        self
+    }
 }
 
 deref!('a, Catalog<'a> => Dict<'a>, dict);
@@ -258,9 +270,69 @@ impl<'a> Resources<'a> {
     pub fn ext_g_states(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"ExtGState")).dict().typed()
     }
+
+    /// Set the `/ProcSet` attribute.
+    ///
+    /// This determines what procedure sets are sent to an output device when
+    /// printing the file as PostScript. The attribute is only used for PDFs
+    /// with versions below 1.4.
+    pub fn proc_sets(&mut self, sets: impl IntoIterator<Item = ProcSet>) -> &mut Self {
+        self.key(Name(b"ProcSet"))
+            .array()
+            .typed()
+            .items(sets.into_iter().map(ProcSet::to_name));
+        self
+    }
+
+    /// Set the `/ProcSet` attribute to all available procedure sets.
+    ///
+    /// This determines what procedure sets are sent to an output device when
+    /// printing the file as PostScript. The attribute is only used for PDFs
+    /// with versions below 1.4. The PDF 1.7 specification recommends that
+    /// modern PDFs either omit the attribute or specify all available procedure
+    /// sets, as this function does.
+    pub fn all_proc_sets(&mut self) -> &mut Self {
+        self.proc_sets([
+            ProcSet::Pdf,
+            ProcSet::Text,
+            ProcSet::ImageGrayscale,
+            ProcSet::ImageColor,
+            ProcSet::ImageIndexed,
+        ])
+    }
 }
 
 deref!('a, Resources<'a> => Dict<'a>, dict);
+
+/// What procedure sets to send to a PostScript printer or other output device.
+///
+/// This enumeration provides compatibilty for printing PDFs of versions 1.3 and
+/// below.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum ProcSet {
+    /// Painting and graphics state.
+    Pdf,
+    /// Text.
+    Text,
+    /// Grayscale images and masks.
+    ImageGrayscale,
+    /// Color images.
+    ImageColor,
+    /// Images with color tables.
+    ImageIndexed,
+}
+
+impl ProcSet {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            ProcSet::Pdf => Name(b"PDF"),
+            ProcSet::Text => Name(b"Text"),
+            ProcSet::ImageGrayscale => Name(b"ImageB"),
+            ProcSet::ImageColor => Name(b"ImageC"),
+            ProcSet::ImageIndexed => Name(b"ImageI"),
+        }
+    }
+}
 
 /// How the viewer should lay out the pages in the document.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -661,6 +733,221 @@ impl TabOrder {
             Self::RowOrder => Name(b"R"),
             Self::ColumnOrder => Name(b"C"),
             Self::StructureOrder => Name(b"S"),
+        }
+    }
+}
+
+/// Writer for a _document information dictionary_.
+///
+/// This struct is created by [`PdfWriter::document_info`].
+pub struct DocumentInfo<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> DocumentInfo<'a> {
+    /// Create a document information writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
+    pub fn title(&mut self, title: TextStr) -> &mut Self {
+        self.pair(Name(b"Title"), title);
+        self
+    }
+
+    /// Write the `/Author` attribute to set the document's author.
+    pub fn author(&mut self, author: TextStr) -> &mut Self {
+        self.pair(Name(b"Author"), author);
+        self
+    }
+
+    /// Write the `/Subject` attribute to set the document's subject. PDF 1.1+.
+    pub fn subject(&mut self, subject: TextStr) -> &mut Self {
+        self.pair(Name(b"Subject"), subject);
+        self
+    }
+
+    /// Write the `/Keywords` attribute to set terms associated to the document.
+    /// PDF 1.1+.
+    pub fn keywords(&mut self, keywords: TextStr) -> &mut Self {
+        self.pair(Name(b"Keywords"), keywords);
+        self
+    }
+
+    /// Write the `/Creator` attribute to set the name of the product that
+    /// converted or wrote the file that this PDF has been converted from.
+    pub fn creator(&mut self, creator: TextStr) -> &mut Self {
+        self.pair(Name(b"Creator"), creator);
+        self
+    }
+
+    /// Write the `/Producer` attribute to set the name of the product that
+    /// converted or wrote this PDF.
+    pub fn producer(&mut self, producer: TextStr) -> &mut Self {
+        self.pair(Name(b"Producer"), producer);
+        self
+    }
+
+    /// Write the `/CreationDate` attribute to set the date the document was
+    /// created.
+    pub fn creation_date(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"CreationDate"), date);
+        self
+    }
+
+    /// Write the `/ModDate` attribute to set the date the document was last
+    /// modified.
+    ///
+    /// Required if `/PieceInfo` is set in the document catalog.
+    pub fn modified_date(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"ModDate"), date);
+        self
+    }
+
+    /// Write the `/Trapped` attribute to set whether the document is fully or
+    /// partially trapped. PDF 1.3+.
+    pub fn trapped(&mut self, trapped: TrappingStatus) -> &mut Self {
+        self.pair(Name(b"Trapped"), trapped.to_name());
+        self
+    }
+}
+
+deref!('a, DocumentInfo<'a> => Dict<'a>, dict);
+
+/// Whether a document has been adjusted with traps to account for colorant
+/// misregistration during the printing process.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TrappingStatus {
+    /// The document is fully trapped.
+    Trapped,
+    /// The document has not been trapped.
+    NotTrapped,
+    /// The document is partially trapped or the trapping status is unknown.
+    Unknown,
+}
+
+impl TrappingStatus {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            TrappingStatus::Trapped => Name(b"True"),
+            TrappingStatus::NotTrapped => Name(b"False"),
+            TrappingStatus::Unknown => Name(b"Unknown"),
+        }
+    }
+}
+
+/// Writer for the _page label number tree._
+///
+/// This struct is created by [`Catalog::page_labels`].
+pub struct PageLabels<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> PageLabels<'a> {
+    /// Create a page label number tree writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Start writing the labelling style number tree.
+    ///
+    /// This method may only be called once.
+    pub fn start(&mut self) -> PageLabelEntry<'_> {
+        PageLabelEntry::new(self.key(Name(b"Names")))
+    }
+}
+
+deref!('a, PageLabels<'a> => Dict<'a>, dict);
+
+/// Writer for a _page label array entry._
+///
+/// This struct is created by [`PageLabels::start`].
+pub struct PageLabelEntry<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> PageLabelEntry<'a> {
+    /// Create a page label array entry writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { array: obj.array() }
+    }
+
+    /// Start writing the labelling style for a set of pages, starting at a
+    /// given index. Indices start at `0`. This method must be called in
+    /// ascending index order.
+    pub fn style(&mut self, index: i32) -> PageLabel<'_> {
+        self.item(index);
+        PageLabel::new(self.obj())
+    }
+}
+
+deref!('a, PageLabelEntry<'a> => Array<'a>, array);
+
+/// Writer for a _page label dictionary_.
+///
+/// This struct is created by [`PageLabelEntry::style`].
+pub struct PageLabel<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> PageLabel<'a> {
+    /// Create a page label writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"PageLabel"));
+        Self { dict }
+    }
+
+    /// Write the `/S` attribute to set the page label's numbering style.
+    ///
+    /// If this attribute is omitted, only the prefix will be used, there will
+    /// be no page number.
+    pub fn style(&mut self, style: NumberingStyle) -> &mut Self {
+        self.pair(Name(b"S"), style.to_name());
+        self
+    }
+
+    /// Write the `/P` attribute to set the page label's prefix.
+    pub fn prefix(&mut self, prefix: TextStr) -> &mut Self {
+        self.pair(Name(b"P"), prefix);
+        self
+    }
+
+    /// Write the `/St` attribute to set the page label's offset.
+    ///
+    /// This must be greater or equal to `1` if set.
+    pub fn offset(&mut self, offset: i32) -> &mut Self {
+        self.pair(Name(b"St"), offset);
+        self
+    }
+}
+
+deref!('a, PageLabel<'a> => Dict<'a>, dict);
+
+/// The numbering style of a page label.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum NumberingStyle {
+    /// Arabic numerals.
+    Arabic,
+    /// Lowercase Roman numerals.
+    LowerRoman,
+    /// Uppercase Roman numerals.
+    UpperRoman,
+    /// Lowercase letters (a-z, then aa-zz, ...).
+    LowerAlpha,
+    /// Uppercase letters (A-Z, then AA-ZZ, ...).
+    UpperAlpha,
+}
+
+impl NumberingStyle {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            NumberingStyle::Arabic => Name(b"D"),
+            NumberingStyle::LowerRoman => Name(b"r"),
+            NumberingStyle::UpperRoman => Name(b"R"),
+            NumberingStyle::LowerAlpha => Name(b"a"),
+            NumberingStyle::UpperAlpha => Name(b"A"),
         }
     }
 }

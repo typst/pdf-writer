@@ -440,7 +440,8 @@ impl HighlightEffect {
 
 /// Writer for a _file specification dictionary_.
 ///
-/// This struct is created by [`Annotation::file`] and [`Action::file`].
+/// This struct is created by [`PdfWriter::file_spec`], [`Annotation::file`],
+/// [`Reference::file`], and [`Action::file`].
 pub struct FileSpec<'a> {
     dict: Dict<'a>,
 }
@@ -486,9 +487,90 @@ impl<'a> FileSpec<'a> {
         self.pair(Name(b"Desc"), desc);
         self
     }
+
+    /// Write the `/EF` attribute to reference an embedded file. PDF 1.3+.
+    pub fn embedded_file(&mut self, reference: Ref) -> &mut Self {
+        self.key(Name(b"EF")).dict().pair(Name(b"F"), reference);
+        self
+    }
 }
 
 deref!('a, FileSpec<'a> => Dict<'a>, dict);
+
+/// Writer for a _embedded file stream_.
+///
+/// This struct is created by [`PdfWriter::embedded_file`].
+pub struct EmbeddedFile<'a> {
+    stream: Stream<'a>,
+}
+
+impl<'a> EmbeddedFile<'a> {
+    /// Create a new embedded file writer.
+    pub fn new(mut stream: Stream<'a>) -> Self {
+        stream.pair(Name(b"Type"), Name(b"EmbeddedFile"));
+        Self { stream }
+    }
+
+    /// Write the `/Subtype` attribute to set the file type.
+    ///
+    /// This can either be a MIME type or a name prefixed by a first class PDF
+    /// prefix. Note that special characters must be encoded as described in
+    /// section 7.3.5 of the PDF 1.7 specification, e.g. `image/svg+xml` would
+    /// become `Name(b"image#2Fsvg+xml")`.
+    pub fn subtype(&mut self, subtype: Name) -> &mut Self {
+        self.pair(Name(b"Subtype"), subtype);
+        self
+    }
+
+    /// Start writing the `/Params` dictionary.
+    pub fn params(&mut self) -> EmbedParams<'_> {
+        EmbedParams::new(self.key(Name(b"Params")))
+    }
+}
+
+deref!('a, EmbeddedFile<'a> => Stream<'a>, stream);
+
+/// Writer for a _embedded file parameter dictionary_.
+///
+/// This struct is created by [`EmbeddedFile::params`].
+pub struct EmbedParams<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> EmbedParams<'a> {
+    /// Create a new embedded file parameter writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Write the `/Size` attribute to set the uncompressed file size in bytes.
+    pub fn size(&mut self, size: i32) -> &mut Self {
+        self.pair(Name(b"Size"), size);
+        self
+    }
+
+    /// Write the `/CreationDate` attribute to set the file creation date.
+    pub fn creation_date(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"CreationDate"), date);
+        self
+    }
+
+    /// Write the `/ModDate` attribute to set the file modification date.
+    pub fn mod_date(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"ModDate"), date);
+        self
+    }
+
+    /// Write the `/CheckSum` attribute to set the file checksum.
+    ///
+    /// The checksum shall be a 16-byte MD5 string.
+    pub fn checksum(&mut self, checksum: Str) -> &mut Self {
+        self.pair(Name(b"CheckSum"), checksum);
+        self
+    }
+}
+
+deref!('a, EmbedParams<'a> => Dict<'a>, dict);
 
 /// Writer for an _border style dictionary_.
 ///

@@ -35,7 +35,17 @@ impl BufExt for Vec<u8> {
     /// Like `push_float`, but forces the decimal point.
     #[inline]
     fn push_decimal(&mut self, value: f32) {
-        self.extend(ryu::Buffer::new().format(value).as_bytes());
+        if value == 0.0 || (value.abs() > 1e-6 && value.abs() < 1e12) {
+            self.extend(ryu::Buffer::new().format(value).as_bytes());
+        } else {
+            #[inline(never)]
+            fn write_extreme(buf: &mut Vec<u8>, value: f32) {
+                use std::io::Write;
+                write!(buf, "{}", value).unwrap();
+            }
+
+            write_extreme(self, value);
+        }
     }
 
     #[inline]

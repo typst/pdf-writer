@@ -99,16 +99,20 @@ mod xobject;
 /// Writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use annotations::{Action, Annotation, Annotations, BorderStyle, FileSpec};
+    pub use annotations::{
+        Action, Annotation, Annotations, BorderStyle, EmbedParams, EmbeddedFile, FileSpec,
+    };
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
-    pub use content::{ExtGraphicsState, Operation, PositionedItems, ShowPositioned};
+    pub use content::{
+        ExtGraphicsState, Operation, PositionedItems, ShowPositioned, SoftMask,
+    };
     pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
     pub use structure::{
-        Catalog, Destination, Destinations, Outline, OutlineItem, Page, Pages, Resources,
-        ViewerPreferences,
+        Catalog, Destination, Destinations, DocumentInfo, Outline, OutlineItem, Page,
+        PageLabel, PageLabelEntry, PageLabels, Pages, Resources, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, Image, Reference};
@@ -122,11 +126,17 @@ pub mod types {
         HighlightEffect,
     };
     pub use color::{ColorSpace, PaintType, ShadingType, TilingType};
-    pub use content::{LineCapStyle, LineJoinStyle, RenderingIntent, TextRenderingMode};
+    pub use content::{
+        LineCapStyle, LineJoinStyle, MaskType, RenderingIntent, TextRenderingMode,
+    };
     pub use font::{CidFontType, FontFlags, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
-    pub use structure::{Direction, OutlineItemFlags, PageLayout, PageMode, TabOrder};
+    pub use structure::{
+        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, ProcSet,
+        TabOrder, TrappingStatus,
+    };
     pub use transitions::{TransitionAngle, TransitionStyle};
+    pub use xobject::SMaskInData;
 }
 
 pub use content::Content;
@@ -145,6 +155,7 @@ use writers::*;
 pub struct PdfWriter {
     buf: Vec<u8>,
     offsets: Vec<(Ref, usize)>,
+    info_ref: Option<Ref>,
 }
 
 /// Core methods.
@@ -159,7 +170,7 @@ impl PdfWriter {
     pub fn with_capacity(capacity: usize) -> Self {
         let mut buf = Vec::with_capacity(capacity);
         buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
-        Self { buf, offsets: vec![] }
+        Self { buf, offsets: vec![], info_ref: None }
     }
 
     /// Set the PDF version.
@@ -235,10 +246,17 @@ impl PdfWriter {
         // Write the trailer dictionary.
         self.buf.extend(b"trailer\n");
 
-        Obj::direct(&mut self.buf, 0)
-            .dict()
+        let mut trailing_dict = Obj::direct(&mut self.buf, 0).dict();
+
+        trailing_dict
             .pair(Name(b"Size"), xref_len)
             .pair(Name(b"Root"), catalog_id);
+
+        if let Some(info_ref) = self.info_ref {
+            trailing_dict.pair(Name(b"Info"), info_ref);
+        }
+
+        trailing_dict.finish();
 
         // Write where the cross-reference table starts.
         self.buf.extend(b"\nstartxref\n");
@@ -326,6 +344,22 @@ impl PdfWriter {
     pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
         ExtGraphicsState::new(self.indirect(id))
     }
+
+    /// Start writing a file specification dictionary.
+    pub fn file_spec(&mut self, id: Ref) -> FileSpec<'_> {
+        FileSpec::new(self.indirect(id))
+    }
+
+    /// Start writing a document information dictionary.
+    ///
+    /// This will also register the document information dictionary with the
+    /// file trailer so it becomes referenced. The reference will be overwritten
+    /// if the method is called multiple times but the indirect object remains
+    /// in the file.
+    pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
+        self.info_ref = Some(id);
+        DocumentInfo::new(self.indirect(id))
+    }
 }
 
 /// Streams.
@@ -385,6 +419,10 @@ impl PdfWriter {
     /// Start writing an form XObject stream.
     ///
     /// These can be used as transparency groups.
+    ///
+    /// Note that these have nothing to do with forms that have fields to fill
+    /// out. Rather, they are a way to encapsulate and reuse content across the
+    /// file.
     pub fn form_xobject<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> FormXObject<'a> {
         FormXObject::new(self.stream(id, data))
     }
@@ -418,6 +456,11 @@ impl PdfWriter {
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
         PostScriptFunction::new(self.stream(id, code))
+    }
+
+    /// Start writing an embedded file stream.
+    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
+        EmbeddedFile::new(self.stream(id, bytes))
     }
 }
 
