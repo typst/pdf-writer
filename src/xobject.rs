@@ -94,14 +94,14 @@ impl<'a> Image<'a> {
 
 deref!('a, Image<'a> => Stream<'a>, stream);
 
-/// What to do with mask information in `JPXDecode` images.
+/// What to do with in-data mask information in `JPXDecode` images.
 pub enum SMaskInData {
-    /// Discard the mask.
+    /// Discard the mask data.
     Ignore,
-    /// Use the mask.
+    /// Use the mask data.
     Use,
-    /// Use the mask on the image whose backdrop has been pre-blended with a
-    /// matte color.
+    /// Use the mask data on the image whose backdrop has been pre-blended with
+    /// a matte color.
     Preblended,
 }
 
@@ -249,7 +249,8 @@ impl<'a> Reference<'a> {
         Self { dict: obj.dict() }
     }
 
-    /// Start writing the `/F` attribute to set a file specification dictionary. Required.
+    /// Start writing the `/F` attribute to set a file specification dictionary.
+    /// Required.
     pub fn file(&mut self) -> FileSpec<'_> {
         FileSpec::new(self.key(Name(b"F")))
     }
@@ -257,13 +258,13 @@ impl<'a> Reference<'a> {
     /// Write the `/Page` attribute to set the page number. Setting the
     /// attribute through either this function or [`Self::page_label`] is
     /// required. Page indices start at 0.
-    pub fn page_no(&mut self, page: i32) -> &mut Self {
+    pub fn page_number(&mut self, page: i32) -> &mut Self {
         self.pair(Name(b"Page"), page);
         self
     }
 
     /// Write the `/Page` attribute to set the page label. Setting the attribute
-    /// through either this function or [`Self::page_no`] is required.
+    /// through either this function or [`Self::page_number`] is required.
     pub fn page_label(&mut self, label: TextStr) -> &mut Self {
         self.pair(Name(b"Page"), label);
         self

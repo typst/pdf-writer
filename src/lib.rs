@@ -89,6 +89,7 @@ mod annotations;
 mod buf;
 mod color;
 mod content;
+mod files;
 mod font;
 mod functions;
 mod object;
@@ -99,13 +100,12 @@ mod xobject;
 /// Writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use annotations::{
-        Action, Annotation, Annotations, BorderStyle, EmbedParams, EmbeddedFile, FileSpec,
-    };
+    pub use annotations::{Action, Annotation, Annotations, BorderStyle};
     pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
     pub use content::{
         ExtGraphicsState, Operation, PositionedItems, ShowPositioned, SoftMask,
     };
+    pub use files::{EmbedParams, EmbeddedFile, FileSpec};
     pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
@@ -280,6 +280,17 @@ impl PdfWriter {
         Catalog::new(self.indirect(id))
     }
 
+    /// Start writing a document information dictionary.
+    ///
+    /// This will also register the document information dictionary with the
+    /// file trailer so it becomes referenced. The reference will be overwritten
+    /// if the method is called multiple times but the indirect object remains
+    /// in the file.
+    pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
+        self.info_ref = Some(id);
+        DocumentInfo::new(self.indirect(id))
+    }
+
     /// Start writing a page tree.
     pub fn pages(&mut self, id: Ref) -> Pages<'_> {
         Pages::new(self.indirect(id))
@@ -344,22 +355,6 @@ impl PdfWriter {
     pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
         ExtGraphicsState::new(self.indirect(id))
     }
-
-    /// Start writing a file specification dictionary.
-    pub fn file_spec(&mut self, id: Ref) -> FileSpec<'_> {
-        FileSpec::new(self.indirect(id))
-    }
-
-    /// Start writing a document information dictionary.
-    ///
-    /// This will also register the document information dictionary with the
-    /// file trailer so it becomes referenced. The reference will be overwritten
-    /// if the method is called multiple times but the indirect object remains
-    /// in the file.
-    pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
-        self.info_ref = Some(id);
-        DocumentInfo::new(self.indirect(id))
-    }
 }
 
 /// Streams.
@@ -400,14 +395,6 @@ impl PdfWriter {
         Stream::new(self.indirect(id), data.into())
     }
 
-    /// Start writing a character map stream.
-    ///
-    /// If you want to use this for a `/ToUnicode` CMap, you can create the
-    /// bytes using a [`UnicodeCmap`] builder.
-    pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
-        Cmap::new(self.stream(id, cmap))
-    }
-
     /// Start writing an XObject image stream.
     ///
     /// The samples should be encoded according to the stream's filter, color
@@ -425,6 +412,19 @@ impl PdfWriter {
     /// file.
     pub fn form_xobject<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> FormXObject<'a> {
         FormXObject::new(self.stream(id, data))
+    }
+
+    /// Start writing an embedded file stream.
+    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
+        EmbeddedFile::new(self.stream(id, bytes))
+    }
+
+    /// Start writing a character map stream.
+    ///
+    /// If you want to use this for a `/ToUnicode` CMap, you can create the
+    /// bytes using a [`UnicodeCmap`] builder.
+    pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
+        Cmap::new(self.stream(id, cmap))
     }
 
     /// Start writing a tiling pattern stream.
@@ -456,11 +456,6 @@ impl PdfWriter {
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
         PostScriptFunction::new(self.stream(id, code))
-    }
-
-    /// Start writing an embedded file stream.
-    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
-        EmbeddedFile::new(self.stream(id, bytes))
     }
 }
 

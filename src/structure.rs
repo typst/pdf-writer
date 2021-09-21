@@ -69,6 +69,364 @@ impl<'a> Catalog<'a> {
 
 deref!('a, Catalog<'a> => Dict<'a>, dict);
 
+/// How the viewer should lay out the pages in the document.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum PageLayout {
+    /// Only a single page at a time.
+    SinglePage,
+    /// A single, continously scrolling column of pages.
+    OneColumn,
+    /// Two continously scrolling columns of pages, laid out with odd-numbered
+    /// pages on the left.
+    TwoColumnLeft,
+    /// Two continously scrolling columns of pages, laid out with odd-numbered
+    /// pages on the right (like in a left-bound book).
+    TwoColumnRight,
+    /// Only two pages are visible at a time, laid out with odd-numbered pages
+    /// on the left. PDF 1.5+.
+    TwoPageLeft,
+    /// Only two pages are visible at a time, laid out with odd-numbered pages
+    /// on the right (like in a left-bound book). PDF 1.5+.
+    TwoPageRight,
+}
+
+impl PageLayout {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::SinglePage => Name(b"SinglePage"),
+            Self::OneColumn => Name(b"OneColumn"),
+            Self::TwoColumnLeft => Name(b"TwoColumnLeft"),
+            Self::TwoColumnRight => Name(b"TwoColumnRight"),
+            Self::TwoPageLeft => Name(b"TwoPageLeft"),
+            Self::TwoPageRight => Name(b"TwoPageRight"),
+        }
+    }
+}
+
+/// Elements of the viewer chrome that should be visible when opening the
+/// document.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum PageMode {
+    /// Neither the document outline panel nor a panel with page preview images
+    /// are visible.
+    UseNone,
+    /// The document outline panel is visible.
+    UseOutlines,
+    /// A panel with page preview images is visible.
+    UseThumbs,
+    /// Show the document page in full screen mode, with no chrome.
+    FullScreen,
+}
+
+impl PageMode {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::UseNone => Name(b"UseNone"),
+            Self::UseOutlines => Name(b"UseOutlines"),
+            Self::UseThumbs => Name(b"UseThumbs"),
+            Self::FullScreen => Name(b"FullScreen"),
+        }
+    }
+}
+
+/// Writer for a _viewer preference dictionary_.
+///
+/// This struct is created by [`Catalog::viewer_preferences`].
+pub struct ViewerPreferences<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> ViewerPreferences<'a> {
+    /// Create a new viewer preference writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Write the `/HideToolbar` attribute to set whether the viewer should hide
+    /// its toolbars while the document is open.
+    pub fn hide_toolbar(&mut self, hide: bool) -> &mut Self {
+        self.pair(Name(b"HideToolbar"), hide);
+        self
+    }
+
+    /// Write the `/HideMenubar` attribute to set whether the viewer should hide
+    /// its menu bar while the document is open.
+    pub fn hide_menubar(&mut self, hide: bool) -> &mut Self {
+        self.pair(Name(b"HideMenubar"), hide);
+        self
+    }
+
+    /// Write the `/FitWindow` attribute to set whether the viewer should resize
+    /// its window to the size of the first page.
+    pub fn fit_window(&mut self, fit: bool) -> &mut Self {
+        self.pair(Name(b"FitWindow"), fit);
+        self
+    }
+
+    /// Write the `/CenterWindow` attribute to set whether the viewer should
+    /// center its window on the screen.
+    pub fn center_window(&mut self, center: bool) -> &mut Self {
+        self.pair(Name(b"CenterWindow"), center);
+        self
+    }
+
+    /// Write the `/NonFullScreenPageMode` attribute to set which chrome
+    /// elements the viewer should show for a document which requests full
+    /// screen rendering in its catalog when it is not shown in full screen
+    /// mode.
+    ///
+    /// Panics if `mode` is [`PageMode::FullScreen`].
+    pub fn non_full_screen_page_mode(&mut self, mode: PageMode) -> &mut Self {
+        assert!(mode != PageMode::FullScreen, "mode must not full screen");
+        self.pair(Name(b"NonFullScreenPageMode"), mode.to_name());
+        self
+    }
+
+    /// Write the `/Direction` attribute to aid the viewer in how to lay out the
+    /// pages visually. PDF 1.3+.
+    pub fn direction(&mut self, dir: Direction) -> &mut Self {
+        self.pair(Name(b"Direction"), dir.to_name());
+        self
+    }
+}
+
+deref!('a, ViewerPreferences<'a> => Dict<'a>, dict);
+
+/// Predominant reading order of text.
+///
+/// Used to aid the viewer with the spacial ordering in which to display pages.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum Direction {
+    /// Left-to-right.
+    L2R,
+    /// Right-to-left as well as vertical writing systems.
+    R2L,
+}
+
+impl Direction {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::L2R => Name(b"L2R"),
+            Self::R2L => Name(b"R2L"),
+        }
+    }
+}
+
+/// Writer for the _page label number tree._
+///
+/// This struct is created by [`Catalog::page_labels`].
+pub struct PageLabels<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> PageLabels<'a> {
+    /// Create a page label number tree writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Start writing the labelling style number tree.
+    ///
+    /// This method may only be called once.
+    pub fn start(&mut self) -> PageLabelEntry<'_> {
+        PageLabelEntry::new(self.key(Name(b"Names")))
+    }
+}
+
+deref!('a, PageLabels<'a> => Dict<'a>, dict);
+
+/// Writer for a _page label array entry._
+///
+/// This struct is created by [`PageLabels::start`].
+pub struct PageLabelEntry<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> PageLabelEntry<'a> {
+    /// Create a page label array entry writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { array: obj.array() }
+    }
+
+    /// Start writing the labelling style for a set of pages, starting at a
+    /// given index. Indices start at `0`. This method must be called in
+    /// ascending index order.
+    pub fn style(&mut self, index: i32) -> PageLabel<'_> {
+        self.item(index);
+        PageLabel::new(self.obj())
+    }
+}
+
+deref!('a, PageLabelEntry<'a> => Array<'a>, array);
+
+/// Writer for a _page label dictionary_.
+///
+/// This struct is created by [`PageLabelEntry::style`].
+pub struct PageLabel<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> PageLabel<'a> {
+    /// Create a page label writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"PageLabel"));
+        Self { dict }
+    }
+
+    /// Write the `/S` attribute to set the page label's numbering style.
+    ///
+    /// If this attribute is omitted, only the prefix will be used, there will
+    /// be no page number.
+    pub fn style(&mut self, style: NumberingStyle) -> &mut Self {
+        self.pair(Name(b"S"), style.to_name());
+        self
+    }
+
+    /// Write the `/P` attribute to set the page label's prefix.
+    pub fn prefix(&mut self, prefix: TextStr) -> &mut Self {
+        self.pair(Name(b"P"), prefix);
+        self
+    }
+
+    /// Write the `/St` attribute to set the page label's offset.
+    ///
+    /// This must be greater or equal to `1` if set.
+    pub fn offset(&mut self, offset: i32) -> &mut Self {
+        self.pair(Name(b"St"), offset);
+        self
+    }
+}
+
+deref!('a, PageLabel<'a> => Dict<'a>, dict);
+
+/// The numbering style of a page label.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum NumberingStyle {
+    /// Arabic numerals.
+    Arabic,
+    /// Lowercase Roman numerals.
+    LowerRoman,
+    /// Uppercase Roman numerals.
+    UpperRoman,
+    /// Lowercase letters (a-z, then aa-zz, ...).
+    LowerAlpha,
+    /// Uppercase letters (A-Z, then AA-ZZ, ...).
+    UpperAlpha,
+}
+
+impl NumberingStyle {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            NumberingStyle::Arabic => Name(b"D"),
+            NumberingStyle::LowerRoman => Name(b"r"),
+            NumberingStyle::UpperRoman => Name(b"R"),
+            NumberingStyle::LowerAlpha => Name(b"a"),
+            NumberingStyle::UpperAlpha => Name(b"A"),
+        }
+    }
+}
+
+/// Writer for a _document information dictionary_.
+///
+/// This struct is created by [`PdfWriter::document_info`].
+pub struct DocumentInfo<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> DocumentInfo<'a> {
+    /// Create a document information writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+
+    /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
+    pub fn title(&mut self, title: TextStr) -> &mut Self {
+        self.pair(Name(b"Title"), title);
+        self
+    }
+
+    /// Write the `/Author` attribute to set the document's author.
+    pub fn author(&mut self, author: TextStr) -> &mut Self {
+        self.pair(Name(b"Author"), author);
+        self
+    }
+
+    /// Write the `/Subject` attribute to set the document's subject. PDF 1.1+.
+    pub fn subject(&mut self, subject: TextStr) -> &mut Self {
+        self.pair(Name(b"Subject"), subject);
+        self
+    }
+
+    /// Write the `/Keywords` attribute to set terms associated to the document.
+    /// PDF 1.1+.
+    pub fn keywords(&mut self, keywords: TextStr) -> &mut Self {
+        self.pair(Name(b"Keywords"), keywords);
+        self
+    }
+
+    /// Write the `/Creator` attribute to set the name of the product that
+    /// converted or wrote the file that this PDF has been converted from.
+    pub fn creator(&mut self, creator: TextStr) -> &mut Self {
+        self.pair(Name(b"Creator"), creator);
+        self
+    }
+
+    /// Write the `/Producer` attribute to set the name of the product that
+    /// converted or wrote this PDF.
+    pub fn producer(&mut self, producer: TextStr) -> &mut Self {
+        self.pair(Name(b"Producer"), producer);
+        self
+    }
+
+    /// Write the `/CreationDate` attribute to set the date the document was
+    /// created.
+    pub fn creation_date(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"CreationDate"), date);
+        self
+    }
+
+    /// Write the `/ModDate` attribute to set the date the document was last
+    /// modified.
+    ///
+    /// Required if `/PieceInfo` is set in the document catalog.
+    pub fn modified_date(&mut self, date: Date) -> &mut Self {
+        self.pair(Name(b"ModDate"), date);
+        self
+    }
+
+    /// Write the `/Trapped` attribute to set whether the document is fully or
+    /// partially trapped. PDF 1.3+.
+    pub fn trapped(&mut self, trapped: TrappingStatus) -> &mut Self {
+        self.pair(Name(b"Trapped"), trapped.to_name());
+        self
+    }
+}
+
+deref!('a, DocumentInfo<'a> => Dict<'a>, dict);
+
+/// Whether a document has been adjusted with traps to account for colorant
+/// misregistration during the printing process.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TrappingStatus {
+    /// The document is fully trapped.
+    Trapped,
+    /// The document has not been trapped.
+    NotTrapped,
+    /// The document is partially trapped or the trapping status is unknown.
+    Unknown,
+}
+
+impl TrappingStatus {
+    fn to_name(self) -> Name<'static> {
+        match self {
+            TrappingStatus::Trapped => Name(b"True"),
+            TrappingStatus::NotTrapped => Name(b"False"),
+            TrappingStatus::Unknown => Name(b"Unknown"),
+        }
+    }
+}
+
 /// Writer for a _page tree dictionary_.
 ///
 /// This struct is created by [`PdfWriter::pages`].
@@ -334,66 +692,6 @@ impl ProcSet {
     }
 }
 
-/// How the viewer should lay out the pages in the document.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum PageLayout {
-    /// Only a single page at a time.
-    SinglePage,
-    /// A single, continously scrolling column of pages.
-    OneColumn,
-    /// Two continously scrolling columns of pages, laid out with odd-numbered
-    /// pages on the left.
-    TwoColumnLeft,
-    /// Two continously scrolling columns of pages, laid out with odd-numbered
-    /// pages on the right (like in a left-bound book).
-    TwoColumnRight,
-    /// Only two pages are visible at a time, laid out with odd-numbered pages
-    /// on the left. PDF 1.5+.
-    TwoPageLeft,
-    /// Only two pages are visible at a time, laid out with odd-numbered pages
-    /// on the right (like in a left-bound book). PDF 1.5+.
-    TwoPageRight,
-}
-
-impl PageLayout {
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::SinglePage => Name(b"SinglePage"),
-            Self::OneColumn => Name(b"OneColumn"),
-            Self::TwoColumnLeft => Name(b"TwoColumnLeft"),
-            Self::TwoColumnRight => Name(b"TwoColumnRight"),
-            Self::TwoPageLeft => Name(b"TwoPageLeft"),
-            Self::TwoPageRight => Name(b"TwoPageRight"),
-        }
-    }
-}
-
-/// Elements of the viewer chrome that should be visible when opening the
-/// document.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum PageMode {
-    /// Neither the document outline panel nor a panel with page preview images
-    /// are visible.
-    UseNone,
-    /// The document outline panel is visible.
-    UseOutlines,
-    /// A panel with page preview images is visible.
-    UseThumbs,
-    /// Show the document page in full screen mode, with no chrome.
-    FullScreen,
-}
-
-impl PageMode {
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::UseNone => Name(b"UseNone"),
-            Self::UseOutlines => Name(b"UseOutlines"),
-            Self::UseThumbs => Name(b"UseThumbs"),
-            Self::FullScreen => Name(b"FullScreen"),
-        }
-    }
-}
-
 /// Writer for an _outline dictionary_.
 ///
 /// This struct is created by [`PdfWriter::outline`].
@@ -635,89 +933,6 @@ impl<'a> Destination<'a> {
 
 deref!('a, Destination<'a> => Array<'a>, array);
 
-/// Writer for a _viewer preference dictionary_.
-///
-/// This struct is created by [`Catalog::viewer_preferences`].
-pub struct ViewerPreferences<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> ViewerPreferences<'a> {
-    /// Create a new viewer preference writer.
-    pub fn new(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-
-    /// Write the `/HideToolbar` attribute to set whether the viewer should hide
-    /// its toolbars while the document is open.
-    pub fn hide_toolbar(&mut self, hide: bool) -> &mut Self {
-        self.pair(Name(b"HideToolbar"), hide);
-        self
-    }
-
-    /// Write the `/HideMenubar` attribute to set whether the viewer should hide
-    /// its menu bar while the document is open.
-    pub fn hide_menubar(&mut self, hide: bool) -> &mut Self {
-        self.pair(Name(b"HideMenubar"), hide);
-        self
-    }
-
-    /// Write the `/FitWindow` attribute to set whether the viewer should resize
-    /// its window to the size of the first page.
-    pub fn fit_window(&mut self, fit: bool) -> &mut Self {
-        self.pair(Name(b"FitWindow"), fit);
-        self
-    }
-
-    /// Write the `/CenterWindow` attribute to set whether the viewer should
-    /// center its window on the screen.
-    pub fn center_window(&mut self, center: bool) -> &mut Self {
-        self.pair(Name(b"CenterWindow"), center);
-        self
-    }
-
-    /// Write the `/NonFullScreenPageMode` attribute to set which chrome
-    /// elements the viewer should show for a document which requests full
-    /// screen rendering in its catalog when it is not shown in full screen
-    /// mode.
-    ///
-    /// Panics if `mode` is [`PageMode::FullScreen`].
-    pub fn non_full_screen_page_mode(&mut self, mode: PageMode) -> &mut Self {
-        assert!(mode != PageMode::FullScreen, "mode must not full screen");
-        self.pair(Name(b"NonFullScreenPageMode"), mode.to_name());
-        self
-    }
-
-    /// Write the `/Direction` attribute to aid the viewer in how to lay out the
-    /// pages visually. PDF 1.3+.
-    pub fn direction(&mut self, dir: Direction) -> &mut Self {
-        self.pair(Name(b"Direction"), dir.to_name());
-        self
-    }
-}
-
-deref!('a, ViewerPreferences<'a> => Dict<'a>, dict);
-
-/// Predominant reading order of text.
-///
-/// Used to aid the viewer with the spacial ordering in which to display pages.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum Direction {
-    /// Left-to-right.
-    L2R,
-    /// Right-to-left as well as vertical writing systems.
-    R2L,
-}
-
-impl Direction {
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::L2R => Name(b"L2R"),
-            Self::R2L => Name(b"R2L"),
-        }
-    }
-}
-
 /// What order to tab through the annotations on a page.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
@@ -733,221 +948,6 @@ impl TabOrder {
             Self::RowOrder => Name(b"R"),
             Self::ColumnOrder => Name(b"C"),
             Self::StructureOrder => Name(b"S"),
-        }
-    }
-}
-
-/// Writer for a _document information dictionary_.
-///
-/// This struct is created by [`PdfWriter::document_info`].
-pub struct DocumentInfo<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> DocumentInfo<'a> {
-    /// Create a document information writer.
-    pub fn new(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-
-    /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
-    pub fn title(&mut self, title: TextStr) -> &mut Self {
-        self.pair(Name(b"Title"), title);
-        self
-    }
-
-    /// Write the `/Author` attribute to set the document's author.
-    pub fn author(&mut self, author: TextStr) -> &mut Self {
-        self.pair(Name(b"Author"), author);
-        self
-    }
-
-    /// Write the `/Subject` attribute to set the document's subject. PDF 1.1+.
-    pub fn subject(&mut self, subject: TextStr) -> &mut Self {
-        self.pair(Name(b"Subject"), subject);
-        self
-    }
-
-    /// Write the `/Keywords` attribute to set terms associated to the document.
-    /// PDF 1.1+.
-    pub fn keywords(&mut self, keywords: TextStr) -> &mut Self {
-        self.pair(Name(b"Keywords"), keywords);
-        self
-    }
-
-    /// Write the `/Creator` attribute to set the name of the product that
-    /// converted or wrote the file that this PDF has been converted from.
-    pub fn creator(&mut self, creator: TextStr) -> &mut Self {
-        self.pair(Name(b"Creator"), creator);
-        self
-    }
-
-    /// Write the `/Producer` attribute to set the name of the product that
-    /// converted or wrote this PDF.
-    pub fn producer(&mut self, producer: TextStr) -> &mut Self {
-        self.pair(Name(b"Producer"), producer);
-        self
-    }
-
-    /// Write the `/CreationDate` attribute to set the date the document was
-    /// created.
-    pub fn creation_date(&mut self, date: Date) -> &mut Self {
-        self.pair(Name(b"CreationDate"), date);
-        self
-    }
-
-    /// Write the `/ModDate` attribute to set the date the document was last
-    /// modified.
-    ///
-    /// Required if `/PieceInfo` is set in the document catalog.
-    pub fn modified_date(&mut self, date: Date) -> &mut Self {
-        self.pair(Name(b"ModDate"), date);
-        self
-    }
-
-    /// Write the `/Trapped` attribute to set whether the document is fully or
-    /// partially trapped. PDF 1.3+.
-    pub fn trapped(&mut self, trapped: TrappingStatus) -> &mut Self {
-        self.pair(Name(b"Trapped"), trapped.to_name());
-        self
-    }
-}
-
-deref!('a, DocumentInfo<'a> => Dict<'a>, dict);
-
-/// Whether a document has been adjusted with traps to account for colorant
-/// misregistration during the printing process.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum TrappingStatus {
-    /// The document is fully trapped.
-    Trapped,
-    /// The document has not been trapped.
-    NotTrapped,
-    /// The document is partially trapped or the trapping status is unknown.
-    Unknown,
-}
-
-impl TrappingStatus {
-    fn to_name(self) -> Name<'static> {
-        match self {
-            TrappingStatus::Trapped => Name(b"True"),
-            TrappingStatus::NotTrapped => Name(b"False"),
-            TrappingStatus::Unknown => Name(b"Unknown"),
-        }
-    }
-}
-
-/// Writer for the _page label number tree._
-///
-/// This struct is created by [`Catalog::page_labels`].
-pub struct PageLabels<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> PageLabels<'a> {
-    /// Create a page label number tree writer.
-    pub fn new(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-
-    /// Start writing the labelling style number tree.
-    ///
-    /// This method may only be called once.
-    pub fn start(&mut self) -> PageLabelEntry<'_> {
-        PageLabelEntry::new(self.key(Name(b"Names")))
-    }
-}
-
-deref!('a, PageLabels<'a> => Dict<'a>, dict);
-
-/// Writer for a _page label array entry._
-///
-/// This struct is created by [`PageLabels::start`].
-pub struct PageLabelEntry<'a> {
-    array: Array<'a>,
-}
-
-impl<'a> PageLabelEntry<'a> {
-    /// Create a page label array entry writer.
-    pub fn new(obj: Obj<'a>) -> Self {
-        Self { array: obj.array() }
-    }
-
-    /// Start writing the labelling style for a set of pages, starting at a
-    /// given index. Indices start at `0`. This method must be called in
-    /// ascending index order.
-    pub fn style(&mut self, index: i32) -> PageLabel<'_> {
-        self.item(index);
-        PageLabel::new(self.obj())
-    }
-}
-
-deref!('a, PageLabelEntry<'a> => Array<'a>, array);
-
-/// Writer for a _page label dictionary_.
-///
-/// This struct is created by [`PageLabelEntry::style`].
-pub struct PageLabel<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> PageLabel<'a> {
-    /// Create a page label writer.
-    pub fn new(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"PageLabel"));
-        Self { dict }
-    }
-
-    /// Write the `/S` attribute to set the page label's numbering style.
-    ///
-    /// If this attribute is omitted, only the prefix will be used, there will
-    /// be no page number.
-    pub fn style(&mut self, style: NumberingStyle) -> &mut Self {
-        self.pair(Name(b"S"), style.to_name());
-        self
-    }
-
-    /// Write the `/P` attribute to set the page label's prefix.
-    pub fn prefix(&mut self, prefix: TextStr) -> &mut Self {
-        self.pair(Name(b"P"), prefix);
-        self
-    }
-
-    /// Write the `/St` attribute to set the page label's offset.
-    ///
-    /// This must be greater or equal to `1` if set.
-    pub fn offset(&mut self, offset: i32) -> &mut Self {
-        self.pair(Name(b"St"), offset);
-        self
-    }
-}
-
-deref!('a, PageLabel<'a> => Dict<'a>, dict);
-
-/// The numbering style of a page label.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum NumberingStyle {
-    /// Arabic numerals.
-    Arabic,
-    /// Lowercase Roman numerals.
-    LowerRoman,
-    /// Uppercase Roman numerals.
-    UpperRoman,
-    /// Lowercase letters (a-z, then aa-zz, ...).
-    LowerAlpha,
-    /// Uppercase letters (A-Z, then AA-ZZ, ...).
-    UpperAlpha,
-}
-
-impl NumberingStyle {
-    fn to_name(self) -> Name<'static> {
-        match self {
-            NumberingStyle::Arabic => Name(b"D"),
-            NumberingStyle::LowerRoman => Name(b"r"),
-            NumberingStyle::UpperRoman => Name(b"R"),
-            NumberingStyle::LowerAlpha => Name(b"a"),
-            NumberingStyle::UpperAlpha => Name(b"A"),
         }
     }
 }
