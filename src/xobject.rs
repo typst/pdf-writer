@@ -69,8 +69,9 @@ impl<'a> Image<'a> {
     /// Start writing the `/SMask` attribute. PDF 1.4+.
     ///
     /// Must not be used if this image already is an image soft mask.
-    pub fn s_mask(&mut self) -> SoftMask<'_> {
-        SoftMask::new(self.key(Name(b"SMask")))
+    pub fn s_mask(&mut self, x_object: Ref) -> &mut Self {
+        self.pair(Name(b"SMask"), x_object);
+        self
     }
 
     /// Write the `/SMaskInData` attribute. PDF 1.5+.
