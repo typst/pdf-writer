@@ -330,14 +330,14 @@ impl Content {
         self
     }
 
-    /// `s`: Close and stroke the current path.
+    /// `s`: Close the current path and then stroke it.
     #[inline]
     pub fn close_and_stroke(&mut self) -> &mut Self {
         self.op("s");
         self
     }
 
-    /// `f`: Fill the current path using the nonzero winding rule.
+    /// `f`: Fill the current path using the nonzero winding number rule.
     #[inline]
     pub fn fill_nonzero(&mut self) -> &mut Self {
         self.op("f");
@@ -351,33 +351,33 @@ impl Content {
         self
     }
 
-    /// `B`: Fill and then stroke the current path using the nonzero winding
-    /// rule.
+    /// `B`: Fill the current path using the nonzero winding number rule and
+    /// then stroke it.
     #[inline]
-    pub fn fill_and_stroke_nonzero(&mut self) -> &mut Self {
+    pub fn fill_nonzero_and_stroke(&mut self) -> &mut Self {
         self.op("B");
         self
     }
 
-    /// `B*`: Fill and then stroke the current path using the even-odd rule.
+    /// `B*`: Fill the current path using the even-odd rule and then stroke it.
     #[inline]
-    pub fn fill_and_stroke_even_odd(&mut self) -> &mut Self {
+    pub fn fill_even_odd_and_stroke(&mut self) -> &mut Self {
         self.op("B*");
         self
     }
 
-    /// `b`: Close, fill and then stroke the current path using the nonzero
-    /// winding rule.
+    /// `b`: Close the current path, fill it using the nonzero winding number
+    /// rule and then stroke it.
     #[inline]
-    pub fn close_fill_and_stroke_nonzero(&mut self) -> &mut Self {
+    pub fn close_fill_nonzero_and_stroke(&mut self) -> &mut Self {
         self.op("b");
         self
     }
 
-    /// `b*`: Close, fill and then stroke the current path using the even-odd
-    /// rule.
+    /// `b*`: Close the current path, fill it using the even-odd rule and then
+    /// stroke it.
     #[inline]
-    pub fn close_fill_and_stroke_even_odd(&mut self) -> &mut Self {
+    pub fn close_fill_even_odd_and_stroke(&mut self) -> &mut Self {
         self.op("b*");
         self
     }
@@ -395,7 +395,7 @@ impl Content {
 /// Clipping paths.
 impl Content {
     /// `W`: Intersect the current clipping path with the current path using the
-    /// nonzero winding rule.
+    /// nonzero winding number rule.
     #[inline]
     pub fn clip_nonzero(&mut self) -> &mut Self {
         self.op("W");
