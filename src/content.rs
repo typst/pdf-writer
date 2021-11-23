@@ -107,9 +107,10 @@ impl Content {
         self
     }
 
-    /// `cm`: Concatenate the current transformation matrix with `matrix`.
+    /// `cm`: Pre-concatenate the `matrix` with the current transformation
+    /// matrix.
     #[inline]
-    pub fn concat_matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+    pub fn transform(&mut self, matrix: [f32; 6]) -> &mut Self {
         self.op("cm").operands(matrix);
         self
     }
