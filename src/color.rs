@@ -351,7 +351,7 @@ impl TilingType {
     }
 }
 
-/// Writer for a _shading pattern dictionary_.
+/// Writer for a _shading pattern dictionary_. PDF 1.3+.
 ///
 /// This struct is created by [`PdfWriter::shading_pattern`].
 pub struct ShadingPattern<'a> {
@@ -379,11 +379,16 @@ impl<'a> ShadingPattern<'a> {
         self.dict.key(Name(b"Matrix")).array().typed().items(matrix);
         self
     }
+
+    /// Begin writing the `/ExtGState` attribute.
+    pub fn ext_graphics(&mut self) -> ExtGraphicsState<'_> {
+        ExtGraphicsState::new(self.dict.key(Name(b"ExtGState")))
+    }
 }
 
 deref!('a, ShadingPattern<'a> => Dict< 'a>, dict);
 
-/// Writer for a _shading dictionary_.
+/// Writer for a _shading dictionary_. PDF 1.3+.
 ///
 /// This struct is created by [`ShadingPattern::shading`].
 pub struct Shading<'a> {

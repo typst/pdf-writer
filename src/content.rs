@@ -813,6 +813,9 @@ impl Content {
 }
 
 /// Writer for a dictionary with _additional parameters for the graphics state._
+///
+/// This struct is created by [`PdfWriter::ext_graphics`] and
+/// [`ShadingPattern::ext_graphics`].
 pub struct ExtGraphicsState<'a> {
     dict: Dict<'a>,
 }
