@@ -87,7 +87,7 @@ fn main() -> std::io::Result<()> {
 
     // Finish writing (this automatically creates the cross-reference table and
     // file trailer) and retrieve the resulting byte buffer.
-    let buf: Vec<u8> = writer.finish(catalog_id);
+    let buf: Vec<u8> = writer.finish();
 
     // Write the thing to a file.
     std::fs::write("target/hello.pdf", buf)

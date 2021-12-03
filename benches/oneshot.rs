@@ -59,7 +59,7 @@ fn bench_full() -> Vec<u8> {
     w.catalog(Ref::new(1));
     w.page(Ref::new(2)).media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
     w.stream(Ref::new(3), &b"ABCDEFG"[..]);
-    w.finish(Ref::new(1))
+    w.finish()
 }
 
 #[rustfmt::skip]

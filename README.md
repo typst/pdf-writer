@@ -37,7 +37,7 @@ writer.page(page_id)
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
+std::fs::write("target/empty.pdf", writer.finish())?;
 ```
 
 For a more comprehensive overview, check out the [hello world example], which

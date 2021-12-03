@@ -60,7 +60,7 @@ writer.page(page_id)
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/empty.pdf", writer.finish(catalog_id))?;
+std::fs::write("target/empty.pdf", writer.finish())?;
 # Ok(())
 # }
 ```
@@ -155,7 +155,8 @@ use writers::*;
 pub struct PdfWriter {
     buf: Vec<u8>,
     offsets: Vec<(Ref, usize)>,
-    info_ref: Option<Ref>,
+    catalog_id: Option<Ref>,
+    info_id: Option<Ref>,
 }
 
 /// Core methods.
@@ -170,7 +171,12 @@ impl PdfWriter {
     pub fn with_capacity(capacity: usize) -> Self {
         let mut buf = Vec::with_capacity(capacity);
         buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
-        Self { buf, offsets: vec![], info_ref: None }
+        Self {
+            buf,
+            offsets: vec![],
+            catalog_id: None,
+            info_id: None,
+        }
     }
 
     /// Set the PDF version.
@@ -190,9 +196,9 @@ impl PdfWriter {
 
     /// Write the cross-reference table and file trailer and return the
     /// underlying buffer.
-    pub fn finish(mut self, catalog_id: Ref) -> Vec<u8> {
+    pub fn finish(mut self) -> Vec<u8> {
         let (xref_len, xref_offset) = self.xref_table();
-        self.trailer(catalog_id, xref_len, xref_offset);
+        self.trailer(xref_len, xref_offset);
         self.buf
     }
 
@@ -242,21 +248,23 @@ impl PdfWriter {
         (xref_len, xref_offset)
     }
 
-    fn trailer(&mut self, catalog_id: Ref, xref_len: i32, xref_offset: usize) {
+    fn trailer(&mut self, xref_len: i32, xref_offset: usize) {
         // Write the trailer dictionary.
         self.buf.extend(b"trailer\n");
 
-        let mut trailing_dict = Obj::direct(&mut self.buf, 0).dict();
+        let mut trailer = Obj::direct(&mut self.buf, 0).dict();
 
-        trailing_dict
-            .pair(Name(b"Size"), xref_len)
-            .pair(Name(b"Root"), catalog_id);
+        trailer.pair(Name(b"Size"), xref_len);
 
-        if let Some(info_ref) = self.info_ref {
-            trailing_dict.pair(Name(b"Info"), info_ref);
+        if let Some(catalog_id) = self.catalog_id {
+            trailer.pair(Name(b"Root"), catalog_id);
         }
 
-        trailing_dict.finish();
+        if let Some(info_id) = self.info_id {
+            trailer.pair(Name(b"Info"), info_id);
+        }
+
+        trailer.finish();
 
         // Write where the cross-reference table starts.
         self.buf.extend(b"\nstartxref\n");
@@ -275,19 +283,22 @@ impl PdfWriter {
         Obj::indirect(&mut self.buf, id)
     }
 
-    /// Start writing a document catalog.
+    /// Start writing the document catalog. Required.
+    ///
+    /// This will also register the document catalog with the file trailer,
+    /// meaning that you don't need to provide the given `id` anywhere else.
     pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
+        self.catalog_id = Some(id);
         Catalog::new(self.indirect(id))
     }
 
-    /// Start writing a document information dictionary.
+    /// Start writing the document information dictionary.
     ///
     /// This will also register the document information dictionary with the
-    /// file trailer so it becomes referenced. The reference will be overwritten
-    /// if the method is called multiple times but the indirect object remains
-    /// in the file.
+    /// file trailer, meaning that you don't need to provide the given `id` anywhere
+    /// else.
     pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
-        self.info_ref = Some(id);
+        self.info_id = Some(id);
         DocumentInfo::new(self.indirect(id))
     }
 

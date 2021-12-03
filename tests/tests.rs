@@ -32,7 +32,7 @@ where
     let start = w.len();
     f(&mut w);
     let end = w.len();
-    let buf = w.finish(Ref::new(1));
+    let buf = w.finish();
     buf[start .. end].to_vec()
 }
 
@@ -49,10 +49,10 @@ where
 fn test_minimal() {
     let w = PdfWriter::new();
     test!(
-        w.finish(Ref::new(1)),
+        w.finish(),
         b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"xref\n0 1\n0000000000 65535 f\r\n",
-        b"trailer\n<<\n  /Size 1\n  /Root 1 0 R\n>>\n",
+        b"trailer\n<<\n  /Size 1\n>>\n",
         b"startxref\n16\n%%EOF",
     );
 }
@@ -63,7 +63,7 @@ fn test_xref_free_list_short() {
     w.indirect(Ref::new(1)).primitive(1);
     w.indirect(Ref::new(2)).primitive(2);
     test!(
-        w.finish(Ref::new(1)),
+        w.finish(),
         b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n1\nendobj\n\n",
         b"2 0 obj\n2\nendobj\n\n",
@@ -73,7 +73,7 @@ fn test_xref_free_list_short() {
         b"0000000016 00000 n\r\n",
         b"0000000034 00000 n\r\n",
         b"trailer\n",
-        b"<<\n  /Size 3\n  /Root 1 0 R\n>>\n",
+        b"<<\n  /Size 3\n>>\n",
         b"startxref\n52\n%%EOF",
     )
 }
@@ -86,7 +86,7 @@ fn test_xref_free_list_long() {
     w.indirect(Ref::new(2)).primitive(2);
     w.indirect(Ref::new(5)).primitive(5);
     test!(
-        w.finish(Ref::new(2)),
+        w.finish(),
         b"%PDF-1.4\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n1\nendobj\n\n",
         b"2 0 obj\n2\nendobj\n\n",
@@ -100,7 +100,7 @@ fn test_xref_free_list_long() {
         b"0000000000 00000 f\r\n",
         b"0000000052 00000 n\r\n",
         b"trailer\n",
-        b"<<\n  /Size 6\n  /Root 2 0 R\n>>\n",
+        b"<<\n  /Size 6\n>>\n",
         b"startxref\n70\n%%EOF",
     )
 }
@@ -184,7 +184,7 @@ fn test_streams() {
     let mut w = PdfWriter::new();
     w.stream(Ref::new(1), &b"Hi there!"[..]).filter(Filter::Crypt);
     test!(
-        w.finish(Ref::new(1)),
+        w.finish(),
         b"%PDF-1.7\n%\x80\x80\x80\x80\n\n",
         b"1 0 obj\n",
         b"<<\n  /Length 9\n  /Filter /Crypt\n>>\n",
@@ -197,7 +197,7 @@ fn test_streams() {
         b"0000000000 65535 f\r\n",
         b"0000000016 00000 n\r\n",
         b"trailer\n",
-        b"<<\n  /Size 2\n  /Root 1 0 R\n>>\n",
+        b"<<\n  /Size 2\n>>\n",
         b"startxref\n94\n%%EOF",
     )
 }
