@@ -86,11 +86,16 @@ pub struct CidFont<'a> {
 
 impl<'a> CidFont<'a> {
     /// Create a new CID font writer.
-    pub fn new(obj: Obj<'a>, subtype: CidFontType) -> Self {
+    pub fn new(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
-        dict.pair(Name(b"Subtype"), subtype.to_name());
         Self { dict }
+    }
+
+    /// Write the `/Subtype` attribute.
+    pub fn subtype(&mut self, subtype: CidFontType) -> &mut Self {
+        self.pair(Name(b"Subtype"), subtype.to_name());
+        self
     }
 
     /// Write the `/BaseFont` attribute.

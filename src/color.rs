@@ -217,7 +217,7 @@ enum ColorSpaceType {
 }
 
 impl ColorSpaceType {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::CalGray => Name(b"CalGray"),
             Self::CalRgb => Name(b"CalRGB"),
@@ -527,7 +527,7 @@ enum PatternType {
 }
 
 impl PatternType {
-    fn to_int(self) -> i32 {
+    pub(crate) fn to_int(self) -> i32 {
         match self {
             Self::Tiling => 1,
             Self::Shading => 2,

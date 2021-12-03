@@ -45,7 +45,7 @@ pub struct Operation<'a> {
 
 impl<'a> Operation<'a> {
     #[inline]
-    fn new(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
+    pub(crate) fn new(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
         Self { buf, op, first: true }
     }
 
@@ -601,7 +601,7 @@ pub struct ShowPositioned<'a> {
 
 impl<'a> ShowPositioned<'a> {
     #[inline]
-    fn new(op: Operation<'a>) -> Self {
+    pub(crate) fn new(op: Operation<'a>) -> Self {
         Self { op }
     }
 
@@ -623,13 +623,13 @@ pub struct PositionedItems<'a> {
 
 impl<'a> PositionedItems<'a> {
     #[inline]
-    fn new(obj: Obj<'a>) -> Self {
+    pub(crate) fn new(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
 
     /// Show a continous string without adjustments.
     ///
-    /// The encoding of the text is up to you.
+    /// The encoding of the text depends on the font.
     #[inline]
     pub fn show(&mut self, text: Str) -> &mut Self {
         self.array.item(text);
@@ -692,10 +692,10 @@ impl Content {
     #[inline]
     pub fn set_stroke_pattern(
         &mut self,
-        color: impl IntoIterator<Item = f32>,
+        tint: impl IntoIterator<Item = f32>,
         name: Name,
     ) -> &mut Self {
-        self.op("SCN").operands(color).operand(name);
+        self.op("SCN").operands(tint).operand(name);
         self
     }
 
@@ -715,10 +715,10 @@ impl Content {
     #[inline]
     pub fn set_fill_pattern(
         &mut self,
-        color: impl IntoIterator<Item = f32>,
+        tint: impl IntoIterator<Item = f32>,
         name: Name,
     ) -> &mut Self {
-        self.op("scn").operands(color).operand(name);
+        self.op("scn").operands(tint).operand(name);
         self
     }
 
@@ -812,7 +812,7 @@ impl Content {
     }
 }
 
-/// Writer for a dictionary with _additional parameters for the graphics state._
+/// Writer for a _dictionary with additional parameters for the graphics state._
 ///
 /// This struct is created by [`PdfWriter::ext_graphics`] and
 /// [`ShadingPattern::ext_graphics`].
@@ -1010,7 +1010,7 @@ impl<'a> ExtGraphicsState<'a> {
 
 deref!('a, ExtGraphicsState<'a> => Dict<'a>, dict);
 
-/// How to render text.
+/// How to blend source and backdrop.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum BlendMode {
@@ -1033,7 +1033,7 @@ pub enum BlendMode {
 }
 
 impl BlendMode {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             BlendMode::Normal => Name(b"Normal"),
             BlendMode::Multiply => Name(b"Multiply"),
@@ -1113,7 +1113,7 @@ pub enum MaskType {
 }
 
 impl MaskType {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             MaskType::Alpha => Name(b"Alpha"),
             MaskType::Luminosity => Name(b"Luminosity"),

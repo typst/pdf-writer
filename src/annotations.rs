@@ -175,10 +175,10 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Write the `/LL` attribute. This defines the start and end point of a
+    /// Write the `/L` attribute. This defines the start and end point of a
     /// line annotation
     pub fn line_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32) -> &mut Self {
-        self.key(Name(b"LL")).array().typed().items([x1, y1, x2, y2]);
+        self.key(Name(b"L")).array().typed().items([x1, y1, x2, y2]);
         self
     }
 
@@ -187,17 +187,10 @@ impl<'a> Annotation<'a> {
         FileSpec::new(self.key(Name(b"FS")))
     }
 
-    /// Write the `/Name` attribute with one of the predefined icon names. Refer
-    /// to the specification to see which names are allowed for which annotation
-    /// types.
-    pub fn icon_predefined(&mut self, icon: AnnotationIcon) -> &mut Self {
+    /// Write the `/Name` attribute. Refer to the specification to see which
+    /// names are allowed for which annotation types.
+    pub fn icon(&mut self, icon: AnnotationIcon) -> &mut Self {
         self.pair(Name(b"Name"), icon.to_name());
-        self
-    }
-
-    /// Write the `/Name` attribute with a custom icon name.
-    pub fn icon_custom(&mut self, name: Name) -> &mut Self {
-        self.pair(Name(b"Name"), name);
         self
     }
 }
@@ -248,7 +241,7 @@ impl AnnotationType {
 
 /// Possible icons for an annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum AnnotationIcon {
+pub enum AnnotationIcon<'a> {
     /// Speech bubble. For use with text annotations.
     Comment,
     /// For use with text annotations.
@@ -271,10 +264,12 @@ pub enum AnnotationIcon {
     Paperclip,
     /// For use with file attachment annotations.
     Tag,
+    /// A custom icon name.
+    Custom(Name<'a>),
 }
 
-impl AnnotationIcon {
-    pub(crate) fn to_name(self) -> Name<'static> {
+impl<'a> AnnotationIcon<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
         match self {
             Self::Comment => Name(b"Comment"),
             Self::Key => Name(b"Key"),
@@ -287,6 +282,7 @@ impl AnnotationIcon {
             Self::PushPin => Name(b"PushPin"),
             Self::Paperclip => Name(b"Paperclip"),
             Self::Tag => Name(b"Tag"),
+            Self::Custom(name) => name,
         }
     }
 }
@@ -348,8 +344,8 @@ impl<'a> Action<'a> {
 
     /// Start writing the `/D` attribute to set the destination of this
     /// GoTo-type action.
-    pub fn dest_direct(&mut self, page: Ref) -> Destination<'_> {
-        Destination::new(self.key(Name(b"D")), page)
+    pub fn dest_direct(&mut self) -> Destination<'_> {
+        Destination::new(self.key(Name(b"D")))
     }
 
     /// Write the `/D` attribute to set the destination of this GoTo-type action

@@ -107,7 +107,7 @@ pub enum SMaskInData {
 }
 
 impl SMaskInData {
-    fn to_int(&self) -> i32 {
+    pub(crate) fn to_int(&self) -> i32 {
         match self {
             Self::Ignore => 0,
             Self::Use => 1,

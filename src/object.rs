@@ -183,15 +183,6 @@ impl Rect {
             self.x1, self.y1, self.x2, self.y1, self.x2, self.y2, self.x1, self.y2,
         ]
     }
-
-    /// Apply a transformation matrix to this rectangle. This action will not
-    /// write to the file and return a new, transformed rectangle.
-    #[inline]
-    pub fn transform(self, matrix: [f32; 6]) -> Self {
-        let (x1, y1) = transform_point(self.x1, self.y1, matrix);
-        let (x2, y2) = transform_point(self.x2, self.y2, matrix);
-        Self::new(x1, y1, x2, y2)
-    }
 }
 
 impl Primitive for Rect {
@@ -207,14 +198,6 @@ impl Primitive for Rect {
         buf.push_val(self.y2);
         buf.push(b']');
     }
-}
-
-/// Apply a transformation matrix to a point.
-fn transform_point(x: f32, y: f32, matrix: [f32; 6]) -> (f32, f32) {
-    (
-        x * matrix[0] + y * matrix[1] + matrix[4],
-        x * matrix[2] + y * matrix[3] + matrix[5],
-    )
 }
 
 /// A date, represented as a text string.

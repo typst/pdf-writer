@@ -17,7 +17,7 @@ fn main() -> std::io::Result<()> {
     writer.catalog(catalog_id).pages(page_tree_id);
 
     // Write the page tree with a single child page.
-    writer.pages(page_tree_id).kids([page_id]);
+    writer.pages(page_tree_id).kids([page_id]).count(1);
 
     // Write a page.
     let mut page = writer.page(page_id);

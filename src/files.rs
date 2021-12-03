@@ -119,7 +119,7 @@ impl<'a> EmbedParams<'a> {
     }
 
     /// Write the `/ModDate` attribute to set the file modification date.
-    pub fn mod_date(&mut self, date: Date) -> &mut Self {
+    pub fn modification_date(&mut self, date: Date) -> &mut Self {
         self.pair(Name(b"ModDate"), date);
         self
     }

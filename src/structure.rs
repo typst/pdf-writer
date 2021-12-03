@@ -316,7 +316,7 @@ pub enum NumberingStyle {
 }
 
 impl NumberingStyle {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             NumberingStyle::Arabic => Name(b"D"),
             NumberingStyle::LowerRoman => Name(b"r"),
@@ -418,7 +418,7 @@ pub enum TrappingStatus {
 }
 
 impl TrappingStatus {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             TrappingStatus::Trapped => Name(b"True"),
             TrappingStatus::NotTrapped => Name(b"False"),
@@ -442,16 +442,24 @@ impl<'a> Pages<'a> {
         Self { dict }
     }
 
-    /// Write the `/Parent` attribute.
+    /// Write the `/Parent` attribute. Required except in root node.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.pair(Name(b"Parent"), parent);
         self
     }
 
-    /// Write the `/Kids` and `/Count` attributes.
+    /// Write the `/Kids` attributes, listing the immediate children of this
+    /// node in the page tree. Required.
     pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) -> &mut Self {
-        let len = self.key(Name(b"Kids")).array().typed().items(kids).len();
-        self.pair(Name(b"Count"), len);
+        self.key(Name(b"Kids")).array().typed().items(kids);
+        self
+    }
+
+    /// Write the `/Count` attribute, specifying how many descendants this node
+    /// in the page tree has. This may be different to the length of `/Kids`
+    /// when the tree has multiple layers. Required.
+    pub fn count(&mut self, count: i32) -> &mut Self {
+        self.pair(Name(b"Count"), count);
         self
     }
 
@@ -631,7 +639,7 @@ impl<'a> Resources<'a> {
 
     /// Set the `/ProcSet` attribute.
     ///
-    /// This determines what procedure sets are sent to an output device when
+    /// This defines what procedure sets are sent to an output device when
     /// printing the file as PostScript. The attribute is only used for PDFs
     /// with versions below 1.4.
     pub fn proc_sets(&mut self, sets: impl IntoIterator<Item = ProcSet>) -> &mut Self {
@@ -644,12 +652,10 @@ impl<'a> Resources<'a> {
 
     /// Set the `/ProcSet` attribute to all available procedure sets.
     ///
-    /// This determines what procedure sets are sent to an output device when
-    /// printing the file as PostScript. The attribute is only used for PDFs
-    /// with versions below 1.4. The PDF 1.7 specification recommends that
-    /// modern PDFs either omit the attribute or specify all available procedure
-    /// sets, as this function does.
-    pub fn all_proc_sets(&mut self) -> &mut Self {
+    /// The PDF 1.7 specification recommends that modern PDFs either omit the
+    /// attribute or specify all available procedure sets, as this function
+    /// does.
+    pub fn proc_sets_all(&mut self) -> &mut Self {
         self.proc_sets([
             ProcSet::Pdf,
             ProcSet::Text,
@@ -681,7 +687,7 @@ pub enum ProcSet {
 }
 
 impl ProcSet {
-    fn to_name(self) -> Name<'static> {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             ProcSet::Pdf => Name(b"PDF"),
             ProcSet::Text => Name(b"Text"),
@@ -799,8 +805,8 @@ impl<'a> OutlineItem<'a> {
 
     /// Start writing the `/Dest` attribute to set the destination of this
     /// outline item.
-    pub fn dest_direct(&mut self, page: Ref) -> Destination<'_> {
-        Destination::new(self.key(Name(b"Dest")), page)
+    pub fn dest_direct(&mut self) -> Destination<'_> {
+        Destination::new(self.key(Name(b"Dest")))
     }
 
     /// Write the `/Dest` attribute to set the destination of this
@@ -850,8 +856,8 @@ impl<'a> Destinations<'a> {
     }
 
     /// Start adding another named destination.
-    pub fn insert(&mut self, name: Name, page: Ref) -> Destination<'_> {
-        Destination::new(self.key(name), page)
+    pub fn insert(&mut self, name: Name) -> Destination<'_> {
+        Destination::new(self.key(name))
     }
 }
 
@@ -866,10 +872,14 @@ pub struct Destination<'a> {
 
 impl<'a> Destination<'a> {
     /// Create a new destination writer.
-    pub fn new(obj: Obj<'a>, page: Ref) -> Self {
-        let mut array = obj.array();
-        array.item(page);
-        Self { array }
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { array: obj.array() }
+    }
+
+    /// The target page. Required.
+    pub fn page(mut self, page: Ref) -> Self {
+        self.item(page);
+        self
     }
 
     /// Write the `/XYZ` command which skips to the specified coordinated.
@@ -904,10 +914,7 @@ impl<'a> Destination<'a> {
     /// screen.
     pub fn fit_rect(mut self, rect: Rect) {
         self.item(Name(b"FitR"));
-        self.item(rect.x1);
-        self.item(rect.y1);
-        self.item(rect.x2);
-        self.item(rect.y2);
+        self.array.typed().items([rect.x1, rect.y1, rect.x2, rect.y2]);
     }
 
     /// Write the `/FitB` command which fits all of the referenced page's

@@ -53,7 +53,7 @@ let page_id = Ref::new(3);
 // Write a document catalog and a page tree with one A4 page that uses no resources.
 let mut writer = PdfWriter::new();
 writer.catalog(catalog_id).pages(page_tree_id);
-writer.pages(page_tree_id).kids([page_id]);
+writer.pages(page_tree_id).kids([page_id]).count(1);
 writer.page(page_id)
     .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
@@ -97,7 +97,7 @@ mod structure;
 mod transitions;
 mod xobject;
 
-/// Writers for specific PDF structures.
+/// Strongly typed writers for specific PDF structures.
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle};
@@ -148,7 +148,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 
 use buf::BufExt;
-use types::CidFontType;
 use writers::*;
 
 /// The root writer.
@@ -194,21 +193,15 @@ impl PdfWriter {
         }
     }
 
-    /// Write the cross-reference table and file trailer and return the
-    /// underlying buffer.
-    pub fn finish(mut self) -> Vec<u8> {
-        let (xref_len, xref_offset) = self.xref_table();
-        self.trailer(xref_len, xref_offset);
-        self.buf
-    }
-
     /// The number of bytes that were written so far.
     #[inline]
     pub fn len(&self) -> usize {
         self.buf.len()
     }
 
-    fn xref_table(&mut self) -> (i32, usize) {
+    /// Write the cross-reference table and file trailer and return the
+    /// underlying buffer.
+    pub fn finish(mut self) -> Vec<u8> {
         self.offsets.sort();
 
         let xref_len = 1 + self.offsets.last().map_or(0, |p| p.0.get());
@@ -245,15 +238,10 @@ impl PdfWriter {
             }
         }
 
-        (xref_len, xref_offset)
-    }
-
-    fn trailer(&mut self, xref_len: i32, xref_offset: usize) {
         // Write the trailer dictionary.
         self.buf.extend(b"trailer\n");
 
         let mut trailer = Obj::direct(&mut self.buf, 0).dict();
-
         trailer.pair(Name(b"Size"), xref_len);
 
         if let Some(catalog_id) = self.catalog_id {
@@ -272,6 +260,7 @@ impl PdfWriter {
 
         // Write the end of file marker.
         self.buf.extend(b"\n%%EOF");
+        self.buf
     }
 }
 
@@ -338,8 +327,8 @@ impl PdfWriter {
     }
 
     /// Start writing a CID font.
-    pub fn cid_font(&mut self, id: Ref, subtype: CidFontType) -> CidFont<'_> {
-        CidFont::new(self.indirect(id), subtype)
+    pub fn cid_font(&mut self, id: Ref) -> CidFont<'_> {
+        CidFont::new(self.indirect(id))
     }
 
     /// Start writing a font descriptor.

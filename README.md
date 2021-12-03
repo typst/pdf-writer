@@ -30,7 +30,7 @@ let page_id = Ref::new(3);
 // Write a document catalog and a page tree with one A4 page that uses no resources.
 let mut writer = PdfWriter::new();
 writer.catalog(catalog_id).pages(page_tree_id);
-writer.pages(page_tree_id).kids([page_id]);
+writer.pages(page_tree_id).kids([page_id]).count(1);
 writer.page(page_id)
     .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
