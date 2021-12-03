@@ -649,7 +649,34 @@ impl<'a> PositionedItems<'a> {
 
 deref!('a, PositionedItems<'a> => Array<'a>, array);
 
-// TODO: Type 3 fonts.
+/// Type 3 fonts: These operators are only allowed in
+/// [Type 3 CharProcs](crate::font::Type3Font::char_procs).
+impl Content {
+    /// `d0`: Starts a Type 3 glyph that contains color information.
+    /// - `wx` defines the glyph's width
+    /// - `wy` is set to 0.0 automatically
+    pub fn start_color_glyph(&mut self, wx: f32) -> &mut Self {
+        self.op("d0").operands([wx, 0.0]);
+        self
+    }
+
+    /// `d1`: Starts a Type 3 glyph that contains only shape information.
+    /// - `wx` defines the glyph's width
+    /// - `wy` is set to 0.0 automatically
+    /// - `ll_x` and `ll_y` define the lower-left corner of the glyph bounding box
+    /// - `ur_x` and `ur_y` define the upper-right corner of the glyph bounding box
+    pub fn start_shape_glyph(
+        &mut self,
+        wx: f32,
+        ll_x: f32,
+        ll_y: f32,
+        ur_x: f32,
+        ur_y: f32,
+    ) -> &mut Self {
+        self.op("d1").operands([wx, 0.0, ll_x, ll_y, ur_x, ur_y]);
+        self
+    }
+}
 
 /// Color.
 impl Content {

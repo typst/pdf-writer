@@ -106,7 +106,10 @@ pub mod writers {
         ExtGraphicsState, Operation, PositionedItems, ShowPositioned, SoftMask,
     };
     pub use files::{EmbedParams, EmbeddedFile, FileSpec};
-    pub use font::{CidFont, Cmap, FontDescriptor, Type0Font, Type1Font, Widths};
+    pub use font::{
+        CidFont, Cmap, Differences, Encoding, FontDescriptor, Type0Font, Type1Font,
+        Type3Font, Widths,
+    };
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
@@ -129,7 +132,7 @@ pub mod types {
     pub use content::{
         LineCapStyle, LineJoinStyle, MaskType, RenderingIntent, TextRenderingMode,
     };
-    pub use font::{CidFontType, FontFlags, SystemInfo};
+    pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, ProcSet,
@@ -319,6 +322,11 @@ impl PdfWriter {
     /// Start writing a Type-1 font.
     pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
         Type1Font::new(self.indirect(id))
+    }
+
+    /// Start writing a Type-3 font.
+    pub fn type3_font(&mut self, id: Ref) -> Type3Font<'_> {
+        Type3Font::new(self.indirect(id))
     }
 
     /// Start writing a Type-0 font.

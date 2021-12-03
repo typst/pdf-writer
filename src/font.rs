@@ -16,16 +16,240 @@ impl<'a> Type1Font<'a> {
         Self { dict }
     }
 
-    /// Write the `/BaseFont` attribute.
+    /// Write the `/Name` attribute, which is the name of the font in the
+    /// current resource dictionary. Required in PDF 1.0, discouraged in PDF
+    /// 1.1+.
+    pub fn name(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"Name"), name);
+        self
+    }
+
+    /// Write the `/BaseFont` attribute. This is the PostScript name of the
+    /// font. Required.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"BaseFont"), name);
+        self
+    }
+
+    /// Write the `FirstChar` attribute, defining the first character code in
+    /// the font's widths array. Required (except for standard 14 fonts
+    /// before PDF 1.5).
+    pub fn first_char(&mut self, first: u8) -> &mut Self {
+        self.pair(Name(b"FirstChar"), i32::from(first));
+        self
+    }
+
+    /// Write the `LastChar` attribute, defining the last character code in the
+    /// font's widths array. Required (except for standard 14 fonts before
+    /// PDF 1.5).
+    pub fn last_char(&mut self, last: u8) -> &mut Self {
+        self.pair(Name(b"LastChar"), i32::from(last));
+        self
+    }
+
+    /// Write the `/Widths` array. Should be of length `last - first + 1`.
+    /// Required (except for standard 14 fonts before PDF 1.5).
+    pub fn widths(&mut self, widths: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"Widths")).array().typed().items(widths);
+        self
+    }
+
+    /// Write the `/FontDescriptor` attribute. Required (except for standard 14
+    /// fonts before PDF 1.5).
+    pub fn font_descriptor(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"FontDescriptor"), id);
+        self
+    }
+
+    /// Write the `/Encoding` attribute as a predefined encoding. Either this or
+    /// [`encoding_custom`](Self::encoding_custom) is required.
+    pub fn encoding_predefined(&mut self, encoding: Name) -> &mut Self {
+        self.pair(Name(b"Encoding"), encoding);
+        self
+    }
+
+    /// Start writing an `/Encoding` dictionary. Either this or
+    /// [`encoding_predefined`](Self::encoding_predefined) is required.
+    pub fn encoding_custom(&mut self) -> Encoding<'_> {
+        Encoding::new(self.key(Name(b"Encoding")))
+    }
+
+    /// Write the `/ToUnicode` attribute. PDF 1.2+.
+    ///
+    /// A suitable character map can be built with [`UnicodeCmap`].
+    pub fn to_unicode(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"ToUnicode"), id);
         self
     }
 }
 
 deref!('a, Type1Font<'a> => Dict<'a>, dict);
 
-/// Writer for a _Type-0 (composite) font dictionary_.
+/// Writer for a _Type-3 font dictionary_.
+///
+/// This struct is created by [`PdfWriter::type3_font`].
+pub struct Type3Font<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> Type3Font<'a> {
+    /// Create a new Type-3 font writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Font"));
+        dict.pair(Name(b"Subtype"), Name(b"Type3"));
+        Self { dict }
+    }
+
+    /// Write the `/Name` attribute, which is the name of the font in the
+    /// current resource dictionary. Required in PDF 1.0, discouraged in PDF
+    /// 1.1+.
+    pub fn name(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"Name"), name);
+        self
+    }
+
+    /// Write the `/FontBBox` attribute. Required.
+    pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
+        self.pair(Name(b"FontBBox"), bbox);
+        self
+    }
+
+    /// Write the `/FontMatrix` attribute, which defines the mapping from glyph
+    /// space to text space. Required.
+    pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
+        self.key(Name(b"FontMatrix")).array().typed().items(matrix);
+        self
+    }
+
+    /// Write the `/CharProcs` dictionary, which maps glyph names to glyph
+    /// content streams. Required.
+    ///
+    /// Each glyph's content stream must start with either the
+    /// [`d0`](crate::Content::start_color_glyph) or
+    /// [`d1`](crate::Content::start_shape_glyph) operator.
+    pub fn char_procs(&mut self) -> TypedDict<'_, Ref> {
+        self.key(Name(b"CharProcs")).dict().typed()
+    }
+
+    /// Write the `/Encoding` attribute as a predefined encoding. Either this or
+    /// [`encoding_custom`](Self::encoding_custom) is required.
+    pub fn encoding_predefined(&mut self, encoding: Name) -> &mut Self {
+        self.pair(Name(b"Encoding"), encoding);
+        self
+    }
+
+    /// Start writing an `/Encoding` dictionary. Either this or
+    /// [`encoding_predefined`](Self::encoding_predefined) is required.
+    pub fn encoding_custom(&mut self) -> Encoding<'_> {
+        Encoding::new(self.key(Name(b"Encoding")))
+    }
+
+    /// Write the `FirstChar` attribute, defining the first character code in
+    /// the font's widths array. Required.
+    pub fn first_char(&mut self, first: u8) -> &mut Self {
+        self.pair(Name(b"FirstChar"), i32::from(first));
+        self
+    }
+
+    /// Write the `LastChar` attribute, defining the last character code in the
+    /// font's widths array. Required.
+    pub fn last_char(&mut self, last: u8) -> &mut Self {
+        self.pair(Name(b"LastChar"), i32::from(last));
+        self
+    }
+
+    /// Write the `/Widths` array. Should be of length `last - first + 1`.
+    /// Required.
+    pub fn widths(&mut self, widths: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.key(Name(b"Widths")).array().typed().items(widths);
+        self
+    }
+
+    /// Write the `/FontDescriptor` attribute. Required in Tagged PDFs.
+    pub fn font_descriptor(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"FontDescriptor"), id);
+        self
+    }
+
+    /// Start writing the `/Resources` dictionary.
+    pub fn resources(&mut self) -> Resources<'_> {
+        Resources::new(self.key(Name(b"Resources")))
+    }
+
+    /// Write the `/ToUnicode` attribute. PDF 1.2+.
+    ///
+    /// A suitable character map can be built with [`UnicodeCmap`].
+    pub fn to_unicode(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"ToUnicode"), id);
+        self
+    }
+}
+
+deref!('a, Type3Font<'a> => Dict<'a>, dict);
+
+/// Writer for a _simple font encoding dictionary_.
+///
+/// This struct is created by [`Type1Font::encoding_custom`] and
+/// [`Type3Font::encoding_custom`].
+pub struct Encoding<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> Encoding<'a> {
+    /// Create a new encoding dictionary writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        let mut dict = obj.dict();
+        dict.pair(Name(b"Type"), Name(b"Encoding"));
+        Self { dict }
+    }
+
+    /// Write the `BaseEncoding` attribute, from which this encoding is
+    /// described through differences.
+    pub fn base_encoding(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"BaseEncoding"), name);
+        self
+    }
+
+    /// Start writing the `/Differences` array.
+    pub fn differences(&mut self) -> Differences<'_> {
+        Differences::new(self.key(Name(b"Differences")))
+    }
+}
+
+deref!('a, Encoding<'a> => Dict<'a>, dict);
+
+/// Writer for an _encoding differences array_.
+///
+/// This struct is created by [`Encoding::differences`].
+pub struct Differences<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> Differences<'a> {
+    /// Create a new differences array writer.
+    pub fn new(obj: Obj<'a>) -> Self {
+        Self { array: obj.array() }
+    }
+
+    /// Maps consecutive character codes starting at `start` to the given glyph
+    /// names.
+    pub fn consecutive<'b>(
+        &mut self,
+        start: u8,
+        names: impl IntoIterator<Item = Name<'b>>,
+    ) -> &mut Self {
+        self.item(i32::from(start));
+        for name in names {
+            self.item(name);
+        }
+        self
+    }
+}
+
+deref!('a, Differences<'a> => Array<'a>, array);
+
+/// Writer for a _Type-0 (composite) font dictionary_. PDF 1.2+.
 ///
 /// This struct is created by [`PdfWriter::type0_font`].
 pub struct Type0Font<'a> {
@@ -41,26 +265,30 @@ impl<'a> Type0Font<'a> {
         Self { dict }
     }
 
-    /// Write the `/BaseFont` attribute.
+    /// Write the `/BaseFont` attribute. This is the PostScript name of the
+    /// font. Required.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"BaseFont"), name);
         self
     }
 
-    /// Write the `/Encoding` attribute as a predefined encoding.
+    /// Write the `/Encoding` attribute as a predefined encoding. Either this or
+    /// [`encoding_cmap`](Self::encoding_cmap) is required.
     pub fn encoding_predefined(&mut self, encoding: Name) -> &mut Self {
         self.pair(Name(b"Encoding"), encoding);
         self
     }
 
     /// Write the `/Encoding` attribute as a reference to a character map.
+    /// Either this or [`encoding_predefined`](Self::encoding_predefined) is
+    /// required.
     pub fn encoding_cmap(&mut self, cmap: Ref) -> &mut Self {
         self.pair(Name(b"Encoding"), cmap);
         self
     }
 
     /// Write the `/DescendantFonts` attribute as a one-element array containing
-    /// a reference to a [`CidFont`].
+    /// a reference to a [`CidFont`]. Required.
     pub fn descendant_font(&mut self, cid_font: Ref) -> &mut Self {
         self.key(Name(b"DescendantFonts")).array().item(cid_font);
         self
@@ -77,7 +305,7 @@ impl<'a> Type0Font<'a> {
 
 deref!('a, Type0Font<'a> => Dict<'a>, dict);
 
-/// Writer for a _CID font dictionary_.
+/// Writer for a _CID font dictionary_. PDF 1.2+.
 ///
 /// This struct is created by [`PdfWriter::cid_font`].
 pub struct CidFont<'a> {
@@ -92,27 +320,33 @@ impl<'a> CidFont<'a> {
         Self { dict }
     }
 
-    /// Write the `/Subtype` attribute.
+    /// Write the `/Subtype` attribute. Required.
     pub fn subtype(&mut self, subtype: CidFontType) -> &mut Self {
         self.pair(Name(b"Subtype"), subtype.to_name());
         self
     }
 
-    /// Write the `/BaseFont` attribute.
+    /// Write the `/BaseFont` attribute. Required.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"BaseFont"), name);
         self
     }
 
-    /// Write the `/CIDSystemInfo` dictionary.
+    /// Write the `/CIDSystemInfo` dictionary. Required.
     pub fn system_info(&mut self, info: SystemInfo) -> &mut Self {
         info.write(self.key(Name(b"CIDSystemInfo")));
         self
     }
 
-    /// Write the `/FontDescriptor` attribute.
-    pub fn font_descriptor(&mut self, descriptor: Ref) -> &mut Self {
-        self.pair(Name(b"FontDescriptor"), descriptor);
+    /// Write the `/FontDescriptor` attribute. Required.
+    pub fn font_descriptor(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"FontDescriptor"), id);
+        self
+    }
+
+    /// Write the `/DW` attribute, specifying the default glyph width.
+    pub fn default_width(&mut self, width: f32) -> &mut Self {
+        self.pair(Name(b"DW"), width);
         self
     }
 
@@ -155,7 +389,7 @@ impl CidFontType {
     }
 }
 
-/// Writer for a _widths array_.
+/// Writer for a _CID font widths array_.
 ///
 /// This struct is created by [`CidFont::widths`].
 pub struct Widths<'a> {
@@ -168,8 +402,9 @@ impl<'a> Widths<'a> {
         Self { array: obj.array() }
     }
 
-    /// Specifies individual widths for a range of CIDs starting at `start`.
-    pub fn individual(
+    /// Specifies individual widths for a range of consecutive CIDs starting at
+    /// `start`.
+    pub fn consecutive(
         &mut self,
         start: u16,
         widths: impl IntoIterator<Item = f32>,
@@ -205,79 +440,198 @@ impl<'a> FontDescriptor<'a> {
         Self { dict }
     }
 
-    /// Write the `/FontName` attribute.
-    pub fn font_name(&mut self, name: Name) -> &mut Self {
+    /// Write the `/FontName` attribute. Required.
+    pub fn name(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"FontName"), name);
         self
     }
 
-    /// Write the `/Flags` attribute.
-    pub fn font_flags(&mut self, flags: FontFlags) -> &mut Self {
+    /// Write the `/FontFamily` attribute. Recommended for Type 3 fonts in
+    /// Tagged PDFs. PDF 1.5+.
+    pub fn family(&mut self, family: Str) -> &mut Self {
+        self.pair(Name(b"FontFamily"), family);
+        self
+    }
+
+    /// Write the `/FontStretch` attribute. Recommended for Type 3 fonts in
+    /// Tagged PDFs. PDF 1.5+.
+    pub fn stretch(&mut self, stretch: FontStretch) -> &mut Self {
+        self.pair(Name(b"FontStretch"), stretch.to_name());
+        self
+    }
+
+    /// Write the `/FontWeight` attribute. Should be between 100 (lightest) and
+    /// 900 (heaviest), 400 is normal weight, 700 is bold. Recommended
+    /// for Type 3 fonts in Tagged PDFs. PDF 1.5+.
+    pub fn weight(&mut self, weight: u16) -> &mut Self {
+        self.pair(Name(b"FontWeight"), i32::from(weight));
+        self
+    }
+
+    /// Write the `/Flags` attribute. Required.
+    pub fn flags(&mut self, flags: FontFlags) -> &mut Self {
         self.pair(Name(b"Flags"), flags.bits() as i32);
         self
     }
 
-    /// Write the `/FontBBox` attribute.
-    pub fn font_bbox(&mut self, bbox: Rect) -> &mut Self {
+    /// Write the `/FontBBox` attribute. Required, except for Type 3 fonts.
+    pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
         self.pair(Name(b"FontBBox"), bbox);
         self
     }
 
-    /// Write the `/ItalicAngle` attribute.
+    /// Write the `/ItalicAngle` attribute. Required.
     pub fn italic_angle(&mut self, angle: f32) -> &mut Self {
         self.pair(Name(b"ItalicAngle"), angle);
         self
     }
 
-    /// Write the `/Ascent` attribute.
+    /// Write the `/Ascent` attribute. Required.
     pub fn ascent(&mut self, ascent: f32) -> &mut Self {
         self.pair(Name(b"Ascent"), ascent);
         self
     }
 
-    /// Write the `/Descent` attribute.
+    /// Write the `/Descent` attribute. Required.
     pub fn descent(&mut self, descent: f32) -> &mut Self {
         self.pair(Name(b"Descent"), descent);
         self
     }
 
-    /// Write the `/CapHeight` attribute.
+    /// Write the `/Leading` attribute.
+    pub fn leading(&mut self, leading: f32) -> &mut Self {
+        self.pair(Name(b"Leading"), leading);
+        self
+    }
+
+    /// Write the `/CapHeight` attribute. Required for fonts with Latin
+    /// characters, except for Type 3 fonts.
     pub fn cap_height(&mut self, cap_height: f32) -> &mut Self {
         self.pair(Name(b"CapHeight"), cap_height);
         self
     }
 
-    /// Write the `/StemV` attribute.
+    /// Write the `/XHeight` attribute.
+    pub fn x_height(&mut self, x_height: f32) -> &mut Self {
+        self.pair(Name(b"XHeight"), x_height);
+        self
+    }
+
+    /// Write the `/StemV` attribute. Required, except for Type 3 fonts.
     pub fn stem_v(&mut self, stem_v: f32) -> &mut Self {
         self.pair(Name(b"StemV"), stem_v);
         self
     }
 
-    /// Write the `/FontFile2` attribute.
-    pub fn font_file2(&mut self, true_type_stream: Ref) -> &mut Self {
-        self.pair(Name(b"FontFile2"), true_type_stream);
+    /// Write the `/StemH` attribute.
+    pub fn stem_h(&mut self, stem_h: f32) -> &mut Self {
+        self.pair(Name(b"StemH"), stem_h);
+        self
+    }
+
+    /// Write the `/AvgWidth` attribute.
+    pub fn avg_width(&mut self, avg_width: f32) -> &mut Self {
+        self.pair(Name(b"AvgWidth"), avg_width);
+        self
+    }
+
+    /// Write the `/MaxWidth` attribute.
+    pub fn max_width(&mut self, max_width: f32) -> &mut Self {
+        self.pair(Name(b"MaxWidth"), max_width);
+        self
+    }
+
+    /// Write the `/MissingWidth` attribute.
+    pub fn missing_width(&mut self, missing_width: f32) -> &mut Self {
+        self.pair(Name(b"MissingWidth"), missing_width);
+        self
+    }
+
+    /// Write the `/FontFile` attribute, referecing Type 1 font data.
+    pub fn font_file(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"FontFile"), id);
+        self
+    }
+
+    /// Write the `/FontFile2` attribute, referencing TrueType font data. PDF
+    /// 1.1+.
+    pub fn font_file2(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"FontFile2"), id);
+        self
+    }
+
+    /// Write the `/FontFile3` attribute, referencing CFF font data. PDF 1.2+ or
+    /// PDF 1.3+ for CID-keyed fonts.
+    pub fn font_file3(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"FontFile3"), id);
+        self
+    }
+
+    /// Write the `/CharSet` attribute, encoding the character names of a font
+    /// subset as a string. This is only relevant for Type 1 fonts. PDF 1.1+.
+    pub fn char_set(&mut self, names: Str) -> &mut Self {
+        self.pair(Name(b"CharSet"), names);
         self
     }
 }
 
 deref!('a, FontDescriptor<'a> => Dict<'a>, dict);
 
-pub use flags::*;
-mod flags {
-    #![allow(missing_docs)]
-    bitflags::bitflags! {
-        /// Bitflags describing various characteristics of fonts.
-        pub struct FontFlags: u32 {
-            const FIXED_PITCH = 1 << 0;
-            const SERIF = 1 << 1;
-            const SYMBOLIC = 1 << 2;
-            const SCRIPT = 1 << 3;
-            const NON_SYMBOLIC = 1 << 5;
-            const ITALIC = 1 << 6;
-            const ALL_CAP = 1 << 16;
-            const SMALL_CAP = 1 << 17;
-            const FORCE_BOLD = 1 << 18;
+/// The width of a font's glyphs.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum FontStretch {
+    UltraCondensed,
+    ExtraCondensed,
+    Condensed,
+    SemiCondensed,
+    Normal,
+    SemiExpanded,
+    Expanded,
+    ExtraExpanded,
+    UltraExpanded,
+}
+
+impl FontStretch {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::UltraCondensed => Name(b"UltraCondensed"),
+            Self::ExtraCondensed => Name(b"ExtraCondensed"),
+            Self::Condensed => Name(b"Condensed"),
+            Self::SemiCondensed => Name(b"SemiCondensed"),
+            Self::Normal => Name(b"Normal"),
+            Self::SemiExpanded => Name(b"SemiExpanded"),
+            Self::Expanded => Name(b"Expanded"),
+            Self::ExtraExpanded => Name(b"ExtraExpanded"),
+            Self::UltraExpanded => Name(b"UltraExpanded"),
         }
+    }
+}
+
+bitflags::bitflags! {
+    /// Bitflags describing various characteristics of fonts.
+    pub struct FontFlags: u32 {
+        /// All glyphs have the same width.
+        const FIXED_PITCH = 1 << 0;
+        /// Glyphs have short strokes at their stems.
+        const SERIF = 1 << 1;
+        /// The font contains glyphs not in the Adobe standard Latin character
+        /// set.
+        const SYMBOLIC = 1 << 2;
+        /// The glyphs resemeble cursive handwritiwng.
+        const SCRIPT = 1 << 3;
+        /// The font only uses glyphs in the Adobe standard Latin character set.
+        const NON_SYMBOLIC = 1 << 5;
+        /// The glyphs are slanted to the right.
+        const ITALIC = 1 << 6;
+        /// The font does not contain lowercase letters.
+        const ALL_CAP = 1 << 16;
+        /// The font's lowercase letters are similar to the uppercase ones, but
+        /// smaller.
+        const SMALL_CAP = 1 << 17;
+        /// Ensures that bold glyphs are painted with more pixels than normal
+        /// glyphs even at very small sizes.
+        const FORCE_BOLD = 1 << 18;
     }
 }
 
@@ -295,13 +649,13 @@ impl<'a> Cmap<'a> {
         Self { stream }
     }
 
-    /// Write the `/CMapName` attribute.
+    /// Write the `/CMapName` attribute. Required.
     pub fn name(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"CMapName"), name);
         self
     }
 
-    /// Write the `/CIDSystemInfo` attribute.
+    /// Write the `/CIDSystemInfo` attribute. Required.
     pub fn system_info(&mut self, info: SystemInfo) -> &mut Self {
         info.write(self.key(Name(b"CIDSystemInfo")));
         self
