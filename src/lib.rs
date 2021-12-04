@@ -115,7 +115,7 @@ pub mod writers {
     };
     pub use structure::{
         Catalog, Destination, Destinations, DocumentInfo, Outline, OutlineItem, Page,
-        PageLabel, PageLabelEntry, PageLabels, Pages, Resources, ViewerPreferences,
+        PageLabel, PageLabelMapping, PageLabels, Pages, Resources, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, Image, Reference};
@@ -281,7 +281,7 @@ impl PdfWriter {
     /// meaning that you don't need to provide the given `id` anywhere else.
     pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
         self.catalog_id = Some(id);
-        Catalog::new(self.indirect(id))
+        Catalog::start(self.indirect(id))
     }
 
     /// Start writing the document information dictionary.
@@ -291,77 +291,77 @@ impl PdfWriter {
     /// else.
     pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
         self.info_id = Some(id);
-        DocumentInfo::new(self.indirect(id))
+        DocumentInfo::start(self.indirect(id))
     }
 
     /// Start writing a page tree.
     pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        Pages::new(self.indirect(id))
+        Pages::start(self.indirect(id))
     }
 
     /// Start writing a page.
     pub fn page(&mut self, id: Ref) -> Page<'_> {
-        Page::new(self.indirect(id))
+        Page::start(self.indirect(id))
     }
 
     /// Start writing an outline.
     pub fn outline(&mut self, id: Ref) -> Outline<'_> {
-        Outline::new(self.indirect(id))
+        Outline::start(self.indirect(id))
     }
 
     /// Start writing an outline item.
     pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
-        OutlineItem::new(self.indirect(id))
+        OutlineItem::start(self.indirect(id))
     }
 
     /// Start writing a named destination dictionary.
     pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
-        Destinations::new(self.indirect(id))
+        Destinations::start(self.indirect(id))
     }
 
     /// Start writing a Type-1 font.
     pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        Type1Font::new(self.indirect(id))
+        Type1Font::start(self.indirect(id))
     }
 
     /// Start writing a Type-3 font.
     pub fn type3_font(&mut self, id: Ref) -> Type3Font<'_> {
-        Type3Font::new(self.indirect(id))
+        Type3Font::start(self.indirect(id))
     }
 
     /// Start writing a Type-0 font.
     pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
-        Type0Font::new(self.indirect(id))
+        Type0Font::start(self.indirect(id))
     }
 
     /// Start writing a CID font.
     pub fn cid_font(&mut self, id: Ref) -> CidFont<'_> {
-        CidFont::new(self.indirect(id))
+        CidFont::start(self.indirect(id))
     }
 
     /// Start writing a font descriptor.
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
-        FontDescriptor::new(self.indirect(id))
+        FontDescriptor::start(self.indirect(id))
     }
 
     /// Start writing a dictionary for a shading pattern.
     pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
-        ShadingPattern::new(self.indirect(id))
+        ShadingPattern::start(self.indirect(id))
     }
 
     /// Start writing an exponential function dictionary.
     pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
-        ExponentialFunction::new(self.indirect(id))
+        ExponentialFunction::start(self.indirect(id))
     }
 
     /// Start writing a stitching function dictionary.
     pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
-        StitchingFunction::new(self.indirect(id))
+        StitchingFunction::start(self.indirect(id))
     }
 
     /// Start writing an external graphics state dictionary.
     pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
-        ExtGraphicsState::new(self.indirect(id))
+        ExtGraphicsState::start(self.indirect(id))
     }
 }
 
@@ -400,7 +400,7 @@ impl PdfWriter {
     where
         T: Into<Cow<'a, [u8]>>,
     {
-        Stream::new(self.indirect(id), data.into())
+        Stream::start(self.indirect(id), data.into())
     }
 
     /// Start writing an XObject image stream.
@@ -408,10 +408,10 @@ impl PdfWriter {
     /// The samples should be encoded according to the stream's filter, color
     /// space and bits per component.
     pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> Image<'a> {
-        Image::new(self.stream(id, samples))
+        Image::start(self.stream(id, samples))
     }
 
-    /// Start writing an form XObject stream.
+    /// Start writing a form XObject stream.
     ///
     /// These can be used as transparency groups.
     ///
@@ -419,12 +419,12 @@ impl PdfWriter {
     /// out. Rather, they are a way to encapsulate and reuse content across the
     /// file.
     pub fn form_xobject<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> FormXObject<'a> {
-        FormXObject::new(self.stream(id, data))
+        FormXObject::start(self.stream(id, data))
     }
 
     /// Start writing an embedded file stream.
     pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
-        EmbeddedFile::new(self.stream(id, bytes))
+        EmbeddedFile::start(self.stream(id, bytes))
     }
 
     /// Start writing a character map stream.
@@ -432,7 +432,7 @@ impl PdfWriter {
     /// If you want to use this for a `/ToUnicode` CMap, you can create the
     /// bytes using a [`UnicodeCmap`] builder.
     pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
-        Cmap::new(self.stream(id, cmap))
+        Cmap::start(self.stream(id, cmap))
     }
 
     /// Start writing a tiling pattern stream.
@@ -443,7 +443,7 @@ impl PdfWriter {
         id: Ref,
         content: &'a [u8],
     ) -> TilingPattern<'a> {
-        TilingPattern::new(self.stream(id, content))
+        TilingPattern::start(self.stream(id, content))
     }
 
     /// Start writing a sampled function stream.
@@ -452,7 +452,7 @@ impl PdfWriter {
         id: Ref,
         samples: &'a [u8],
     ) -> SampledFunction<'a> {
-        SampledFunction::new(self.stream(id, samples))
+        SampledFunction::start(self.stream(id, samples))
     }
 
     /// Start writing a PostScript function stream.
@@ -463,7 +463,7 @@ impl PdfWriter {
         id: Ref,
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
-        PostScriptFunction::new(self.stream(id, code))
+        PostScriptFunction::start(self.stream(id, code))
     }
 }
 
@@ -472,31 +472,3 @@ impl Debug for PdfWriter {
         f.pad("PdfWriter(..)")
     }
 }
-
-/// Finish objects in postfix-style.
-///
-/// In many cases you can use writers in builder-pattern style so that they are
-/// automatically dropped at the appropriate time. Sometimes though you need to
-/// bind a writer to a variable and still want to regain access to the
-/// [`PdfWriter`] in the same scope. In that case, you need to manually invoke
-/// the writer's `Drop` implementation. You can of course, just write
-/// `drop(array)` to finish your array, but you might find it more aesthetically
-/// pleasing to write `array.finish()`. That's what this trait is for.
-///
-/// ```
-/// # use pdf_writer::{PdfWriter, Ref, Finish, Name, Str};
-/// # let mut writer = PdfWriter::new();
-/// let mut array = writer.indirect(Ref::new(1)).array();
-/// array.obj().dict().pair(Name(b"Key"), Str(b"Value"));
-/// array.item(2);
-/// array.finish(); // instead of drop(array)
-///
-/// // Do more stuff with the writer ...
-/// ```
-pub trait Finish: Sized {
-    /// Does nothing but move `self`, equivalent to [`drop`].
-    #[inline]
-    fn finish(self) {}
-}
-
-impl<T> Finish for T {}

@@ -7,15 +7,16 @@ pub struct Annotations<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Annotations<'a> {
-    /// Create a new annotations array writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Annotations<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
+}
 
+impl<'a> Annotations<'a> {
     /// Start writing a new annotation dictionary.
     pub fn push(&mut self) -> Annotation<'_> {
-        Annotation::new(self.obj())
+        Annotation::start(self.obj())
     }
 }
 
@@ -28,14 +29,15 @@ pub struct Annotation<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Annotation<'a> {
-    /// Create a new annotation writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Annotation<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Annot"));
         Self { dict }
     }
+}
 
+impl<'a> Annotation<'a> {
     /// Write the `/Subtype` attribute to tell the viewer the type of this
     /// particular annotation.
     pub fn subtype(&mut self, kind: AnnotationType) -> &mut Self {
@@ -106,7 +108,7 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/BS` attribute. These are some more elaborate border
     /// settings taking precedence over `/B` for some annotation types. PDF 1.2+.
     pub fn border_style(&mut self) -> BorderStyle<'_> {
-        BorderStyle::new(self.key(Name(b"BS")))
+        BorderStyle::start(self.key(Name(b"BS")))
     }
 
     /// Write the `/C` attribute forcing a transparent color. This sets the
@@ -140,7 +142,7 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/A` dictionary. Only permissible for the subtype
     /// `Link`.
     pub fn action(&mut self) -> Action<'_> {
-        Action::new(self.key(Name(b"A")))
+        Action::start(self.key(Name(b"A")))
     }
 
     /// Write the `/H` attribute to set what effect is used to convey that the
@@ -184,7 +186,7 @@ impl<'a> Annotation<'a> {
 
     /// Start writing the `/FS` attribute, setting which file to reference.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::new(self.key(Name(b"FS")))
+        FileSpec::start(self.key(Name(b"FS")))
     }
 
     /// Write the `/Name` attribute. Refer to the specification to see which
@@ -328,14 +330,15 @@ pub struct Action<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Action<'a> {
-    /// Create a new action writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Action<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Action"));
         Self { dict }
     }
+}
 
+impl<'a> Action<'a> {
     /// Write the `/S` attribute to set the action type.
     pub fn action_type(&mut self, kind: ActionType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
@@ -345,7 +348,7 @@ impl<'a> Action<'a> {
     /// Start writing the `/D` attribute to set the destination of this
     /// GoTo-type action.
     pub fn dest_direct(&mut self) -> Destination<'_> {
-        Destination::new(self.key(Name(b"D")))
+        Destination::start(self.key(Name(b"D")))
     }
 
     /// Write the `/D` attribute to set the destination of this GoTo-type action
@@ -358,7 +361,7 @@ impl<'a> Action<'a> {
     /// Start writing the `/F` attribute, setting which file to go to or which
     /// application to launch.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::new(self.key(Name(b"F")))
+        FileSpec::start(self.key(Name(b"F")))
     }
 
     /// Write the `/NewWindow` attribute to set whether this remote GoTo action
@@ -441,14 +444,15 @@ pub struct BorderStyle<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> BorderStyle<'a> {
-    /// Create a new border style writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for BorderStyle<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Border"));
         Self { dict }
     }
+}
 
+impl<'a> BorderStyle<'a> {
     /// Write the `/W` attribute. This is the width of the border in points.
     pub fn width(&mut self, points: f32) -> &mut Self {
         self.pair(Name(b"W"), points);

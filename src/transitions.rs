@@ -7,14 +7,15 @@ pub struct Transition<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Transition<'a> {
-    /// Create a new transition writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Transition<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Trans"));
         Self { dict }
     }
+}
 
+impl<'a> Transition<'a> {
     /// Write the `/S` attribute to set the transition style.
     pub fn style(&mut self, kind: TransitionStyle) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());

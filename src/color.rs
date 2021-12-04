@@ -36,12 +36,13 @@ pub struct ColorSpaces<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> ColorSpaces<'a> {
-    /// Create a new color space dictionary writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for ColorSpaces<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> ColorSpaces<'a> {
     /// Write a `CalGray` color space.
     pub fn cal_gray(
         &mut self,
@@ -240,7 +241,7 @@ pub struct TilingPattern<'a> {
 
 impl<'a> TilingPattern<'a> {
     /// Create a new tiling pattern writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"Pattern"));
         stream.pair(Name(b"PatternType"), PatternType::Tiling.to_int());
         Self { stream }
@@ -297,7 +298,7 @@ impl<'a> TilingPattern<'a> {
     ///
     /// Sets the resources used by the pattern. Required.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.key(Name(b"Resources")))
+        Resources::start(self.key(Name(b"Resources")))
     }
 
     /// Write the `/Matrix` attribute.
@@ -358,18 +359,19 @@ pub struct ShadingPattern<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> ShadingPattern<'a> {
-    /// Create a new shading pattern writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for ShadingPattern<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Pattern"));
         dict.pair(Name(b"PatternType"), PatternType::Shading.to_int());
         Self { dict }
     }
+}
 
+impl<'a> ShadingPattern<'a> {
     /// Start writing the `/Shading` dictionary.
     pub fn shading(&mut self) -> Shading<'_> {
-        Shading::new(self.dict.key(Name(b"Shading")))
+        Shading::start(self.dict.key(Name(b"Shading")))
     }
 
     /// Write the `/Matrix` attribute.
@@ -382,7 +384,7 @@ impl<'a> ShadingPattern<'a> {
 
     /// Begin writing the `/ExtGState` attribute.
     pub fn ext_graphics(&mut self) -> ExtGraphicsState<'_> {
-        ExtGraphicsState::new(self.dict.key(Name(b"ExtGState")))
+        ExtGraphicsState::start(self.dict.key(Name(b"ExtGState")))
     }
 }
 
@@ -395,12 +397,13 @@ pub struct Shading<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Shading<'a> {
-    /// Create a new shading writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Shading<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> Shading<'a> {
     /// Write the `/ShadingType` attribute.
     ///
     /// Sets the type of shading. The available and required attributes change

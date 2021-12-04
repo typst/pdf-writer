@@ -52,7 +52,7 @@ pub struct SampledFunction<'a> {
 
 impl<'a> SampledFunction<'a> {
     /// Create a new sampled function writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"FunctionType"), FunctionType::Sampled.to_int());
         Self { stream }
     }
@@ -131,14 +131,15 @@ pub struct ExponentialFunction<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> ExponentialFunction<'a> {
-    /// Create a new exponential function writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for ExponentialFunction<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"FunctionType"), FunctionType::Exponential.to_int());
         Self { dict }
     }
+}
 
+impl<'a> ExponentialFunction<'a> {
     common_func_methods!();
 
     /// Write the `/C0` array.
@@ -178,14 +179,15 @@ pub struct StitchingFunction<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> StitchingFunction<'a> {
-    /// Create a new stitching function writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for StitchingFunction<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"FunctionType"), FunctionType::Stitching.to_int());
         Self { dict }
     }
+}
 
+impl<'a> StitchingFunction<'a> {
     common_func_methods!();
 
     /// Write the `/Functions` array.
@@ -226,7 +228,7 @@ pub struct PostScriptFunction<'a> {
 
 impl<'a> PostScriptFunction<'a> {
     /// Create a new postscript function writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"FunctionType"), FunctionType::PostScript.to_int());
         Self { stream }
     }

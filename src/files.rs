@@ -8,14 +8,15 @@ pub struct FileSpec<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> FileSpec<'a> {
-    /// Create a new file specification writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for FileSpec<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Filespec"));
         Self { dict }
     }
+}
 
+impl<'a> FileSpec<'a> {
     /// Write the `/FS` attribute to set the file system this entry relates to.
     /// If you set the `system` argument to `Name(b"URL")`, this becomes an URL
     /// specification.
@@ -69,7 +70,7 @@ pub struct EmbeddedFile<'a> {
 
 impl<'a> EmbeddedFile<'a> {
     /// Create a new embedded file writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"EmbeddedFile"));
         Self { stream }
     }
@@ -87,7 +88,7 @@ impl<'a> EmbeddedFile<'a> {
 
     /// Start writing the `/Params` dictionary.
     pub fn params(&mut self) -> EmbedParams<'_> {
-        EmbedParams::new(self.key(Name(b"Params")))
+        EmbedParams::start(self.key(Name(b"Params")))
     }
 }
 
@@ -100,12 +101,13 @@ pub struct EmbedParams<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> EmbedParams<'a> {
-    /// Create a new embedded file parameter writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for EmbedParams<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> EmbedParams<'a> {
     /// Write the `/Size` attribute to set the uncompressed file size in bytes.
     pub fn size(&mut self, size: i32) -> &mut Self {
         self.pair(Name(b"Size"), size);

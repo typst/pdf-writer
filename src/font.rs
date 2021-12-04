@@ -7,15 +7,16 @@ pub struct Type1Font<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Type1Font<'a> {
-    /// Create a new Type-1 font writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Type1Font<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type1"));
         Self { dict }
     }
+}
 
+impl<'a> Type1Font<'a> {
     /// Write the `/Name` attribute, which is the name of the font in the
     /// current resource dictionary. Required in PDF 1.0, discouraged in PDF
     /// 1.1+.
@@ -71,7 +72,7 @@ impl<'a> Type1Font<'a> {
     /// Start writing an `/Encoding` dictionary. Either this or
     /// [`encoding_predefined`](Self::encoding_predefined) is required.
     pub fn encoding_custom(&mut self) -> Encoding<'_> {
-        Encoding::new(self.key(Name(b"Encoding")))
+        Encoding::start(self.key(Name(b"Encoding")))
     }
 
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
@@ -92,15 +93,16 @@ pub struct Type3Font<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Type3Font<'a> {
-    /// Create a new Type-3 font writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Type3Font<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type3"));
         Self { dict }
     }
+}
 
+impl<'a> Type3Font<'a> {
     /// Write the `/Name` attribute, which is the name of the font in the
     /// current resource dictionary. Required in PDF 1.0, discouraged in PDF
     /// 1.1+.
@@ -142,7 +144,7 @@ impl<'a> Type3Font<'a> {
     /// Start writing an `/Encoding` dictionary. Either this or
     /// [`encoding_predefined`](Self::encoding_predefined) is required.
     pub fn encoding_custom(&mut self) -> Encoding<'_> {
-        Encoding::new(self.key(Name(b"Encoding")))
+        Encoding::start(self.key(Name(b"Encoding")))
     }
 
     /// Write the `FirstChar` attribute, defining the first character code in
@@ -174,7 +176,7 @@ impl<'a> Type3Font<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.key(Name(b"Resources")))
+        Resources::start(self.key(Name(b"Resources")))
     }
 
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
@@ -196,14 +198,15 @@ pub struct Encoding<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Encoding<'a> {
-    /// Create a new encoding dictionary writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Encoding<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Encoding"));
         Self { dict }
     }
+}
 
+impl<'a> Encoding<'a> {
     /// Write the `BaseEncoding` attribute, from which this encoding is
     /// described through differences.
     pub fn base_encoding(&mut self, name: Name) -> &mut Self {
@@ -213,7 +216,7 @@ impl<'a> Encoding<'a> {
 
     /// Start writing the `/Differences` array.
     pub fn differences(&mut self) -> Differences<'_> {
-        Differences::new(self.key(Name(b"Differences")))
+        Differences::start(self.key(Name(b"Differences")))
     }
 }
 
@@ -226,12 +229,13 @@ pub struct Differences<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Differences<'a> {
-    /// Create a new differences array writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Differences<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
+}
 
+impl<'a> Differences<'a> {
     /// Maps consecutive character codes starting at `start` to the given glyph
     /// names.
     pub fn consecutive<'b>(
@@ -256,15 +260,16 @@ pub struct Type0Font<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Type0Font<'a> {
-    /// Create a new Type-0 font writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Type0Font<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         dict.pair(Name(b"Subtype"), Name(b"Type0"));
         Self { dict }
     }
+}
 
+impl<'a> Type0Font<'a> {
     /// Write the `/BaseFont` attribute. This is the PostScript name of the
     /// font. Required.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
@@ -312,14 +317,15 @@ pub struct CidFont<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> CidFont<'a> {
-    /// Create a new CID font writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for CidFont<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Font"));
         Self { dict }
     }
+}
 
+impl<'a> CidFont<'a> {
     /// Write the `/Subtype` attribute. Required.
     pub fn subtype(&mut self, subtype: CidFontType) -> &mut Self {
         self.pair(Name(b"Subtype"), subtype.to_name());
@@ -352,7 +358,7 @@ impl<'a> CidFont<'a> {
 
     /// Start writing the `/W` (widths) array.
     pub fn widths(&mut self) -> Widths<'_> {
-        Widths::new(self.key(Name(b"W")))
+        Widths::start(self.key(Name(b"W")))
     }
 
     /// Write the `/CIDToGIDMap` attribute as a predefined name.
@@ -396,12 +402,13 @@ pub struct Widths<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Widths<'a> {
-    /// Create a new widths array writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Widths<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
+}
 
+impl<'a> Widths<'a> {
     /// Specifies individual widths for a range of consecutive CIDs starting at
     /// `start`.
     pub fn consecutive(
@@ -432,14 +439,15 @@ pub struct FontDescriptor<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> FontDescriptor<'a> {
-    /// Create a new font descriptor writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for FontDescriptor<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"FontDescriptor"));
         Self { dict }
     }
+}
 
+impl<'a> FontDescriptor<'a> {
     /// Write the `/FontName` attribute. Required.
     pub fn name(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"FontName"), name);
@@ -644,7 +652,7 @@ pub struct Cmap<'a> {
 
 impl<'a> Cmap<'a> {
     /// Create a new character map writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"CMap"));
         Self { stream }
     }

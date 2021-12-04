@@ -5,6 +5,12 @@ use std::num::NonZeroI32;
 
 use super::*;
 
+/// A typed PDF object writer.
+pub trait Writer<'a> {
+    /// Start writing the object.
+    fn start(obj: Obj<'a>) -> Self;
+}
+
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
@@ -371,13 +377,13 @@ impl<'a> Obj<'a> {
     /// Write an array.
     #[inline]
     pub fn array(self) -> Array<'a> {
-        Array::new(self.buf, self.indirect, self.indent)
+        Array::start(self)
     }
 
     /// Write a dictionary.
     #[inline]
     pub fn dict(self) -> Dict<'a> {
-        Dict::new(self.buf, self.indirect, self.indent)
+        Dict::start(self)
     }
 }
 
@@ -389,13 +395,20 @@ pub struct Array<'a> {
     len: i32,
 }
 
-impl<'a> Array<'a> {
+impl<'a> Writer<'a> for Array<'a> {
     #[inline]
-    fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
-        buf.push(b'[');
-        Self { buf, indirect, indent, len: 0 }
+    fn start(obj: Obj<'a>) -> Self {
+        obj.buf.push(b'[');
+        Self {
+            buf: obj.buf,
+            indirect: obj.indirect,
+            indent: obj.indent,
+            len: 0,
+        }
     }
+}
 
+impl<'a> Array<'a> {
     /// Write an item with a primitive object value.
     ///
     /// This is a shorthand for `array.obj().primitive(value)`.
@@ -424,7 +437,7 @@ impl<'a> Array<'a> {
     /// Convert into the typed version.
     #[inline]
     pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
-        TypedArray::new(self)
+        TypedArray::wrap(self)
     }
 }
 
@@ -447,7 +460,7 @@ pub struct TypedArray<'a, T> {
 impl<'a, T: Primitive> TypedArray<'a, T> {
     /// Wrap an array to make it type-safe.
     #[inline]
-    pub fn new(array: Array<'a>) -> Self {
+    pub fn wrap(array: Array<'a>) -> Self {
         Self { array, phantom: PhantomData }
     }
 
@@ -482,18 +495,20 @@ pub struct Dict<'a> {
     len: i32,
 }
 
-impl<'a> Dict<'a> {
+impl<'a> Writer<'a> for Dict<'a> {
     #[inline]
-    fn new(buf: &'a mut Vec<u8>, indirect: bool, indent: u8) -> Self {
-        buf.extend(b"<<");
+    fn start(obj: Obj<'a>) -> Self {
+        obj.buf.extend(b"<<");
         Self {
-            buf,
-            indirect,
-            indent: indent.saturating_add(2),
+            buf: obj.buf,
+            indirect: obj.indirect,
+            indent: obj.indent.saturating_add(2),
             len: 0,
         }
     }
+}
 
+impl<'a> Dict<'a> {
     /// Write a pair with a primitive object value.
     ///
     /// This is a shorthand for `dict.key(key).primitive(value)`.
@@ -528,7 +543,7 @@ impl<'a> Dict<'a> {
     /// Convert into the typed version.
     #[inline]
     pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
-        TypedDict::new(self)
+        TypedDict::wrap(self)
     }
 }
 
@@ -557,7 +572,7 @@ pub struct TypedDict<'a, T> {
 impl<'a, T: Primitive> TypedDict<'a, T> {
     /// Wrap a dictionary to make it type-safe.
     #[inline]
-    pub fn new(dict: Dict<'a>) -> Self {
+    pub fn wrap(dict: Dict<'a>) -> Self {
         Self { dict, phantom: PhantomData }
     }
 
@@ -582,10 +597,10 @@ pub struct Stream<'a> {
 }
 
 impl<'a> Stream<'a> {
-    /// Create a new stream writer.
+    /// Start writing a stream.
     ///
     /// Panics if the object writer is not indirect.
-    pub(crate) fn new(obj: Obj<'a>, data: Cow<'a, [u8]>) -> Self {
+    pub(crate) fn start(obj: Obj<'a>, data: Cow<'a, [u8]>) -> Self {
         assert!(obj.indirect);
 
         let mut dict = obj.dict();
@@ -650,3 +665,31 @@ impl Filter {
         }
     }
 }
+
+/// Finish objects in postfix-style.
+///
+/// In many cases you can use writers in builder-pattern style so that they are
+/// automatically dropped at the appropriate time. Sometimes though you need to
+/// bind a writer to a variable and still want to regain access to the
+/// [`PdfWriter`] in the same scope. In that case, you need to manually invoke
+/// the writer's `Drop` implementation. You can of course, just write
+/// `drop(array)` to finish your array, but you might find it more aesthetically
+/// pleasing to write `array.finish()`. That's what this trait is for.
+///
+/// ```
+/// # use pdf_writer::{PdfWriter, Ref, Finish, Name, Str};
+/// # let mut writer = PdfWriter::new();
+/// let mut array = writer.indirect(Ref::new(1)).array();
+/// array.obj().dict().pair(Name(b"Key"), Str(b"Value"));
+/// array.item(2);
+/// array.finish(); // instead of drop(array)
+///
+/// // Do more stuff with the writer ...
+/// ```
+pub trait Finish: Sized {
+    /// Does nothing but move `self`, equivalent to [`drop`].
+    #[inline]
+    fn finish(self) {}
+}
+
+impl<T> Finish for T {}

@@ -10,7 +10,7 @@ pub struct Image<'a> {
 
 impl<'a> Image<'a> {
     /// Create a new image stream writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"XObject"));
         stream.pair(Name(b"Subtype"), Name(b"Image"));
         Self { stream }
@@ -128,7 +128,7 @@ pub struct FormXObject<'a> {
 
 impl<'a> FormXObject<'a> {
     /// Create a new form stream writer.
-    pub fn new(mut stream: Stream<'a>) -> Self {
+    pub fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"XObject"));
         stream.pair(Name(b"Subtype"), Name(b"Form"));
         stream.pair(Name(b"FormType"), 1);
@@ -153,19 +153,19 @@ impl<'a> FormXObject<'a> {
     /// XObject. This makes it independant of the parent content stream it is
     /// eventually invoked in. PDF 1.2+.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.key(Name(b"Resources")))
+        Resources::start(self.key(Name(b"Resources")))
     }
 
     /// Start writing the `/Group` dictionary to set up transparency model parameters and
     /// let this XObject be known as a group. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
-        Group::new(self.key(Name(b"Group")))
+        Group::start(self.key(Name(b"Group")))
     }
 
     /// Start writing the `/Ref` dictionary to identify the page from an external document
     /// that the XObject is a reference to. PDF 1.4+.
     pub fn reference(&mut self) -> Reference<'_> {
-        Reference::new(self.key(Name(b"Ref")))
+        Reference::start(self.key(Name(b"Ref")))
     }
 
     /// Write the `/Metadata` attribute. PDF 1.4+.
@@ -190,14 +190,15 @@ pub struct Group<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Group<'a> {
-    /// Create a new group dictionary writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Group<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Group"));
         Self { dict }
     }
+}
 
+impl<'a> Group<'a> {
     /// Set the `/S` attribute to `/Transparency`. Required to set the remaining
     /// transparency parameters.
     pub fn transparency(&mut self) -> &mut Self {
@@ -244,16 +245,17 @@ pub struct Reference<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Reference<'a> {
-    /// Create a new reference dictionary writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Reference<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> Reference<'a> {
     /// Start writing the `/F` attribute to set a file specification dictionary.
     /// Required.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::new(self.key(Name(b"F")))
+        FileSpec::start(self.key(Name(b"F")))
     }
 
     /// Write the `/Page` attribute to set the page number. Setting the

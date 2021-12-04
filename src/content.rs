@@ -22,7 +22,7 @@ impl Content {
     /// Start writing an arbitrary operation.
     #[inline]
     pub fn op<'a>(&'a mut self, operator: &'a str) -> Operation<'a> {
-        Operation::new(&mut self.buf, operator)
+        Operation::start(&mut self.buf, operator)
     }
 
     /// Return the raw constructed byte stream.
@@ -45,7 +45,7 @@ pub struct Operation<'a> {
 
 impl<'a> Operation<'a> {
     #[inline]
-    pub(crate) fn new(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
+    pub(crate) fn start(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
         Self { buf, op, first: true }
     }
 
@@ -588,7 +588,7 @@ impl Content {
     /// `TJ`: Show text with individual glyph positioning.
     #[inline]
     pub fn show_positioned(&mut self) -> ShowPositioned<'_> {
-        ShowPositioned::new(self.op("TJ"))
+        ShowPositioned::start(self.op("TJ"))
     }
 }
 
@@ -601,7 +601,7 @@ pub struct ShowPositioned<'a> {
 
 impl<'a> ShowPositioned<'a> {
     #[inline]
-    pub(crate) fn new(op: Operation<'a>) -> Self {
+    pub(crate) fn start(op: Operation<'a>) -> Self {
         Self { op }
     }
 
@@ -847,14 +847,15 @@ pub struct ExtGraphicsState<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> ExtGraphicsState<'a> {
-    /// Create a new external graphics dictionary writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for ExtGraphicsState<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"ExtGState"));
         Self { dict }
     }
+}
 
+impl<'a> ExtGraphicsState<'a> {
     /// `LW`: Set the line width. PDF 1.3+.
     pub fn line_width(&mut self, width: f32) -> &mut Self {
         self.pair(Name(b"LW"), width);
@@ -1000,7 +1001,7 @@ impl<'a> ExtGraphicsState<'a> {
 
     /// `SMask`: Set the soft mask using a dictionary. PDF 1.4+.
     pub fn soft_mask(&mut self) -> SoftMask<'_> {
-        SoftMask::new(self.key(Name(b"SMask")))
+        SoftMask::start(self.key(Name(b"SMask")))
     }
 
     /// `SMask`: Set the soft mask using a name. PDF 1.4+.
@@ -1089,14 +1090,15 @@ pub struct SoftMask<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> SoftMask<'a> {
-    /// Create a new soft mask.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for SoftMask<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Mask"));
         Self { dict }
     }
+}
 
+impl<'a> SoftMask<'a> {
     /// `S`: Set the soft mask subtype. Required.
     pub fn subtype(&mut self, subtype: MaskType) -> &mut Self {
         self.pair(Name(b"S"), subtype.to_name());

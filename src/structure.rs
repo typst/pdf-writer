@@ -7,14 +7,15 @@ pub struct Catalog<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Catalog<'a> {
-    /// Create a new catalog writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Catalog<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Catalog"));
         Self { dict }
     }
+}
 
+impl<'a> Catalog<'a> {
     /// Write the `/Pages` attribute pointing to the root page tree.
     pub fn pages(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Pages"), id);
@@ -51,12 +52,12 @@ impl<'a> Catalog<'a> {
 
     /// Start writing the `/ViewerPreferences` dictionary. PDF 1.2+.
     pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
-        ViewerPreferences::new(self.key(Name(b"ViewerPreferences")))
+        ViewerPreferences::start(self.key(Name(b"ViewerPreferences")))
     }
 
     /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
     pub fn page_labels(&mut self) -> PageLabels<'_> {
-        PageLabels::new(self.key(Name(b"PageLabels")))
+        PageLabels::start(self.key(Name(b"PageLabels")))
     }
 
     /// Write the `/Lang` attribute to specify the language of the document as a
@@ -136,12 +137,13 @@ pub struct ViewerPreferences<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> ViewerPreferences<'a> {
-    /// Create a new viewer preference writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for ViewerPreferences<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> ViewerPreferences<'a> {
     /// Write the `/HideToolbar` attribute to set whether the viewer should hide
     /// its toolbars while the document is open.
     pub fn hide_toolbar(&mut self, hide: bool) -> &mut Self {
@@ -219,61 +221,64 @@ pub struct PageLabels<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> PageLabels<'a> {
-    /// Create a page label number tree writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for PageLabels<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
-    /// Start writing the labelling style number tree.
+impl<'a> PageLabels<'a> {
+    /// Start writing the page label mapping array.
     ///
     /// This method may only be called once.
-    pub fn start(&mut self) -> PageLabelEntry<'_> {
-        PageLabelEntry::new(self.key(Name(b"Names")))
+    pub fn nums(&mut self) -> PageLabelMapping<'_> {
+        PageLabelMapping::start(self.key(Name(b"Nums")))
     }
 }
 
 deref!('a, PageLabels<'a> => Dict<'a>, dict);
 
-/// Writer for a _page label array entry._
+/// Writer for a _page label mapping array._
 ///
-/// This struct is created by [`PageLabels::start`].
-pub struct PageLabelEntry<'a> {
+/// This struct is created by [`PageLabels::nums`].
+pub struct PageLabelMapping<'a> {
     array: Array<'a>,
 }
 
-impl<'a> PageLabelEntry<'a> {
-    /// Create a page label array entry writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for PageLabelMapping<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
-    }
-
-    /// Start writing the labelling style for a set of pages, starting at a
-    /// given index. Indices start at `0`. This method must be called in
-    /// ascending index order.
-    pub fn style(&mut self, index: i32) -> PageLabel<'_> {
-        self.item(index);
-        PageLabel::new(self.obj())
     }
 }
 
-deref!('a, PageLabelEntry<'a> => Array<'a>, array);
+impl<'a> PageLabelMapping<'a> {
+    /// Start writing the labelling style for a set of pages, starting at the
+    /// given index. Indices start at `0`. This method must be called in
+    /// ascending index order.
+    pub fn insert(&mut self, index: i32) -> PageLabel<'_> {
+        self.item(index);
+        PageLabel::start(self.obj())
+    }
+}
+
+deref!('a, PageLabelMapping<'a> => Array<'a>, array);
 
 /// Writer for a _page label dictionary_.
 ///
-/// This struct is created by [`PageLabelEntry::style`].
+/// This struct is created by [`PageLabelMapping::insert`].
 pub struct PageLabel<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> PageLabel<'a> {
-    /// Create a page label writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for PageLabel<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"PageLabel"));
         Self { dict }
     }
+}
 
+impl<'a> PageLabel<'a> {
     /// Write the `/S` attribute to set the page label's numbering style.
     ///
     /// If this attribute is omitted, only the prefix will be used, there will
@@ -334,12 +339,13 @@ pub struct DocumentInfo<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> DocumentInfo<'a> {
-    /// Create a document information writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for DocumentInfo<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> DocumentInfo<'a> {
     /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
     pub fn title(&mut self, title: TextStr) -> &mut Self {
         self.pair(Name(b"Title"), title);
@@ -434,14 +440,15 @@ pub struct Pages<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Pages<'a> {
-    /// Create a new page tree writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Pages<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Pages"));
         Self { dict }
     }
+}
 
+impl<'a> Pages<'a> {
     /// Write the `/Parent` attribute. Required except in root node.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.pair(Name(b"Parent"), parent);
@@ -471,7 +478,7 @@ impl<'a> Pages<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.key(Name(b"Resources")))
+        Resources::start(self.key(Name(b"Resources")))
     }
 }
 
@@ -484,14 +491,15 @@ pub struct Page<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Page<'a> {
-    /// Create a new page writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Page<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Page"));
         Self { dict }
     }
+}
 
+impl<'a> Page<'a> {
     /// Write the `/Parent` attribute. Required.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.pair(Name(b"Parent"), parent);
@@ -542,7 +550,7 @@ impl<'a> Page<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::new(self.key(Name(b"Resources")))
+        Resources::start(self.key(Name(b"Resources")))
     }
 
     /// Write the `/Contents` attribute.
@@ -562,7 +570,7 @@ impl<'a> Page<'a> {
     /// Start writing the `/Group` dictionary to set the transparency settings
     /// for the page. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
-        Group::new(self.key(Name(b"Group")))
+        Group::start(self.key(Name(b"Group")))
     }
 
     /// Write the `/Dur` attribute. This is the amount of seconds the page
@@ -575,12 +583,12 @@ impl<'a> Page<'a> {
     /// Start writing the `/Trans` dictionary. This sets a transition effect for
     /// advancing to the next page. PDF 1.1+.
     pub fn transition(&mut self) -> Transition<'_> {
-        Transition::new(self.key(Name(b"Trans")))
+        Transition::start(self.key(Name(b"Trans")))
     }
 
     /// Start writing the `/Annots` (annotations) array.
     pub fn annotations(&mut self) -> Annotations<'_> {
-        Annotations::new(self.key(Name(b"Annots")))
+        Annotations::start(self.key(Name(b"Annots")))
     }
 
     /// Write the `/Tabs` attribute. This specifies the order in which the
@@ -601,12 +609,13 @@ pub struct Resources<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Resources<'a> {
-    /// Create a new resource dictionary writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Resources<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> Resources<'a> {
     /// Start writing the `/XObject` dictionary.
     pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
         self.key(Name(b"XObject")).dict().typed()
@@ -619,7 +628,7 @@ impl<'a> Resources<'a> {
 
     /// Start writing the `/ColorSpace` dictionary. PDF 1.1+.
     pub fn color_spaces(&mut self) -> ColorSpaces<'_> {
-        ColorSpaces::new(self.key(Name(b"ColorSpace")))
+        ColorSpaces::start(self.key(Name(b"ColorSpace")))
     }
 
     /// Start writing the `/Pattern` dictionary. PDF 1.2+.
@@ -705,14 +714,15 @@ pub struct Outline<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Outline<'a> {
-    /// Create a new outline writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Outline<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Outlines"));
         Self { dict }
     }
+}
 
+impl<'a> Outline<'a> {
     /// Write the `/First` attribute which points to the first
     /// [item](OutlineItem) in the document's outline.
     pub fn first(&mut self, item: Ref) -> &mut Self {
@@ -747,14 +757,15 @@ pub struct OutlineItem<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> OutlineItem<'a> {
-    /// Create a new outline item writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for OutlineItem<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         let mut dict = obj.dict();
         dict.pair(Name(b"Type"), Name(b"Outlines"));
         Self { dict }
     }
+}
 
+impl<'a> OutlineItem<'a> {
     /// Write the `/Title` attribute.
     pub fn title(&mut self, title: TextStr) -> &mut Self {
         self.pair(Name(b"Title"), title);
@@ -806,7 +817,7 @@ impl<'a> OutlineItem<'a> {
     /// Start writing the `/Dest` attribute to set the destination of this
     /// outline item.
     pub fn dest_direct(&mut self) -> Destination<'_> {
-        Destination::new(self.key(Name(b"Dest")))
+        Destination::start(self.key(Name(b"Dest")))
     }
 
     /// Write the `/Dest` attribute to set the destination of this
@@ -849,15 +860,16 @@ pub struct Destinations<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Destinations<'a> {
-    /// Create a new destinations writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Destinations<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
+}
 
+impl<'a> Destinations<'a> {
     /// Start adding another named destination.
     pub fn insert(&mut self, name: Name) -> Destination<'_> {
-        Destination::new(self.key(name))
+        Destination::start(self.key(name))
     }
 }
 
@@ -870,12 +882,13 @@ pub struct Destination<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Destination<'a> {
-    /// Create a new destination writer.
-    pub fn new(obj: Obj<'a>) -> Self {
+impl<'a> Writer<'a> for Destination<'a> {
+    fn start(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
+}
 
+impl<'a> Destination<'a> {
     /// The target page. Required.
     pub fn page(mut self, page: Ref) -> Self {
         self.item(page);
