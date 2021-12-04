@@ -1,11 +1,17 @@
-use pdf_writer::{Date, Filter, Name, Null, Obj, PdfWriter, Ref, Str, TextStr};
+use pdf_writer::{Date, Filter, Name, Null, Obj, PdfWriter, Rect, Ref, Str, TextStr};
 
 /// Test that `buf` is the same as the result of concatenating the strings.
 macro_rules! test {
     ($buf:expr, $($expected:literal),* $(,)?) => {{
+        let buf = $buf;
         let mut expected = vec![];
         $(expected.extend($expected);)*
-        assert_eq!($buf, expected);
+        if buf != expected {
+            assert_eq!(
+                String::from_utf8_lossy(&buf),
+                String::from_utf8_lossy(&expected),
+            );
+        }
     }}
 }
 
@@ -157,7 +163,7 @@ fn test_arrays() {
     test_obj!(
         |obj| {
             let mut array = obj.array();
-            array.obj().array().typed().items(vec![1, 2]);
+            array.push().array().typed().items(vec![1, 2]);
             array.item(3);
         },
         b"[[1 2] 3]",
@@ -176,6 +182,26 @@ fn test_dicts() {
             obj.dict().pair(Name(b"A"), 1).pair(Name(b"B"), 2);
         },
         b"<<\n  /A 1\n  /B 2\n>>",
+    );
+}
+
+#[test]
+fn test_annotations() {
+    test!(
+        slice(|w| {
+            let mut page = w.page(Ref::new(1));
+            let mut annots = page.annotations();
+            annots.push().rect(Rect::new(0.0, 0.0, 1.0, 1.0));
+        }),
+        b"1 0 obj\n",
+        b"<<\n",
+        b"  /Type /Page\n",
+        b"  /Annots [<<\n",
+        b"    /Type /Annot\n",
+        b"    /Rect [0 0 1 1]\n",
+        b"  >>]\n",
+        b">>\n",
+        b"endobj\n\n",
     );
 }
 

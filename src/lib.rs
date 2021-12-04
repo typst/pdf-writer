@@ -20,7 +20,7 @@ The writers contained is this crate fall roughly into two categories.
 - The [`Obj`] writer allows to write most fundamental PDF objects (numbers,
   strings, arrays, dictionaries, ...). It is exposed through
   [`PdfWriter::indirect`] to write top-level indirect objects and through
-  [`Array::obj`] and [`Dict::key`] to compose objects.
+  [`Array::push`] and [`Dict::insert`] to compose objects.
 - Streams are exposed through a separate [`PdfWriter::stream`] method since they
   _must_ be indirect objects.
 

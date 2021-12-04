@@ -16,7 +16,7 @@ impl<'a> Writer<'a> for Annotations<'a> {
 impl<'a> Annotations<'a> {
     /// Start writing a new annotation dictionary.
     pub fn push(&mut self) -> Annotation<'_> {
-        Annotation::start(self.obj())
+        Annotation::start(self.array.push())
     }
 }
 
@@ -92,13 +92,13 @@ impl<'a> Annotation<'a> {
         width: f32,
         dash_pattern: Option<&[f32]>,
     ) -> &mut Self {
-        let mut array = self.key(Name(b"Border")).array();
+        let mut array = self.insert(Name(b"Border")).array();
         array.item(h_radius);
         array.item(v_radius);
         array.item(width);
 
         if let Some(pattern) = dash_pattern {
-            array.obj().array().typed().items(pattern);
+            array.push().array().items(pattern);
         }
 
         array.finish();
@@ -108,41 +108,41 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/BS` attribute. These are some more elaborate border
     /// settings taking precedence over `/B` for some annotation types. PDF 1.2+.
     pub fn border_style(&mut self) -> BorderStyle<'_> {
-        BorderStyle::start(self.key(Name(b"BS")))
+        BorderStyle::start(self.insert(Name(b"BS")))
     }
 
     /// Write the `/C` attribute forcing a transparent color. This sets the
     /// annotations background color and its popup title bar color. PDF 1.1+.
     pub fn color_transparent(&mut self) -> &mut Self {
-        self.key(Name(b"C")).array().typed::<f32>();
+        self.insert(Name(b"C")).array();
         self
     }
 
     /// Write the `/C` attribute using a grayscale color. This sets the
     /// annotations background color and its popup title bar color. PDF 1.1+.
     pub fn color_gray(&mut self, gray: f32) -> &mut Self {
-        self.key(Name(b"C")).array().typed().item(gray);
+        self.insert(Name(b"C")).array().item(gray);
         self
     }
 
     /// Write the `/C` attribute using an RGB color. This sets the annotations
     /// background color and its popup title bar color. PDF 1.1+.
     pub fn color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.key(Name(b"C")).array().typed().items([r, g, b]);
+        self.insert(Name(b"C")).array().items([r, g, b]);
         self
     }
 
     /// Write the `/C` attribute using a CMYK color. This sets the annotations
     /// background color and its popup title bar color. PDF 1.1+.
     pub fn color_cmyk(&mut self, c: f32, m: f32, y: f32, k: f32) -> &mut Self {
-        self.key(Name(b"C")).array().typed().items([c, m, y, k]);
+        self.insert(Name(b"C")).array().items([c, m, y, k]);
         self
     }
 
     /// Start writing the `/A` dictionary. Only permissible for the subtype
     /// `Link`.
     pub fn action(&mut self) -> Action<'_> {
-        Action::start(self.key(Name(b"A")))
+        Action::start(self.insert(Name(b"A")))
     }
 
     /// Write the `/H` attribute to set what effect is used to convey that the
@@ -173,20 +173,20 @@ impl<'a> Annotation<'a> {
         &mut self,
         coordinates: impl IntoIterator<Item = f32>,
     ) -> &mut Self {
-        self.key(Name(b"QuadPoints")).array().typed().items(coordinates);
+        self.insert(Name(b"QuadPoints")).array().items(coordinates);
         self
     }
 
     /// Write the `/L` attribute. This defines the start and end point of a
     /// line annotation
     pub fn line_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32) -> &mut Self {
-        self.key(Name(b"L")).array().typed().items([x1, y1, x2, y2]);
+        self.insert(Name(b"L")).array().items([x1, y1, x2, y2]);
         self
     }
 
     /// Start writing the `/FS` attribute, setting which file to reference.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::start(self.key(Name(b"FS")))
+        FileSpec::start(self.insert(Name(b"FS")))
     }
 
     /// Write the `/Name` attribute. Refer to the specification to see which
@@ -348,7 +348,7 @@ impl<'a> Action<'a> {
     /// Start writing the `/D` attribute to set the destination of this
     /// GoTo-type action.
     pub fn dest_direct(&mut self) -> Destination<'_> {
-        Destination::start(self.key(Name(b"D")))
+        Destination::start(self.insert(Name(b"D")))
     }
 
     /// Write the `/D` attribute to set the destination of this GoTo-type action
@@ -361,7 +361,7 @@ impl<'a> Action<'a> {
     /// Start writing the `/F` attribute, setting which file to go to or which
     /// application to launch.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::start(self.key(Name(b"F")))
+        FileSpec::start(self.insert(Name(b"F")))
     }
 
     /// Write the `/NewWindow` attribute to set whether this remote GoTo action
@@ -468,7 +468,7 @@ impl<'a> BorderStyle<'a> {
     /// Write the `/D` attribute to set the repeating lengths of dashes and gaps
     /// inbetween.
     pub fn dashes(&mut self, dash_pattern: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"D")).array().typed().items(dash_pattern);
+        self.insert(Name(b"D")).array().items(dash_pattern);
         self
     }
 }

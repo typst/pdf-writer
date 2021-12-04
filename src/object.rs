@@ -409,18 +409,15 @@ impl<'a> Writer<'a> for Array<'a> {
 }
 
 impl<'a> Array<'a> {
-    /// Write an item with a primitive object value.
-    ///
-    /// This is a shorthand for `array.obj().primitive(value)`.
+    /// The number of written items.
     #[inline]
-    pub fn item<T: Primitive>(&mut self, value: T) -> &mut Self {
-        self.obj().primitive(value);
-        self
+    pub fn len(&self) -> i32 {
+        self.len
     }
 
-    /// Write an item with an arbitrary object value.
+    /// Start writing an arbitrary item.
     #[inline]
-    pub fn obj(&mut self) -> Obj<'_> {
+    pub fn push(&mut self) -> Obj<'_> {
         if self.len != 0 {
             self.buf.push(b' ');
         }
@@ -428,13 +425,28 @@ impl<'a> Array<'a> {
         Obj::direct(self.buf, self.indent)
     }
 
-    /// The number of written items.
+    /// Write an item with a primitive value.
+    ///
+    /// This is a shorthand for `array.push().primitive(value)`.
     #[inline]
-    pub fn len(&self) -> i32 {
-        self.len
+    pub fn item<T: Primitive>(&mut self, value: T) -> &mut Self {
+        self.push().primitive(value);
+        self
     }
 
-    /// Convert into the typed version.
+    /// Write a sequence of items with primitive values.
+    #[inline]
+    pub fn items<T: Primitive>(
+        &mut self,
+        values: impl IntoIterator<Item = T>,
+    ) -> &mut Self {
+        for value in values {
+            self.item(value);
+        }
+        self
+    }
+
+    /// Convert into a typed version.
     #[inline]
     pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
         TypedArray::wrap(self)
@@ -451,39 +463,40 @@ impl Drop for Array<'_> {
     }
 }
 
-/// Writer for an array with fixed primitive value type.
+/// Writer for an array of a fixed primitive type.
 pub struct TypedArray<'a, T> {
     array: Array<'a>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
-impl<'a, T: Primitive> TypedArray<'a, T> {
+impl<'a, T> TypedArray<'a, T>
+where
+    T: Primitive,
+{
     /// Wrap an array to make it type-safe.
     #[inline]
     pub fn wrap(array: Array<'a>) -> Self {
         Self { array, phantom: PhantomData }
     }
 
+    /// The number of written items.
+    #[inline]
+    pub fn len(&self) -> i32 {
+        self.array.len()
+    }
+
     /// Write an item.
     #[inline]
     pub fn item(&mut self, value: T) -> &mut Self {
-        self.array.obj().primitive(value);
+        self.array.item(value);
         self
     }
 
     /// Write a sequence of items.
     #[inline]
     pub fn items(&mut self, values: impl IntoIterator<Item = T>) -> &mut Self {
-        for value in values {
-            self.item(value);
-        }
+        self.array.items(values);
         self
-    }
-
-    /// The number of written items.
-    #[inline]
-    pub fn len(&self) -> i32 {
-        self.array.len()
     }
 }
 
@@ -509,18 +522,15 @@ impl<'a> Writer<'a> for Dict<'a> {
 }
 
 impl<'a> Dict<'a> {
-    /// Write a pair with a primitive object value.
-    ///
-    /// This is a shorthand for `dict.key(key).primitive(value)`.
+    /// The number of written pairs.
     #[inline]
-    pub fn pair<T: Primitive>(&mut self, key: Name, value: T) -> &mut Self {
-        self.key(key).primitive(value);
-        self
+    pub fn len(&self) -> i32 {
+        self.len
     }
 
-    /// Write a pair with an arbitrary object value.
+    /// Start writing a pair with an arbitrary value.
     #[inline]
-    pub fn key(&mut self, key: Name) -> Obj<'_> {
+    pub fn insert(&mut self, key: Name) -> Obj<'_> {
         self.len += 1;
         self.buf.push(b'\n');
 
@@ -534,13 +544,27 @@ impl<'a> Dict<'a> {
         Obj::direct(self.buf, self.indent)
     }
 
-    /// The number of written pairs.
+    /// Write a pair with a primitive value.
+    ///
+    /// This is a shorthand for `dict.insert(key).primitive(value)`.
     #[inline]
-    pub fn len(&self) -> i32 {
-        self.len
+    pub fn pair<T: Primitive>(&mut self, key: Name, value: T) -> &mut Self {
+        self.insert(key).primitive(value);
+        self
     }
 
-    /// Convert into the typed version.
+    /// Write a sequence of pairs with primitive values.
+    pub fn pairs<'n, T: Primitive>(
+        &mut self,
+        pairs: impl IntoIterator<Item = (Name<'n>, T)>,
+    ) -> &mut Self {
+        for (key, value) in pairs {
+            self.pair(key, value);
+        }
+        self
+    }
+
+    /// Convert into a typed version.
     #[inline]
     pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
         TypedDict::wrap(self)
@@ -563,17 +587,26 @@ impl Drop for Dict<'_> {
     }
 }
 
-/// Writer for a dictionary with fixed primitive value type.
+/// Writer for a dictionary mapping to a fixed primitive type.
 pub struct TypedDict<'a, T> {
     dict: Dict<'a>,
-    phantom: PhantomData<T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
-impl<'a, T: Primitive> TypedDict<'a, T> {
+impl<'a, T> TypedDict<'a, T>
+where
+    T: Primitive,
+{
     /// Wrap a dictionary to make it type-safe.
     #[inline]
     pub fn wrap(dict: Dict<'a>) -> Self {
         Self { dict, phantom: PhantomData }
+    }
+
+    /// The number of written pairs.
+    #[inline]
+    pub fn len(&self) -> i32 {
+        self.dict.len()
     }
 
     /// Write a key-value pair.
@@ -583,10 +616,14 @@ impl<'a, T: Primitive> TypedDict<'a, T> {
         self
     }
 
-    /// The number of written pairs.
+    /// Write a sequence of key-value pairs.
     #[inline]
-    pub fn len(&self) -> i32 {
-        self.dict.len()
+    pub fn pairs<'n>(
+        &mut self,
+        pairs: impl IntoIterator<Item = (Name<'n>, T)>,
+    ) -> &mut Self {
+        self.dict.pairs(pairs);
+        self
     }
 }
 
@@ -680,7 +717,7 @@ impl Filter {
 /// # use pdf_writer::{PdfWriter, Ref, Finish, Name, Str};
 /// # let mut writer = PdfWriter::new();
 /// let mut array = writer.indirect(Ref::new(1)).array();
-/// array.obj().dict().pair(Name(b"Key"), Str(b"Value"));
+/// array.push().dict().pair(Name(b"Key"), Str(b"Value"));
 /// array.item(2);
 /// array.finish(); // instead of drop(array)
 ///

@@ -132,7 +132,7 @@ impl Content {
         phase: f32,
     ) -> &mut Self {
         let mut op = self.op("d");
-        op.obj().array().typed().items(array);
+        op.obj().array().items(array);
         op.operand(phase);
         op.finish();
         self
@@ -891,8 +891,8 @@ impl<'a> ExtGraphicsState<'a> {
         pattern: impl IntoIterator<Item = f32>,
         phase: f32,
     ) -> &mut Self {
-        let mut array = self.key(Name(b"D")).array();
-        array.obj().array().typed().items(pattern);
+        let mut array = self.insert(Name(b"D")).array();
+        array.push().array().items(pattern);
         array.item(phase);
         array.finish();
         self
@@ -921,7 +921,7 @@ impl<'a> ExtGraphicsState<'a> {
 
     /// `Font`: Set the font. PDF 1.3+.
     pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
-        let mut array = self.key(Name(b"Font")).array();
+        let mut array = self.insert(Name(b"Font")).array();
         array.item(font);
         array.item(size);
         array.finish();
@@ -1006,7 +1006,7 @@ impl<'a> ExtGraphicsState<'a> {
 
     /// `SMask`: Set the soft mask using a dictionary. PDF 1.4+.
     pub fn soft_mask(&mut self) -> SoftMask<'_> {
-        SoftMask::start(self.key(Name(b"SMask")))
+        SoftMask::start(self.insert(Name(b"SMask")))
     }
 
     /// `SMask`: Set the soft mask using a name. PDF 1.4+.
@@ -1122,7 +1122,7 @@ impl<'a> SoftMask<'a> {
     /// applicable if the mask subtype is `Luminosity`. Has to be set in the
     /// group's color space.
     pub fn backdrop(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"BC")).array().typed().items(color);
+        self.insert(Name(b"BC")).array().items(color);
         self
     }
 

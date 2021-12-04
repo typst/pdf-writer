@@ -51,7 +51,7 @@ impl<'a> Type1Font<'a> {
     /// Write the `/Widths` array. Should be of length `last - first + 1`.
     /// Required (except for standard 14 fonts before PDF 1.5).
     pub fn widths(&mut self, widths: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Widths")).array().typed().items(widths);
+        self.insert(Name(b"Widths")).array().items(widths);
         self
     }
 
@@ -72,7 +72,7 @@ impl<'a> Type1Font<'a> {
     /// Start writing an `/Encoding` dictionary. Either this or
     /// [`encoding_predefined`](Self::encoding_predefined) is required.
     pub fn encoding_custom(&mut self) -> Encoding<'_> {
-        Encoding::start(self.key(Name(b"Encoding")))
+        Encoding::start(self.insert(Name(b"Encoding")))
     }
 
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
@@ -120,7 +120,7 @@ impl<'a> Type3Font<'a> {
     /// Write the `/FontMatrix` attribute, which defines the mapping from glyph
     /// space to text space. Required.
     pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
-        self.key(Name(b"FontMatrix")).array().typed().items(matrix);
+        self.insert(Name(b"FontMatrix")).array().items(matrix);
         self
     }
 
@@ -131,7 +131,7 @@ impl<'a> Type3Font<'a> {
     /// [`d0`](crate::Content::start_color_glyph) or
     /// [`d1`](crate::Content::start_shape_glyph) operator.
     pub fn char_procs(&mut self) -> TypedDict<'_, Ref> {
-        self.key(Name(b"CharProcs")).dict().typed()
+        self.insert(Name(b"CharProcs")).dict().typed()
     }
 
     /// Write the `/Encoding` attribute as a predefined encoding. Either this or
@@ -144,7 +144,7 @@ impl<'a> Type3Font<'a> {
     /// Start writing an `/Encoding` dictionary. Either this or
     /// [`encoding_predefined`](Self::encoding_predefined) is required.
     pub fn encoding_custom(&mut self) -> Encoding<'_> {
-        Encoding::start(self.key(Name(b"Encoding")))
+        Encoding::start(self.insert(Name(b"Encoding")))
     }
 
     /// Write the `FirstChar` attribute, defining the first character code in
@@ -164,7 +164,7 @@ impl<'a> Type3Font<'a> {
     /// Write the `/Widths` array. Should be of length `last - first + 1`.
     /// Required.
     pub fn widths(&mut self, widths: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Widths")).array().typed().items(widths);
+        self.insert(Name(b"Widths")).array().items(widths);
         self
     }
 
@@ -176,7 +176,7 @@ impl<'a> Type3Font<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.key(Name(b"Resources")))
+        Resources::start(self.insert(Name(b"Resources")))
     }
 
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
@@ -216,7 +216,7 @@ impl<'a> Encoding<'a> {
 
     /// Start writing the `/Differences` array.
     pub fn differences(&mut self) -> Differences<'_> {
-        Differences::start(self.key(Name(b"Differences")))
+        Differences::start(self.insert(Name(b"Differences")))
     }
 }
 
@@ -295,7 +295,7 @@ impl<'a> Type0Font<'a> {
     /// Write the `/DescendantFonts` attribute as a one-element array containing
     /// a reference to a [`CidFont`]. Required.
     pub fn descendant_font(&mut self, cid_font: Ref) -> &mut Self {
-        self.key(Name(b"DescendantFonts")).array().item(cid_font);
+        self.insert(Name(b"DescendantFonts")).array().item(cid_font);
         self
     }
 
@@ -340,7 +340,7 @@ impl<'a> CidFont<'a> {
 
     /// Write the `/CIDSystemInfo` dictionary. Required.
     pub fn system_info(&mut self, info: SystemInfo) -> &mut Self {
-        info.write(self.key(Name(b"CIDSystemInfo")));
+        info.write(self.insert(Name(b"CIDSystemInfo")));
         self
     }
 
@@ -358,7 +358,7 @@ impl<'a> CidFont<'a> {
 
     /// Start writing the `/W` (widths) array.
     pub fn widths(&mut self) -> Widths<'_> {
-        Widths::start(self.key(Name(b"W")))
+        Widths::start(self.insert(Name(b"W")))
     }
 
     /// Write the `/CIDToGIDMap` attribute as a predefined name.
@@ -417,7 +417,7 @@ impl<'a> Widths<'a> {
         widths: impl IntoIterator<Item = f32>,
     ) -> &mut Self {
         self.item(i32::from(start));
-        self.obj().array().typed().items(widths);
+        self.push().array().items(widths);
         self
     }
 
@@ -665,7 +665,7 @@ impl<'a> Cmap<'a> {
 
     /// Write the `/CIDSystemInfo` attribute. Required.
     pub fn system_info(&mut self, info: SystemInfo) -> &mut Self {
-        info.write(self.key(Name(b"CIDSystemInfo")));
+        info.write(self.insert(Name(b"CIDSystemInfo")));
         self
     }
 }

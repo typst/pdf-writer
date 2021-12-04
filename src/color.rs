@@ -51,14 +51,14 @@ impl<'a> ColorSpaces<'a> {
         black_point: Option<[f32; 3]>,
         gamma: Option<f32>,
     ) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::CalGray.to_name());
 
-        let mut dict = array.obj().dict();
-        dict.key(Name(b"WhitePoint")).array().typed().items(white_point);
+        let mut dict = array.push().dict();
+        dict.insert(Name(b"WhitePoint")).array().items(white_point);
 
         if let Some(black_point) = black_point {
-            dict.key(Name(b"BlackPoint")).array().typed().items(black_point);
+            dict.insert(Name(b"BlackPoint")).array().items(black_point);
         }
 
         if let Some(gamma) = gamma {
@@ -80,14 +80,14 @@ impl<'a> ColorSpaces<'a> {
         gamma: Option<f32>,
         matrix: Option<[f32; 9]>,
     ) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::CalRgb.to_name());
 
-        let mut dict = array.obj().dict();
-        dict.key(Name(b"WhitePoint")).array().typed().items(white_point);
+        let mut dict = array.push().dict();
+        dict.insert(Name(b"WhitePoint")).array().items(white_point);
 
         if let Some(black_point) = black_point {
-            dict.key(Name(b"BlackPoint")).array().typed().items(black_point);
+            dict.insert(Name(b"BlackPoint")).array().items(black_point);
         }
 
         if let Some(gamma) = gamma {
@@ -95,7 +95,7 @@ impl<'a> ColorSpaces<'a> {
         }
 
         if let Some(matrix) = matrix {
-            dict.key(Name(b"Matrix")).array().typed().items(matrix);
+            dict.insert(Name(b"Matrix")).array().items(matrix);
         }
 
         dict.finish();
@@ -112,18 +112,18 @@ impl<'a> ColorSpaces<'a> {
         black_point: Option<[f32; 3]>,
         range: Option<[f32; 4]>,
     ) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::Lab.to_name());
 
-        let mut dict = array.obj().dict();
-        dict.key(Name(b"WhitePoint")).array().typed().items(white_point);
+        let mut dict = array.push().dict();
+        dict.insert(Name(b"WhitePoint")).array().items(white_point);
 
         if let Some(black_point) = black_point {
-            dict.key(Name(b"BlackPoint")).array().typed().items(black_point);
+            dict.insert(Name(b"BlackPoint")).array().items(black_point);
         }
 
         if let Some(range) = range {
-            dict.key(Name(b"Range")).array().typed().items(range);
+            dict.insert(Name(b"Range")).array().items(range);
         }
 
         dict.finish();
@@ -143,7 +143,7 @@ impl<'a> ColorSpaces<'a> {
         hival: i32,
         lookup: &[u8],
     ) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::Indexed.to_name());
         array.item(base);
         array.item(hival);
@@ -160,7 +160,7 @@ impl<'a> ColorSpaces<'a> {
         base: Name,
         tint: Ref,
     ) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::Separation.to_name());
         array.item(color_name);
         array.item(base);
@@ -177,9 +177,9 @@ impl<'a> ColorSpaces<'a> {
         alternate_space: Name,
         tint: Ref,
     ) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::DeviceN.to_name());
-        array.obj().array().typed().items(names);
+        array.push().array().items(names);
         array.item(alternate_space);
         array.item(tint);
         array.finish();
@@ -191,7 +191,7 @@ impl<'a> ColorSpaces<'a> {
     /// The `base` attribute is the color space in which the pattern color is
     /// specified upon use.
     pub fn pattern(&mut self, name: Name, base: Name) -> &mut Self {
-        let mut array = self.dict.key(name).array();
+        let mut array = self.dict.insert(name).array();
         array.item(ColorSpaceType::Pattern.to_name());
         array.item(base);
         array.finish();
@@ -316,7 +316,7 @@ impl<'a> TilingPattern<'a> {
     ///
     /// Sets the resources used by the pattern. Required.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.key(Name(b"Resources")))
+        Resources::start(self.insert(Name(b"Resources")))
     }
 
     /// Write the `/Matrix` attribute.
@@ -324,7 +324,7 @@ impl<'a> TilingPattern<'a> {
     /// Maps the pattern coordinate system to the parent content stream
     /// coordinates. The default is the identity matrix.
     pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
-        self.stream.key(Name(b"Matrix")).array().typed().items(matrix);
+        self.stream.insert(Name(b"Matrix")).array().items(matrix);
         self
     }
 }
@@ -389,20 +389,20 @@ impl<'a> Writer<'a> for ShadingPattern<'a> {
 impl<'a> ShadingPattern<'a> {
     /// Start writing the `/Shading` dictionary.
     pub fn shading(&mut self) -> Shading<'_> {
-        Shading::start(self.dict.key(Name(b"Shading")))
+        Shading::start(self.dict.insert(Name(b"Shading")))
     }
 
     /// Write the `/Matrix` attribute.
     ///
     /// Sets the matrix to use for the pattern. Defaults to the identity matrix.
     pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
-        self.dict.key(Name(b"Matrix")).array().typed().items(matrix);
+        self.dict.insert(Name(b"Matrix")).array().items(matrix);
         self
     }
 
     /// Begin writing the `/ExtGState` attribute.
     pub fn ext_graphics(&mut self) -> ExtGraphicsState<'_> {
-        ExtGraphicsState::start(self.dict.key(Name(b"ExtGState")))
+        ExtGraphicsState::start(self.dict.insert(Name(b"ExtGState")))
     }
 }
 
@@ -446,7 +446,7 @@ impl<'a> Shading<'a> {
     /// iterator must contain exactly as many elements as the current
     /// `ColorSpace` has dimensions.
     pub fn background(&mut self, background: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.dict.key(Name(b"Background")).array().typed().items(background);
+        self.dict.insert(Name(b"Background")).array().items(background);
         self
     }
 
@@ -472,7 +472,7 @@ impl<'a> Shading<'a> {
     /// function, axial, or radial shadings. Will otherwise default to
     /// `[x_min = 0, x_max = 1, y_min = 0, y_max = 1]`
     pub fn domain(&mut self, domain: [f32; 4]) -> &mut Self {
-        self.dict.key(Name(b"Domain")).array().typed().items(domain);
+        self.dict.insert(Name(b"Domain")).array().items(domain);
         self
     }
 
@@ -482,7 +482,7 @@ impl<'a> Shading<'a> {
     /// be used for function shadings. Will otherwise
     /// default to the identity matrix.
     pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
-        self.dict.key(Name(b"Matrix")).array().typed().items(matrix);
+        self.dict.insert(Name(b"Matrix")).array().items(matrix);
         self
     }
 
@@ -500,7 +500,7 @@ impl<'a> Shading<'a> {
     /// target coordinate system. Required for axial (4 items) and radial (6
     /// items; centers and radii) shadings.
     pub fn coords(&mut self, coords: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.dict.key(Name(b"Coords")).array().typed().items(coords);
+        self.dict.insert(Name(b"Coords")).array().items(coords);
         self
     }
 
@@ -509,7 +509,7 @@ impl<'a> Shading<'a> {
     /// Set whether the shading should extend beyond either side of the axis /
     /// circles. Can be used for axial and radial shadings.
     pub fn extend(&mut self, extend: [bool; 2]) -> &mut Self {
-        self.dict.key(Name(b"Extend")).array().typed().items(extend);
+        self.dict.insert(Name(b"Extend")).array().items(extend);
         self
     }
 }

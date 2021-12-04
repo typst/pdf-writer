@@ -62,7 +62,7 @@ impl<'a> ImageXObject<'a> {
     ///
     /// Images that may replace this image. The order is not relevant.
     pub fn alternates(&mut self, alternates: impl IntoIterator<Item = Ref>) -> &mut Self {
-        self.key(Name(b"Alternates")).array().typed().items(alternates);
+        self.insert(Name(b"Alternates")).array().items(alternates);
         self
     }
 
@@ -88,7 +88,7 @@ impl<'a> ImageXObject<'a> {
     /// This shall be the matte color of the parent image encoded in its color
     /// space.
     pub fn matte(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Matte")).array().typed().items(color);
+        self.insert(Name(b"Matte")).array().items(color);
         self
     }
 }
@@ -144,7 +144,7 @@ impl<'a> FormXObject<'a> {
 
     /// Write the `/Matrix` attribute to map form space to user space.
     pub fn matrix(&mut self, matrix: [f32; 6]) -> &mut Self {
-        self.key(Name(b"Matrix")).array().typed().items(matrix);
+        self.insert(Name(b"Matrix")).array().items(matrix);
         self
     }
 
@@ -152,19 +152,19 @@ impl<'a> FormXObject<'a> {
     /// XObject. This makes it independant of the parent content stream it is
     /// eventually invoked in. PDF 1.2+.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.key(Name(b"Resources")))
+        Resources::start(self.insert(Name(b"Resources")))
     }
 
     /// Start writing the `/Group` dictionary to set up transparency model parameters and
     /// let this XObject be known as a group. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
-        Group::start(self.key(Name(b"Group")))
+        Group::start(self.insert(Name(b"Group")))
     }
 
     /// Start writing the `/Ref` dictionary to identify the page from an external document
     /// that the XObject is a reference to. PDF 1.4+.
     pub fn reference(&mut self) -> Reference<'_> {
-        Reference::start(self.key(Name(b"Ref")))
+        Reference::start(self.insert(Name(b"Ref")))
     }
 
     /// Write the `/Metadata` attribute. PDF 1.4+.
@@ -254,7 +254,7 @@ impl<'a> Reference<'a> {
     /// Start writing the `/F` attribute to set a file specification dictionary.
     /// Required.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::start(self.key(Name(b"F")))
+        FileSpec::start(self.insert(Name(b"F")))
     }
 
     /// Write the `/Page` attribute to set the page number. Setting the
@@ -274,7 +274,7 @@ impl<'a> Reference<'a> {
 
     /// Write the `/ID` attribute to set the file identifier.
     pub fn id(&mut self, id: [Str; 2]) -> &mut Self {
-        self.key(Name(b"ID")).array().typed().items(id);
+        self.insert(Name(b"ID")).array().items(id);
         self
     }
 }

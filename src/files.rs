@@ -54,7 +54,7 @@ impl<'a> FileSpec<'a> {
     /// Write the `/EF` attribute to reference an [embedded file](EmbeddedFile).
     /// PDF 1.3+.
     pub fn embedded_file(&mut self, id: Ref) -> &mut Self {
-        self.key(Name(b"EF")).dict().pair(Name(b"F"), id);
+        self.insert(Name(b"EF")).dict().pair(Name(b"F"), id);
         self
     }
 }
@@ -88,7 +88,7 @@ impl<'a> EmbeddedFile<'a> {
 
     /// Start writing the `/Params` dictionary.
     pub fn params(&mut self) -> EmbedParams<'_> {
-        EmbedParams::start(self.key(Name(b"Params")))
+        EmbedParams::start(self.insert(Name(b"Params")))
     }
 }
 

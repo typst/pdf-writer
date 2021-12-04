@@ -52,12 +52,12 @@ impl<'a> Catalog<'a> {
 
     /// Start writing the `/ViewerPreferences` dictionary. PDF 1.2+.
     pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
-        ViewerPreferences::start(self.key(Name(b"ViewerPreferences")))
+        ViewerPreferences::start(self.insert(Name(b"ViewerPreferences")))
     }
 
     /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
     pub fn page_labels(&mut self) -> PageLabels<'_> {
-        PageLabels::start(self.key(Name(b"PageLabels")))
+        PageLabels::start(self.insert(Name(b"PageLabels")))
     }
 
     /// Write the `/Lang` attribute to specify the language of the document as a
@@ -232,7 +232,7 @@ impl<'a> PageLabels<'a> {
     ///
     /// This method may only be called once.
     pub fn nums(&mut self) -> PageLabelMapping<'_> {
-        PageLabelMapping::start(self.key(Name(b"Nums")))
+        PageLabelMapping::start(self.insert(Name(b"Nums")))
     }
 }
 
@@ -257,7 +257,7 @@ impl<'a> PageLabelMapping<'a> {
     /// ascending index order.
     pub fn insert(&mut self, index: i32) -> PageLabel<'_> {
         self.item(index);
-        PageLabel::start(self.obj())
+        PageLabel::start(self.push())
     }
 }
 
@@ -458,7 +458,7 @@ impl<'a> Pages<'a> {
     /// Write the `/Kids` attributes, listing the immediate children of this
     /// node in the page tree. Required.
     pub fn kids(&mut self, kids: impl IntoIterator<Item = Ref>) -> &mut Self {
-        self.key(Name(b"Kids")).array().typed().items(kids);
+        self.insert(Name(b"Kids")).array().items(kids);
         self
     }
 
@@ -478,7 +478,7 @@ impl<'a> Pages<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.key(Name(b"Resources")))
+        Resources::start(self.insert(Name(b"Resources")))
     }
 }
 
@@ -550,7 +550,7 @@ impl<'a> Page<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.key(Name(b"Resources")))
+        Resources::start(self.insert(Name(b"Resources")))
     }
 
     /// Write the `/Contents` attribute.
@@ -570,7 +570,7 @@ impl<'a> Page<'a> {
     /// Start writing the `/Group` dictionary to set the transparency settings
     /// for the page. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
-        Group::start(self.key(Name(b"Group")))
+        Group::start(self.insert(Name(b"Group")))
     }
 
     /// Write the `/Dur` attribute. This is the amount of seconds the page
@@ -583,12 +583,12 @@ impl<'a> Page<'a> {
     /// Start writing the `/Trans` dictionary. This sets a transition effect for
     /// advancing to the next page. PDF 1.1+.
     pub fn transition(&mut self) -> Transition<'_> {
-        Transition::start(self.key(Name(b"Trans")))
+        Transition::start(self.insert(Name(b"Trans")))
     }
 
     /// Start writing the `/Annots` (annotations) array.
     pub fn annotations(&mut self) -> Annotations<'_> {
-        Annotations::start(self.key(Name(b"Annots")))
+        Annotations::start(self.insert(Name(b"Annots")))
     }
 
     /// Write the `/Tabs` attribute. This specifies the order in which the
@@ -618,32 +618,32 @@ impl<'a> Writer<'a> for Resources<'a> {
 impl<'a> Resources<'a> {
     /// Start writing the `/XObject` dictionary.
     pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
-        self.key(Name(b"XObject")).dict().typed()
+        self.insert(Name(b"XObject")).dict().typed()
     }
 
     /// Start writing the `/Font` dictionary.
     pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
-        self.key(Name(b"Font")).dict().typed()
+        self.insert(Name(b"Font")).dict().typed()
     }
 
     /// Start writing the `/ColorSpace` dictionary. PDF 1.1+.
     pub fn color_spaces(&mut self) -> ColorSpaces<'_> {
-        ColorSpaces::start(self.key(Name(b"ColorSpace")))
+        ColorSpaces::start(self.insert(Name(b"ColorSpace")))
     }
 
     /// Start writing the `/Pattern` dictionary. PDF 1.2+.
     pub fn patterns(&mut self) -> TypedDict<'_, Ref> {
-        self.key(Name(b"Pattern")).dict().typed()
+        self.insert(Name(b"Pattern")).dict().typed()
     }
 
     /// Start writing the `/Shading` dictionary. PDF 1.3+.
     pub fn shadings(&mut self) -> TypedDict<'_, Ref> {
-        self.key(Name(b"Shading")).dict().typed()
+        self.insert(Name(b"Shading")).dict().typed()
     }
 
     /// Start writing the `/ExtGState` dictionary. PDF 1.2+.
     pub fn ext_g_states(&mut self) -> TypedDict<'_, Ref> {
-        self.key(Name(b"ExtGState")).dict().typed()
+        self.insert(Name(b"ExtGState")).dict().typed()
     }
 
     /// Set the `/ProcSet` attribute.
@@ -652,9 +652,8 @@ impl<'a> Resources<'a> {
     /// printing the file as PostScript. The attribute is only used for PDFs
     /// with versions below 1.4.
     pub fn proc_sets(&mut self, sets: impl IntoIterator<Item = ProcSet>) -> &mut Self {
-        self.key(Name(b"ProcSet"))
+        self.insert(Name(b"ProcSet"))
             .array()
-            .typed()
             .items(sets.into_iter().map(ProcSet::to_name));
         self
     }
@@ -817,7 +816,7 @@ impl<'a> OutlineItem<'a> {
     /// Start writing the `/Dest` attribute to set the destination of this
     /// outline item.
     pub fn dest_direct(&mut self) -> Destination<'_> {
-        Destination::start(self.key(Name(b"Dest")))
+        Destination::start(self.insert(Name(b"Dest")))
     }
 
     /// Write the `/Dest` attribute to set the destination of this
@@ -830,7 +829,7 @@ impl<'a> OutlineItem<'a> {
     /// Write the `/C` attribute using an RGB color. This sets the color in
     /// which the outline item's title should be rendered. PDF 1.4+.
     pub fn color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
-        self.key(Name(b"C")).array().typed().items([r, g, b]);
+        self.insert(Name(b"C")).array().items([r, g, b]);
         self
     }
 
@@ -869,7 +868,7 @@ impl<'a> Writer<'a> for Destinations<'a> {
 impl<'a> Destinations<'a> {
     /// Start adding another named destination.
     pub fn insert(&mut self, name: Name) -> Destination<'_> {
-        Destination::start(self.key(name))
+        Destination::start(self.dict.insert(name))
     }
 }
 
@@ -927,7 +926,7 @@ impl<'a> Destination<'a> {
     /// screen.
     pub fn fit_rect(mut self, rect: Rect) {
         self.item(Name(b"FitR"));
-        self.array.typed().items([rect.x1, rect.y1, rect.x2, rect.y2]);
+        self.array.items([rect.x1, rect.y1, rect.x2, rect.y2]);
     }
 
     /// Write the `/FitB` command which fits all of the referenced page's

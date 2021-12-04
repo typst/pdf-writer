@@ -46,7 +46,7 @@ impl<'a> Transition<'a> {
 
     /// Write the `/Di` attribute to set the transition angle.
     pub fn angle(&mut self, angle: TransitionAngle) -> &mut Self {
-        angle.write_to_obj(self.key(Name(b"Di")));
+        angle.write_to_obj(self.insert(Name(b"Di")));
         self
     }
 

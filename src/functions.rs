@@ -29,7 +29,7 @@ macro_rules! common_func_methods {
         /// Write the `/Domain` attribute to set where the function is defined.
         /// Required.
         pub fn domain(&mut self, domain: impl IntoIterator<Item = f32>) -> &mut Self {
-            self.key(Name(b"Domain")).array().typed().items(domain);
+            self.insert(Name(b"Domain")).array().items(domain);
             self
         }
 
@@ -37,7 +37,7 @@ macro_rules! common_func_methods {
         ///
         /// Required for sampled and PostScript functions.
         pub fn range(&mut self, range: impl IntoIterator<Item = f32>) -> &mut Self {
-            self.key(Name(b"Range")).array().typed().items(range);
+            self.insert(Name(b"Range")).array().items(range);
             self
         }
     };
@@ -63,7 +63,7 @@ impl<'a> SampledFunction<'a> {
     ///
     /// Sets the number of input samples per dimension. Required.
     pub fn size(&mut self, size: impl IntoIterator<Item = i32>) -> &mut Self {
-        self.key(Name(b"Size")).array().typed().items(size);
+        self.insert(Name(b"Size")).array().items(size);
         self
     }
 
@@ -87,7 +87,7 @@ impl<'a> SampledFunction<'a> {
     ///
     /// For each sample, define how the input is mapped to the domain range.
     pub fn encode(&mut self, encode: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Encode")).array().typed().items(encode);
+        self.insert(Name(b"Encode")).array().items(encode);
         self
     }
 
@@ -95,7 +95,7 @@ impl<'a> SampledFunction<'a> {
     ///
     /// For each sample, define how the output is mapped to the output range.
     pub fn decode(&mut self, decode: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Decode")).array().typed().items(decode);
+        self.insert(Name(b"Decode")).array().items(decode);
         self
     }
 }
@@ -146,7 +146,7 @@ impl<'a> ExponentialFunction<'a> {
     ///
     /// Function result when input is zero. Default is `0.0`.
     pub fn c0(&mut self, c0: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"C0")).array().typed().items(c0);
+        self.insert(Name(b"C0")).array().items(c0);
         self
     }
 
@@ -154,7 +154,7 @@ impl<'a> ExponentialFunction<'a> {
     ///
     /// Function result when input is one. Default is `1.0`.
     pub fn c1(&mut self, c1: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"C1")).array().typed().items(c1);
+        self.insert(Name(b"C1")).array().items(c1);
         self
     }
 
@@ -194,7 +194,7 @@ impl<'a> StitchingFunction<'a> {
     ///
     /// The functions to be stitched. Required.
     pub fn functions(&mut self, functions: impl IntoIterator<Item = Ref>) -> &mut Self {
-        self.key(Name(b"Functions")).array().typed().items(functions);
+        self.insert(Name(b"Functions")).array().items(functions);
         self
     }
 
@@ -203,7 +203,7 @@ impl<'a> StitchingFunction<'a> {
     /// The boundaries of the intervals that each function is called in. The
     /// array has one less entry than there are stiched functions. Required.
     pub fn bounds(&mut self, bounds: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Bounds")).array().typed().items(bounds);
+        self.insert(Name(b"Bounds")).array().items(bounds);
         self
     }
 
@@ -212,7 +212,7 @@ impl<'a> StitchingFunction<'a> {
     /// Pair of values for each function that maps the stitching domain subsets
     /// to the function domain. Required.
     pub fn encode(&mut self, encode: impl IntoIterator<Item = f32>) -> &mut Self {
-        self.key(Name(b"Encode")).array().typed().items(encode);
+        self.insert(Name(b"Encode")).array().items(encode);
         self
     }
 }
