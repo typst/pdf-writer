@@ -802,12 +802,14 @@ impl Content {
     }
 }
 
-/// A color space operand to the `CS` or `cs` operator.
+/// A color space operand to the [`CS`](Content::set_stroke_color_space) or
+/// [`cs`](Content::set_fill_color_space) operator.
 ///
 /// These are either the predefined, parameter-less color spaces like
 /// `DeviceGray` or the ones defined by the user, accessed through the `Named`
 /// variant. A custom color space of types like `CalRGB` or `Pattern` can be set
-/// by registering it with the [`color_spaces`](Resources::color_spaces) dictionary.
+/// by registering it with the [`color_spaces`](Resources::color_spaces)
+/// dictionary.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum ColorSpaceOperand<'a> {
@@ -892,8 +894,8 @@ impl<'a> Resources<'a> {
     /// Relevant types:
     /// - [`ImageXObject`]
     /// - [`FormXObject`]
-    pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
-        self.insert(Name(b"XObject")).dict().typed()
+    pub fn x_objects(&mut self) -> Dict<'_> {
+        self.insert(Name(b"XObject")).dict()
     }
 
     /// Start writing the `/Font` dictionary.
@@ -902,16 +904,16 @@ impl<'a> Resources<'a> {
     /// - [`Type1Font`]
     /// - [`Type3Font`]
     /// - [`Type0Font`]
-    pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
-        self.insert(Name(b"Font")).dict().typed()
+    pub fn fonts(&mut self) -> Dict<'_> {
+        self.insert(Name(b"Font")).dict()
     }
 
     /// Start writing the `/ColorSpace` dictionary. PDF 1.1+.
     ///
     /// Relevant types:
     /// - [`ColorSpace`]
-    pub fn color_spaces(&mut self) -> TypedDict<'_, Ref> {
-        self.insert(Name(b"ColorSpace")).dict().typed()
+    pub fn color_spaces(&mut self) -> Dict<'_> {
+        self.insert(Name(b"ColorSpace")).dict()
     }
 
     /// Start writing the `/Pattern` dictionary. PDF 1.2+.
@@ -919,24 +921,24 @@ impl<'a> Resources<'a> {
     /// Relevant types:
     /// - [`TilingPattern`]
     /// - [`ShadingPattern`]
-    pub fn patterns(&mut self) -> TypedDict<'_, Ref> {
-        self.insert(Name(b"Pattern")).dict().typed()
+    pub fn patterns(&mut self) -> Dict<'_> {
+        self.insert(Name(b"Pattern")).dict()
     }
 
     /// Start writing the `/Shading` dictionary. PDF 1.3+.
     ///
     /// Relevant types:
     /// - [`Shading`]
-    pub fn shadings(&mut self) -> TypedDict<'_, Ref> {
-        self.insert(Name(b"Shading")).dict().typed()
+    pub fn shadings(&mut self) -> Dict<'_> {
+        self.insert(Name(b"Shading")).dict()
     }
 
     /// Start writing the `/ExtGState` dictionary. PDF 1.2+.
     ///
     /// Relevant types:
     /// - [`ExtGraphicsState`]
-    pub fn ext_g_states(&mut self) -> TypedDict<'_, Ref> {
-        self.insert(Name(b"ExtGState")).dict().typed()
+    pub fn ext_g_states(&mut self) -> Dict<'_> {
+        self.insert(Name(b"ExtGState")).dict()
     }
 
     /// Set the `/ProcSet` attribute.
@@ -1161,7 +1163,7 @@ impl<'a> ExtGraphicsState<'a> {
 
     /// `SMask`: Set the soft mask using a dictionary. PDF 1.4+.
     pub fn soft_mask(&mut self) -> SoftMask<'_> {
-        SoftMask::start(self.insert(Name(b"SMask")))
+        self.insert(Name(b"SMask")).start()
     }
 
     /// `SMask`: Set the soft mask using a name. PDF 1.4+.

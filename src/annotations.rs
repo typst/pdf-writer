@@ -16,7 +16,7 @@ impl<'a> Writer<'a> for Annotations<'a> {
 impl<'a> Annotations<'a> {
     /// Start writing a new annotation dictionary.
     pub fn push(&mut self) -> Annotation<'_> {
-        Annotation::start(self.array.push())
+        self.array.push().start()
     }
 }
 
@@ -108,7 +108,7 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/BS` attribute. These are some more elaborate border
     /// settings taking precedence over `/B` for some annotation types. PDF 1.2+.
     pub fn border_style(&mut self) -> BorderStyle<'_> {
-        BorderStyle::start(self.insert(Name(b"BS")))
+        self.insert(Name(b"BS")).start()
     }
 
     /// Write the `/C` attribute forcing a transparent color. This sets the
@@ -142,7 +142,7 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/A` dictionary. Only permissible for the subtype
     /// `Link`.
     pub fn action(&mut self) -> Action<'_> {
-        Action::start(self.insert(Name(b"A")))
+        self.insert(Name(b"A")).start()
     }
 
     /// Write the `/H` attribute to set what effect is used to convey that the
@@ -186,7 +186,7 @@ impl<'a> Annotation<'a> {
 
     /// Start writing the `/FS` attribute, setting which file to reference.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::start(self.insert(Name(b"FS")))
+        self.insert(Name(b"FS")).start()
     }
 
     /// Write the `/Name` attribute. Refer to the specification to see which
@@ -347,13 +347,13 @@ impl<'a> Action<'a> {
 
     /// Start writing the `/D` attribute to set the destination of this
     /// GoTo-type action.
-    pub fn dest_direct(&mut self) -> Destination<'_> {
-        Destination::start(self.insert(Name(b"D")))
+    pub fn destination_direct(&mut self) -> Destination<'_> {
+        self.insert(Name(b"D")).start()
     }
 
     /// Write the `/D` attribute to set the destination of this GoTo-type action
     /// to a named destination.
-    pub fn dest_named(&mut self, name: Name) -> &mut Self {
+    pub fn destination_named(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"D"), name);
         self
     }
@@ -361,7 +361,7 @@ impl<'a> Action<'a> {
     /// Start writing the `/F` attribute, setting which file to go to or which
     /// application to launch.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::start(self.insert(Name(b"F")))
+        self.insert(Name(b"F")).start()
     }
 
     /// Write the `/NewWindow` attribute to set whether this remote GoTo action

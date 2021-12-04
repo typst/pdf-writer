@@ -34,7 +34,7 @@ impl<'a> ImageXObject<'a> {
     /// If this is an image soft mask, the color space must be `DeviceGray`.
     /// Must not be `Pattern`.
     pub fn color_space(&mut self) -> ColorSpace<'_> {
-        ColorSpace::start(self.insert(Name(b"ColorSpace")))
+        self.insert(Name(b"ColorSpace")).start()
     }
 
     /// Write the `/BitsPerComponent` attribute. Required.
@@ -151,19 +151,19 @@ impl<'a> FormXObject<'a> {
     /// XObject. This makes it independant of the parent content stream it is
     /// eventually invoked in. PDF 1.2+.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.insert(Name(b"Resources")))
+        self.insert(Name(b"Resources")).start()
     }
 
     /// Start writing the `/Group` dictionary to set up transparency model parameters and
     /// let this XObject be known as a group. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
-        Group::start(self.insert(Name(b"Group")))
+        self.insert(Name(b"Group")).start()
     }
 
     /// Start writing the `/Ref` dictionary to identify the page from an external document
     /// that the XObject is a reference to. PDF 1.4+.
     pub fn reference(&mut self) -> Reference<'_> {
-        Reference::start(self.insert(Name(b"Ref")))
+        self.insert(Name(b"Ref")).start()
     }
 
     /// Write the `/Metadata` attribute. PDF 1.4+.
@@ -209,7 +209,7 @@ impl<'a> Group<'a> {
     /// This is optional for isolated groups and required for groups where the
     /// color space cannot be derived from the parent.
     pub fn color_space(&mut self) -> ColorSpace<'_> {
-        ColorSpace::start(self.insert(Name(b"CS")))
+        self.insert(Name(b"CS")).start()
     }
 
     /// Set the `/I` attribute to indicate whether the group is isolated.
@@ -252,7 +252,7 @@ impl<'a> Reference<'a> {
     /// Start writing the `/F` attribute to set a file specification dictionary.
     /// Required.
     pub fn file(&mut self) -> FileSpec<'_> {
-        FileSpec::start(self.insert(Name(b"F")))
+        self.insert(Name(b"F")).start()
     }
 
     /// Write the `/Page` attribute to set the page number. Setting the

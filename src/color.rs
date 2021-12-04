@@ -37,7 +37,9 @@ impl ColorSpaceType {
 
 /// Writer for a _color space_.
 ///
-/// This struct is created by [`PdfWriter::color_space`].
+/// This struct is created by [`PdfWriter::color_space`],
+/// [`Shading::color_space`], [`ImageXObject::color_space`] and
+/// [`Group::color_space`].
 pub struct ColorSpace<'a> {
     obj: Obj<'a>,
 }
@@ -274,7 +276,7 @@ impl<'a> TilingPattern<'a> {
     ///
     /// Sets the resources used by the pattern. Required.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.insert(Name(b"Resources")))
+        self.insert(Name(b"Resources")).start()
     }
 
     /// Write the `/Matrix` attribute.
@@ -347,7 +349,7 @@ impl<'a> Writer<'a> for ShadingPattern<'a> {
 impl<'a> ShadingPattern<'a> {
     /// Start writing the `/Shading` dictionary.
     pub fn shading(&mut self) -> Shading<'_> {
-        Shading::start(self.dict.insert(Name(b"Shading")))
+        self.dict.insert(Name(b"Shading")).start()
     }
 
     /// Write the `/Matrix` attribute.
@@ -360,7 +362,7 @@ impl<'a> ShadingPattern<'a> {
 
     /// Begin writing the `/ExtGState` attribute.
     pub fn ext_graphics(&mut self) -> ExtGraphicsState<'_> {
-        ExtGraphicsState::start(self.dict.insert(Name(b"ExtGState")))
+        self.dict.insert(Name(b"ExtGState")).start()
     }
 }
 
@@ -395,7 +397,7 @@ impl<'a> Shading<'a> {
     /// Sets the color space of the shading function. May not be a `Pattern`
     /// space. Required.
     pub fn color_space(&mut self) -> ColorSpace<'_> {
-        ColorSpace::start(self.dict.insert(Name(b"ColorSpace")))
+        self.dict.insert(Name(b"ColorSpace")).start()
     }
 
     /// Write the `/Background` attribute.

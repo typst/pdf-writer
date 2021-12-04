@@ -87,8 +87,8 @@ impl<'a> EmbeddedFile<'a> {
     }
 
     /// Start writing the `/Params` dictionary.
-    pub fn params(&mut self) -> EmbedParams<'_> {
-        EmbedParams::start(self.insert(Name(b"Params")))
+    pub fn params(&mut self) -> EmbeddingParams<'_> {
+        self.insert(Name(b"Params")).start()
     }
 }
 
@@ -97,17 +97,17 @@ deref!('a, EmbeddedFile<'a> => Stream<'a>, stream);
 /// Writer for a _embedded file parameter dictionary_.
 ///
 /// This struct is created by [`EmbeddedFile::params`].
-pub struct EmbedParams<'a> {
+pub struct EmbeddingParams<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for EmbedParams<'a> {
+impl<'a> Writer<'a> for EmbeddingParams<'a> {
     fn start(obj: Obj<'a>) -> Self {
         Self { dict: obj.dict() }
     }
 }
 
-impl<'a> EmbedParams<'a> {
+impl<'a> EmbeddingParams<'a> {
     /// Write the `/Size` attribute to set the uncompressed file size in bytes.
     pub fn size(&mut self, size: i32) -> &mut Self {
         self.pair(Name(b"Size"), size);
@@ -135,4 +135,4 @@ impl<'a> EmbedParams<'a> {
     }
 }
 
-deref!('a, EmbedParams<'a> => Dict<'a>, dict);
+deref!('a, EmbeddingParams<'a> => Dict<'a>, dict);

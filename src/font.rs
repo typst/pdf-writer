@@ -72,7 +72,7 @@ impl<'a> Type1Font<'a> {
     /// Start writing an `/Encoding` dictionary. Either this or
     /// [`encoding_predefined`](Self::encoding_predefined) is required.
     pub fn encoding_custom(&mut self) -> Encoding<'_> {
-        Encoding::start(self.insert(Name(b"Encoding")))
+        self.insert(Name(b"Encoding")).start()
     }
 
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
@@ -144,7 +144,7 @@ impl<'a> Type3Font<'a> {
     /// Start writing an `/Encoding` dictionary. Either this or
     /// [`encoding_predefined`](Self::encoding_predefined) is required.
     pub fn encoding_custom(&mut self) -> Encoding<'_> {
-        Encoding::start(self.insert(Name(b"Encoding")))
+        self.insert(Name(b"Encoding")).start()
     }
 
     /// Write the `FirstChar` attribute, defining the first character code in
@@ -176,7 +176,7 @@ impl<'a> Type3Font<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.insert(Name(b"Resources")))
+        self.insert(Name(b"Resources")).start()
     }
 
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
@@ -216,7 +216,7 @@ impl<'a> Encoding<'a> {
 
     /// Start writing the `/Differences` array.
     pub fn differences(&mut self) -> Differences<'_> {
-        Differences::start(self.insert(Name(b"Differences")))
+        self.insert(Name(b"Differences")).start()
     }
 }
 
@@ -358,7 +358,7 @@ impl<'a> CidFont<'a> {
 
     /// Start writing the `/W` (widths) array.
     pub fn widths(&mut self) -> Widths<'_> {
-        Widths::start(self.insert(Name(b"W")))
+        self.insert(Name(b"W")).start()
     }
 
     /// Write the `/CIDToGIDMap` attribute as a predefined name.

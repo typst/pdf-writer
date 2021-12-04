@@ -5,12 +5,6 @@ use std::num::NonZeroI32;
 
 use super::*;
 
-/// A typed PDF object writer.
-pub trait Writer<'a> {
-    /// Start writing the object.
-    fn start(obj: Obj<'a>) -> Self;
-}
-
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
@@ -377,14 +371,40 @@ impl<'a> Obj<'a> {
     /// Write an array.
     #[inline]
     pub fn array(self) -> Array<'a> {
-        Array::start(self)
+        self.start()
     }
 
     /// Write a dictionary.
     #[inline]
     pub fn dict(self) -> Dict<'a> {
-        Dict::start(self)
+        self.start()
     }
+
+    /// Start writing with an arbitrary writer.
+    ///
+    /// For example, using this, you could write a Type 1 font directly into
+    /// a page's resource directionary.
+    /// ```
+    /// use pdf_writer::{PdfWriter, Ref, Name, writers::Type1Font};
+    ///
+    /// let mut w = PdfWriter::new();
+    /// w.page(Ref::new(1))
+    ///     .resources()
+    ///     .fonts()
+    ///     .insert(Name(b"F1"))
+    ///     .start::<Type1Font>()
+    ///     .base_font(Name(b"Helvetica"));
+    /// ```
+    #[inline]
+    pub fn start<W: Writer<'a>>(self) -> W {
+        W::start(self)
+    }
+}
+
+/// A writer for a specific type of PDF object.
+pub trait Writer<'a> {
+    /// Start writing the object.
+    fn start(obj: Obj<'a>) -> Self;
 }
 
 /// Writer for an array.

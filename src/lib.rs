@@ -105,7 +105,7 @@ pub mod writers {
     pub use content::{
         ExtGraphicsState, Operation, PositionedItems, Resources, ShowPositioned, SoftMask,
     };
-    pub use files::{EmbedParams, EmbeddedFile, FileSpec};
+    pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
         CidFont, Cmap, Differences, Encoding, FontDescriptor, Type0Font, Type1Font,
         Type3Font, Widths,
@@ -115,7 +115,7 @@ pub mod writers {
     };
     pub use structure::{
         Catalog, Destination, Destinations, DocumentInfo, Outline, OutlineItem, Page,
-        PageLabel, PageLabelMapping, PageLabels, Pages, ViewerPreferences,
+        PageLabel, Pages, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -133,6 +133,7 @@ pub mod types {
         ColorSpaceOperand, LineCapStyle, LineJoinStyle, MaskType, ProcSet,
         RenderingIntent, TextRenderingMode,
     };
+    pub use font::UnicodeCmap;
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
@@ -144,7 +145,6 @@ pub mod types {
 }
 
 pub use content::Content;
-pub use font::UnicodeCmap;
 pub use object::*;
 
 use std::fmt::{self, Debug, Formatter};
@@ -335,7 +335,7 @@ impl PdfWriter {
     /// meaning that you don't need to provide the given `id` anywhere else.
     pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
         self.catalog_id = Some(id);
-        Catalog::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing the document information.
@@ -345,32 +345,32 @@ impl PdfWriter {
     /// else.
     pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
         self.info_id = Some(id);
-        DocumentInfo::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a page tree.
     pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        Pages::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a page.
     pub fn page(&mut self, id: Ref) -> Page<'_> {
-        Page::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing an outline.
     pub fn outline(&mut self, id: Ref) -> Outline<'_> {
-        Outline::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing an outline item.
     pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
-        OutlineItem::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
-    /// Start writing a named destination.
+    /// Start writing a named destination dictionary.
     pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
-        Destinations::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing an embedded file stream.
@@ -408,7 +408,7 @@ impl PdfWriter {
 
     /// Start writing an external graphics state dictionary.
     pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
-        ExtGraphicsState::start(self.indirect(id))
+        self.indirect(id).start()
     }
 }
 
@@ -416,33 +416,33 @@ impl PdfWriter {
 impl PdfWriter {
     /// Start writing a Type-1 font.
     pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        Type1Font::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a Type-3 font.
     pub fn type3_font(&mut self, id: Ref) -> Type3Font<'_> {
-        Type3Font::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a Type-0 font.
     pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
-        Type0Font::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a CID font.
     pub fn cid_font(&mut self, id: Ref) -> CidFont<'_> {
-        CidFont::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a font descriptor.
     pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
-        FontDescriptor::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a character map stream.
     ///
     /// If you want to use this for a `/ToUnicode` CMap, you can create the
-    /// bytes using a [`UnicodeCmap`] builder.
+    /// bytes using a [`UnicodeCmap`](types::UnicodeCmap) builder.
     pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
         Cmap::start(self.stream(id, cmap))
     }
@@ -452,12 +452,12 @@ impl PdfWriter {
 impl PdfWriter {
     /// Start writing a color space.
     pub fn color_space(&mut self, id: Ref) -> ColorSpace<'_> {
-        ColorSpace::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a shading.
     pub fn shading(&mut self, id: Ref) -> Shading<'_> {
-        Shading::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a tiling pattern stream.
@@ -473,7 +473,7 @@ impl PdfWriter {
 
     /// Start writing a shading pattern.
     pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
-        ShadingPattern::start(self.indirect(id))
+        self.indirect(id).start()
     }
 }
 
@@ -490,12 +490,12 @@ impl PdfWriter {
 
     /// Start writing an exponential function.
     pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
-        ExponentialFunction::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a stitching function.
     pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
-        StitchingFunction::start(self.indirect(id))
+        self.indirect(id).start()
     }
 
     /// Start writing a PostScript function stream.

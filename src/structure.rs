@@ -52,12 +52,12 @@ impl<'a> Catalog<'a> {
 
     /// Start writing the `/ViewerPreferences` dictionary. PDF 1.2+.
     pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
-        ViewerPreferences::start(self.insert(Name(b"ViewerPreferences")))
+        self.insert(Name(b"ViewerPreferences")).start()
     }
 
     /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
-    pub fn page_labels(&mut self) -> PageLabels<'_> {
-        PageLabels::start(self.insert(Name(b"PageLabels")))
+    pub fn page_labels(&mut self) -> Dict<'_> {
+        self.insert(Name(b"PageLabels")).start()
     }
 
     /// Write the `/Lang` attribute to specify the language of the document as a
@@ -214,58 +214,7 @@ impl Direction {
     }
 }
 
-/// Writer for the _page label number tree._
-///
-/// This struct is created by [`Catalog::page_labels`].
-pub struct PageLabels<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Writer<'a> for PageLabels<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
-
-impl<'a> PageLabels<'a> {
-    /// Start writing the page label mapping array.
-    ///
-    /// This method may only be called once.
-    pub fn nums(&mut self) -> PageLabelMapping<'_> {
-        PageLabelMapping::start(self.insert(Name(b"Nums")))
-    }
-}
-
-deref!('a, PageLabels<'a> => Dict<'a>, dict);
-
-/// Writer for a _page label mapping array._
-///
-/// This struct is created by [`PageLabels::nums`].
-pub struct PageLabelMapping<'a> {
-    array: Array<'a>,
-}
-
-impl<'a> Writer<'a> for PageLabelMapping<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { array: obj.array() }
-    }
-}
-
-impl<'a> PageLabelMapping<'a> {
-    /// Start writing the labelling style for a set of pages, starting at the
-    /// given index. Indices start at `0`. This method must be called in
-    /// ascending index order.
-    pub fn insert(&mut self, index: i32) -> PageLabel<'_> {
-        self.item(index);
-        PageLabel::start(self.push())
-    }
-}
-
-deref!('a, PageLabelMapping<'a> => Array<'a>, array);
-
 /// Writer for a _page label dictionary_.
-///
-/// This struct is created by [`PageLabelMapping::insert`].
 pub struct PageLabel<'a> {
     dict: Dict<'a>,
 }
@@ -478,7 +427,7 @@ impl<'a> Pages<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.insert(Name(b"Resources")))
+        self.insert(Name(b"Resources")).start()
     }
 }
 
@@ -550,12 +499,21 @@ impl<'a> Page<'a> {
 
     /// Start writing the `/Resources` dictionary.
     pub fn resources(&mut self) -> Resources<'_> {
-        Resources::start(self.insert(Name(b"Resources")))
+        self.insert(Name(b"Resources")).start()
     }
 
-    /// Write the `/Contents` attribute.
+    /// Write the `/Contents` attribute as reference to a single content stream.
+    ///
+    /// Such a content stream can be created using the [`Content`] builder and
+    /// written to the file using [`PdfWriter::stream`].
     pub fn contents(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Contents"), id);
+        self
+    }
+
+    /// Write the `/Contents` attribute as an array.
+    pub fn contents_array(&mut self, ids: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.insert(Name(b"Contents")).array().items(ids);
         self
     }
 
@@ -570,7 +528,7 @@ impl<'a> Page<'a> {
     /// Start writing the `/Group` dictionary to set the transparency settings
     /// for the page. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
-        Group::start(self.insert(Name(b"Group")))
+        self.insert(Name(b"Group")).start()
     }
 
     /// Write the `/Dur` attribute. This is the amount of seconds the page
@@ -583,12 +541,12 @@ impl<'a> Page<'a> {
     /// Start writing the `/Trans` dictionary. This sets a transition effect for
     /// advancing to the next page. PDF 1.1+.
     pub fn transition(&mut self) -> Transition<'_> {
-        Transition::start(self.insert(Name(b"Trans")))
+        self.insert(Name(b"Trans")).start()
     }
 
     /// Start writing the `/Annots` (annotations) array.
     pub fn annotations(&mut self) -> Annotations<'_> {
-        Annotations::start(self.insert(Name(b"Annots")))
+        self.insert(Name(b"Annots")).start()
     }
 
     /// Write the `/Tabs` attribute. This specifies the order in which the
@@ -711,7 +669,7 @@ impl<'a> OutlineItem<'a> {
     /// Start writing the `/Dest` attribute to set the destination of this
     /// outline item.
     pub fn dest_direct(&mut self) -> Destination<'_> {
-        Destination::start(self.insert(Name(b"Dest")))
+        self.insert(Name(b"Dest")).start()
     }
 
     /// Write the `/Dest` attribute to set the destination of this
@@ -763,7 +721,7 @@ impl<'a> Writer<'a> for Destinations<'a> {
 impl<'a> Destinations<'a> {
     /// Start adding another named destination.
     pub fn insert(&mut self, name: Name) -> Destination<'_> {
-        Destination::start(self.dict.insert(name))
+        self.dict.insert(name).start()
     }
 }
 
@@ -771,7 +729,8 @@ deref!('a, Destinations<'a> => Dict<'a>, dict);
 
 /// Writer for a _destination array_.
 ///
-/// This struct is created by [`Destinations::insert`] and [`Action::dest_direct`].
+/// This struct is created by [`Destinations::insert`] and
+/// [`Action::destination_direct`].
 pub struct Destination<'a> {
     array: Array<'a>,
 }
