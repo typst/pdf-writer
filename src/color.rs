@@ -232,6 +232,24 @@ impl ColorSpaceType {
     }
 }
 
+/// Type of pattern.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+enum PatternType {
+    /// A tiling pattern.
+    Tiling,
+    /// A shading pattern.
+    Shading,
+}
+
+impl PatternType {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Tiling => 1,
+            Self::Shading => 2,
+        }
+    }
+}
+
 /// Writer for a _tiling pattern stream_.
 ///
 /// This struct is created by [`PdfWriter::tiling_pattern`].
@@ -241,7 +259,7 @@ pub struct TilingPattern<'a> {
 
 impl<'a> TilingPattern<'a> {
     /// Create a new tiling pattern writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"Pattern"));
         stream.pair(Name(b"PatternType"), PatternType::Tiling.to_int());
         Self { stream }
@@ -516,24 +534,6 @@ impl ShadingType {
             Self::Function => 1,
             Self::Axial => 2,
             Self::Radial => 3,
-        }
-    }
-}
-
-/// Type of pattern.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-enum PatternType {
-    /// A tiling pattern.
-    Tiling,
-    /// A shading pattern.
-    Shading,
-}
-
-impl PatternType {
-    pub(crate) fn to_int(self) -> i32 {
-        match self {
-            Self::Tiling => 1,
-            Self::Shading => 2,
         }
     }
 }

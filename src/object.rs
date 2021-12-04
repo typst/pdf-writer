@@ -593,14 +593,14 @@ impl<'a, T: Primitive> TypedDict<'a, T> {
 /// Writer for an indirect stream object.
 pub struct Stream<'a> {
     dict: ManuallyDrop<Dict<'a>>,
-    data: Cow<'a, [u8]>,
+    data: &'a [u8],
 }
 
 impl<'a> Stream<'a> {
     /// Start writing a stream.
     ///
     /// Panics if the object writer is not indirect.
-    pub(crate) fn start(obj: Obj<'a>, data: Cow<'a, [u8]>) -> Self {
+    pub(crate) fn start(obj: Obj<'a>, data: &'a [u8]) -> Self {
         assert!(obj.indirect);
 
         let mut dict = obj.dict();

@@ -30,7 +30,7 @@ core writer's capabilities in a strongly typed fashion.
 - A [`Page`] writer, for example, is just a thin wrapper around a [`Dict`] and
   it even derefs to a dictionary in case you need to write a field that is not
   yet exposed by the typed API.
-- Similarly, the [`Image`] derefs to a [`Stream`], so that the [`filter()`]
+- Similarly, the [`ImageXObject`] derefs to a [`Stream`], so that the [`filter()`]
   function can be shared by all kinds of streams. The [`Stream`] in turn derefs
   to a [`Dict`] so that you can add arbitrary fields to the stream dictionary.
 
@@ -74,7 +74,7 @@ ids for you and it does not check you write all required fields for an object. R
 to the [PDF specification] to make sure you create valid PDFs.
 
 [page]: writers::Page
-[image]: writers::Image
+[image]: writers::ImageXObject
 [`filter()`]: Stream::filter
 [hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
 [PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
@@ -118,7 +118,7 @@ pub mod writers {
         PageLabel, PageLabelMapping, PageLabels, Pages, Resources, ViewerPreferences,
     };
     pub use transitions::Transition;
-    pub use xobject::{FormXObject, Group, Image, Reference};
+    pub use xobject::{FormXObject, Group, ImageXObject, Reference};
 }
 
 /// Types used by specific PDF structures.
@@ -146,7 +146,6 @@ pub use content::Content;
 pub use font::UnicodeCmap;
 pub use object::*;
 
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 
@@ -267,7 +266,7 @@ impl PdfWriter {
     }
 }
 
-/// Indirect objects.
+/// Indirect objects and streams.
 impl PdfWriter {
     /// Start writing an indirectly referenceable object.
     pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
@@ -275,6 +274,60 @@ impl PdfWriter {
         Obj::indirect(&mut self.buf, id)
     }
 
+    /// Start writing an indirectly referenceable stream.
+    ///
+    /// The stream data and the `/Length` field are written automatically. You
+    /// can add additional key-value pairs to the stream dictionary with the
+    /// returned stream writer.
+    ///
+    /// You can use this function together with a [`Content`] stream builder to
+    /// provide a [page's contents](Page::contents).
+    /// ```
+    /// use pdf_writer::{PdfWriter, Content, Ref};
+    ///
+    /// // Create a simple content stream.
+    /// let mut content = Content::new();
+    /// content.rect(50.0, 50.0, 50.0, 50.0);
+    /// content.stroke();
+    ///
+    /// // Create a writer and write the stream.
+    /// let mut writer = PdfWriter::new();
+    /// writer.stream(Ref::new(1), &content.finish());
+    /// ```
+    ///
+    /// This crate does not do any compression for you. If you want to compress
+    /// a stream, you have to pass already compressed data into this function
+    /// and specify the appropriate filter in the stream dictionary.
+    ///
+    /// For example, if you want to compress your content stream with DEFLATE,
+    /// you could do something like this:
+    /// ```
+    /// use pdf_writer::{PdfWriter, Content, Ref, Filter};
+    /// use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
+    ///
+    /// // Create a simple content stream.
+    /// let mut content = Content::new();
+    /// content.rect(50.0, 50.0, 50.0, 50.0);
+    /// content.stroke();
+    ///
+    /// // Compress the stream.
+    /// let level = CompressionLevel::DefaultLevel as u8;
+    /// let compressed = compress_to_vec_zlib(&content.finish(), level);
+    ///
+    /// // Create a writer, write the compressed stream and specify that it
+    /// // needs to be decoded with a FLATE filter.
+    /// let mut writer = PdfWriter::new();
+    /// writer.stream(Ref::new(1), &compressed).filter(Filter::FlateDecode);
+    /// ```
+    /// For all the specialized stream functions below, it works the same way:
+    /// You can pass compressed data and specify a filter.
+    pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
+        Stream::start(self.indirect(id), data.into())
+    }
+}
+
+/// Document structure.
+impl PdfWriter {
     /// Start writing the document catalog. Required.
     ///
     /// This will also register the document catalog with the file trailer,
@@ -284,7 +337,7 @@ impl PdfWriter {
         Catalog::start(self.indirect(id))
     }
 
-    /// Start writing the document information dictionary.
+    /// Start writing the document information.
     ///
     /// This will also register the document information dictionary with the
     /// file trailer, meaning that you don't need to provide the given `id` anywhere
@@ -314,11 +367,52 @@ impl PdfWriter {
         OutlineItem::start(self.indirect(id))
     }
 
-    /// Start writing a named destination dictionary.
+    /// Start writing a named destination.
     pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
         Destinations::start(self.indirect(id))
     }
 
+    /// Start writing an embedded file stream.
+    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
+        EmbeddedFile::start(self.stream(id, bytes))
+    }
+}
+
+/// Graphics and content.
+impl PdfWriter {
+    /// Start writing an image XObject stream.
+    ///
+    /// The samples should be encoded according to the stream's filter, color
+    /// space and bits per component.
+    pub fn image_xobject<'a>(
+        &'a mut self,
+        id: Ref,
+        samples: &'a [u8],
+    ) -> ImageXObject<'a> {
+        ImageXObject::start(self.stream(id, samples))
+    }
+
+    /// Start writing a form XObject stream.
+    ///
+    /// These can be used as transparency groups.
+    ///
+    /// Note that these have nothing to do with forms that have fields to fill
+    /// out. Rather, they are a way to encapsulate and reuse content across the
+    /// file.
+    ///
+    /// You can create the content bytes using a [`Content`] builder.
+    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject<'a> {
+        FormXObject::start(self.stream(id, content))
+    }
+
+    /// Start writing an external graphics state dictionary.
+    pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
+        ExtGraphicsState::start(self.indirect(id))
+    }
+}
+
+/// Fonts.
+impl PdfWriter {
     /// Start writing a Type-1 font.
     pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
         Type1Font::start(self.indirect(id))
@@ -344,89 +438,6 @@ impl PdfWriter {
         FontDescriptor::start(self.indirect(id))
     }
 
-    /// Start writing a dictionary for a shading pattern.
-    pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
-        ShadingPattern::start(self.indirect(id))
-    }
-
-    /// Start writing an exponential function dictionary.
-    pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
-        ExponentialFunction::start(self.indirect(id))
-    }
-
-    /// Start writing a stitching function dictionary.
-    pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
-        StitchingFunction::start(self.indirect(id))
-    }
-
-    /// Start writing an external graphics state dictionary.
-    pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
-        ExtGraphicsState::start(self.indirect(id))
-    }
-}
-
-/// Streams.
-impl PdfWriter {
-    /// Start writing an indirectly referenceable stream.
-    ///
-    /// The stream data and the `/Length` field are written automatically. You
-    /// can add additional key-value pairs to the stream dictionary with the
-    /// returned stream writer.
-    ///
-    /// This crate does not do any compression for you. If you want to compress
-    /// a stream, you have to pass already compressed data into this function
-    /// and specify the appropriate filter in the stream dictionary.
-    ///
-    /// For example, if you want to have a [content](Content) stream that is
-    /// compressed with DEFLATE, you could do something like this:
-    /// ```
-    /// use pdf_writer::{PdfWriter, Content, Ref, Filter, Name, Str};
-    /// use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
-    ///
-    /// // Create a writer and a simple content stream.
-    /// let mut writer = PdfWriter::new();
-    /// let mut content = Content::new();
-    /// content.rect(50.0, 50.0, 50.0, 50.0);
-    /// content.stroke();
-    ///
-    /// // Compress and write the stream.
-    /// let level = CompressionLevel::DefaultLevel as u8;
-    /// let compressed = compress_to_vec_zlib(&content.finish(), level);
-    /// writer.stream(Ref::new(1), compressed).filter(Filter::FlateDecode);
-    /// ```
-    /// For all the specialized stream functions below, it works the same way:
-    /// You can pass compressed data and specify a filter.
-    pub fn stream<'a, T>(&'a mut self, id: Ref, data: T) -> Stream<'a>
-    where
-        T: Into<Cow<'a, [u8]>>,
-    {
-        Stream::start(self.indirect(id), data.into())
-    }
-
-    /// Start writing an XObject image stream.
-    ///
-    /// The samples should be encoded according to the stream's filter, color
-    /// space and bits per component.
-    pub fn image<'a>(&'a mut self, id: Ref, samples: &'a [u8]) -> Image<'a> {
-        Image::start(self.stream(id, samples))
-    }
-
-    /// Start writing a form XObject stream.
-    ///
-    /// These can be used as transparency groups.
-    ///
-    /// Note that these have nothing to do with forms that have fields to fill
-    /// out. Rather, they are a way to encapsulate and reuse content across the
-    /// file.
-    pub fn form_xobject<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> FormXObject<'a> {
-        FormXObject::start(self.stream(id, data))
-    }
-
-    /// Start writing an embedded file stream.
-    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
-        EmbeddedFile::start(self.stream(id, bytes))
-    }
-
     /// Start writing a character map stream.
     ///
     /// If you want to use this for a `/ToUnicode` CMap, you can create the
@@ -434,7 +445,10 @@ impl PdfWriter {
     pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
         Cmap::start(self.stream(id, cmap))
     }
+}
 
+/// Patterns.
+impl PdfWriter {
     /// Start writing a tiling pattern stream.
     ///
     /// You can create the content bytes using a [`Content`] builder.
@@ -446,6 +460,14 @@ impl PdfWriter {
         TilingPattern::start(self.stream(id, content))
     }
 
+    /// Start writing a shading pattern.
+    pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
+        ShadingPattern::start(self.indirect(id))
+    }
+}
+
+/// Functions.
+impl PdfWriter {
     /// Start writing a sampled function stream.
     pub fn sampled_function<'a>(
         &'a mut self,
@@ -453,6 +475,16 @@ impl PdfWriter {
         samples: &'a [u8],
     ) -> SampledFunction<'a> {
         SampledFunction::start(self.stream(id, samples))
+    }
+
+    /// Start writing an exponential function.
+    pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
+        ExponentialFunction::start(self.indirect(id))
+    }
+
+    /// Start writing a stitching function.
+    pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
+        StitchingFunction::start(self.indirect(id))
     }
 
     /// Start writing a PostScript function stream.

@@ -652,7 +652,7 @@ pub struct Cmap<'a> {
 
 impl<'a> Cmap<'a> {
     /// Create a new character map writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"CMap"));
         Self { stream }
     }

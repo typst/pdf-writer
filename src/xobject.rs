@@ -3,14 +3,14 @@ use crate::types::{ColorSpace, RenderingIntent};
 
 /// Writer for an _image XObject stream_.
 ///
-/// This struct is created by [`PdfWriter::image`].
-pub struct Image<'a> {
+/// This struct is created by [`PdfWriter::image_xobject`].
+pub struct ImageXObject<'a> {
     stream: Stream<'a>,
 }
 
-impl<'a> Image<'a> {
+impl<'a> ImageXObject<'a> {
     /// Create a new image stream writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"XObject"));
         stream.pair(Name(b"Subtype"), Name(b"Image"));
         Self { stream }
@@ -93,7 +93,7 @@ impl<'a> Image<'a> {
     }
 }
 
-deref!('a, Image<'a> => Stream<'a>, stream);
+deref!('a, ImageXObject<'a> => Stream<'a>, stream);
 
 /// What to do with in-data mask information in `JPXDecode` images.
 pub enum SMaskInData {
@@ -128,10 +128,9 @@ pub struct FormXObject<'a> {
 
 impl<'a> FormXObject<'a> {
     /// Create a new form stream writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"XObject"));
         stream.pair(Name(b"Subtype"), Name(b"Form"));
-        stream.pair(Name(b"FormType"), 1);
         Self { stream }
     }
 
@@ -183,7 +182,7 @@ impl<'a> FormXObject<'a> {
 
 deref!('a, FormXObject<'a> => Stream<'a>, stream);
 
-/// Writer for an _group XObject dictionary_. PDF 1.4+.
+/// Writer for a _group XObject dictionary_. PDF 1.4+.
 ///
 /// This struct is created by [`FormXObject::group`] and [`Page::group`].
 pub struct Group<'a> {

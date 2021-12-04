@@ -70,7 +70,7 @@ pub struct EmbeddedFile<'a> {
 
 impl<'a> EmbeddedFile<'a> {
     /// Create a new embedded file writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"EmbeddedFile"));
         Self { stream }
     }

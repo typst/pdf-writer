@@ -52,7 +52,7 @@ pub struct SampledFunction<'a> {
 
 impl<'a> SampledFunction<'a> {
     /// Create a new sampled function writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"FunctionType"), FunctionType::Sampled.to_int());
         Self { stream }
     }
@@ -228,7 +228,7 @@ pub struct PostScriptFunction<'a> {
 
 impl<'a> PostScriptFunction<'a> {
     /// Create a new postscript function writer.
-    pub fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"FunctionType"), FunctionType::PostScript.to_int());
         Self { stream }
     }

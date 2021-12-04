@@ -91,30 +91,8 @@ impl Drop for Operation<'_> {
     }
 }
 
-/// Graphics state.
+/// General graphics state.
 impl Content {
-    /// `q`: Save the graphics state on the stack.
-    #[inline]
-    pub fn save_state(&mut self) -> &mut Self {
-        self.op("q");
-        self
-    }
-
-    /// `Q`: Restore the graphics state from the stack.
-    #[inline]
-    pub fn restore_state(&mut self) -> &mut Self {
-        self.op("Q");
-        self
-    }
-
-    /// `cm`: Pre-concatenate the `matrix` with the current transformation
-    /// matrix.
-    #[inline]
-    pub fn transform(&mut self, matrix: [f32; 6]) -> &mut Self {
-        self.op("cm").operands(matrix);
-        self
-    }
-
     /// `w`: Set the stroke line width.
     ///
     /// Panics if `width` is negative.
@@ -256,6 +234,31 @@ impl RenderingIntent {
             Self::Saturation => Name(b"Saturation"),
             Self::Perceptual => Name(b"Perceptual"),
         }
+    }
+}
+
+/// Special graphics state.
+impl Content {
+    /// `q`: Save the graphics state on the stack.
+    #[inline]
+    pub fn save_state(&mut self) -> &mut Self {
+        self.op("q");
+        self
+    }
+
+    /// `Q`: Restore the graphics state from the stack.
+    #[inline]
+    pub fn restore_state(&mut self) -> &mut Self {
+        self.op("Q");
+        self
+    }
+
+    /// `cm`: Pre-concatenate the `matrix` with the current transformation
+    /// matrix.
+    #[inline]
+    pub fn transform(&mut self, matrix: [f32; 6]) -> &mut Self {
+        self.op("cm").operands(matrix);
+        self
     }
 }
 
@@ -649,7 +652,9 @@ impl<'a> PositionedItems<'a> {
 
 deref!('a, PositionedItems<'a> => Array<'a>, array);
 
-/// Type 3 fonts: These operators are only allowed in
+/// Type 3 fonts.
+///
+/// These operators are only allowed in
 /// [Type 3 CharProcs](crate::font::Type3Font::char_procs).
 impl Content {
     /// `d0`: Starts a Type 3 glyph that contains color information.
