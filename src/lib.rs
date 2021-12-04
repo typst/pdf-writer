@@ -101,9 +101,9 @@ mod xobject;
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, Annotations, BorderStyle};
-    pub use color::{ColorSpaces, Shading, ShadingPattern, TilingPattern};
+    pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
     pub use content::{
-        ExtGraphicsState, Operation, PositionedItems, ShowPositioned, SoftMask,
+        ExtGraphicsState, Operation, PositionedItems, Resources, ShowPositioned, SoftMask,
     };
     pub use files::{EmbedParams, EmbeddedFile, FileSpec};
     pub use font::{
@@ -115,7 +115,7 @@ pub mod writers {
     };
     pub use structure::{
         Catalog, Destination, Destinations, DocumentInfo, Outline, OutlineItem, Page,
-        PageLabel, PageLabelMapping, PageLabels, Pages, Resources, ViewerPreferences,
+        PageLabel, PageLabelMapping, PageLabels, Pages, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -128,15 +128,16 @@ pub mod types {
         ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
         HighlightEffect,
     };
-    pub use color::{ColorSpace, PaintType, ShadingType, TilingType};
+    pub use color::{PaintType, ShadingType, TilingType};
     pub use content::{
-        LineCapStyle, LineJoinStyle, MaskType, RenderingIntent, TextRenderingMode,
+        ColorSpaceOperand, LineCapStyle, LineJoinStyle, MaskType, ProcSet,
+        RenderingIntent, TextRenderingMode,
     };
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
-        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, ProcSet,
-        TabOrder, TrappingStatus,
+        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, TabOrder,
+        TrappingStatus,
     };
     pub use transitions::{TransitionAngle, TransitionStyle};
     pub use xobject::SMaskInData;
@@ -447,8 +448,18 @@ impl PdfWriter {
     }
 }
 
-/// Patterns.
+/// Color spaces, shadings and patterns.
 impl PdfWriter {
+    /// Start writing a color space.
+    pub fn color_space(&mut self, id: Ref) -> ColorSpace<'_> {
+        ColorSpace::start(self.indirect(id))
+    }
+
+    /// Start writing a shading.
+    pub fn shading(&mut self, id: Ref) -> Shading<'_> {
+        Shading::start(self.indirect(id))
+    }
+
     /// Start writing a tiling pattern stream.
     ///
     /// You can create the content bytes using a [`Content`] builder.

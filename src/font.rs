@@ -238,10 +238,10 @@ impl<'a> Writer<'a> for Differences<'a> {
 impl<'a> Differences<'a> {
     /// Maps consecutive character codes starting at `start` to the given glyph
     /// names.
-    pub fn consecutive<'b>(
+    pub fn consecutive<'n>(
         &mut self,
         start: u8,
-        names: impl IntoIterator<Item = Name<'b>>,
+        names: impl IntoIterator<Item = Name<'n>>,
     ) -> &mut Self {
         self.item(i32::from(start));
         for name in names {

@@ -1,5 +1,4 @@
 use super::*;
-use crate::types::ColorSpace;
 
 /// A builder for a content stream.
 pub struct Content {
@@ -690,7 +689,7 @@ impl Content {
     /// The parameter must be the name of a parameter-less color space or of a
     /// color space dictionary within the current resource dictionary.
     #[inline]
-    pub fn set_stroke_color_space(&mut self, space: ColorSpace) -> &mut Self {
+    pub fn set_stroke_color_space(&mut self, space: ColorSpaceOperand) -> &mut Self {
         self.op("CS").operand(space.to_name());
         self
     }
@@ -700,7 +699,7 @@ impl Content {
     /// The parameter must be the name of a parameter-less color space or of a
     /// color space dictionary within the current resource dictionary.
     #[inline]
-    pub fn set_fill_color_space(&mut self, space: ColorSpace) -> &mut Self {
+    pub fn set_fill_color_space(&mut self, space: ColorSpaceOperand) -> &mut Self {
         self.op("cs").operand(space.to_name());
         self
     }
@@ -803,6 +802,35 @@ impl Content {
     }
 }
 
+/// A color space operand to the `CS` or `cs` operator.
+///
+/// These are either the predefined, parameter-less color spaces like
+/// `DeviceGray` or the ones defined by the user, accessed through the `Named`
+/// variant. A custom color space of types like `CalRGB` or `Pattern` can be set
+/// by registering it with the [`color_spaces`](Resources::color_spaces) dictionary.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum ColorSpaceOperand<'a> {
+    DeviceGray,
+    DeviceRgb,
+    DeviceCmyk,
+    Pattern,
+    /// A named color space defined the current [`Resources`] dictionary.
+    Named(Name<'a>),
+}
+
+impl<'a> ColorSpaceOperand<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::DeviceGray => Name(b"DeviceGray"),
+            Self::DeviceRgb => Name(b"DeviceRGB"),
+            Self::DeviceCmyk => Name(b"DeviceCMYK"),
+            Self::Pattern => Name(b"Pattern"),
+            Self::Named(name) => name,
+        }
+    }
+}
+
 /// Shading patterns.
 impl Content {
     /// `sh`: Fill the whole drawing area with the specified shading.
@@ -841,6 +869,133 @@ impl Content {
     pub fn end_compat(&mut self) -> &mut Self {
         self.op("EX");
         self
+    }
+}
+
+/// Writer for a _resource dictionary_.
+///
+/// This struct is created by [`Pages::resources`], [`Page::resources`],
+/// [`FormXObject::resources`], and [`TilingPattern::resources`].
+pub struct Resources<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> Writer<'a> for Resources<'a> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+}
+
+impl<'a> Resources<'a> {
+    /// Start writing the `/XObject` dictionary.
+    ///
+    /// Relevant types:
+    /// - [`ImageXObject`]
+    /// - [`FormXObject`]
+    pub fn x_objects(&mut self) -> TypedDict<'_, Ref> {
+        self.insert(Name(b"XObject")).dict().typed()
+    }
+
+    /// Start writing the `/Font` dictionary.
+    ///
+    /// Relevant types:
+    /// - [`Type1Font`]
+    /// - [`Type3Font`]
+    /// - [`Type0Font`]
+    pub fn fonts(&mut self) -> TypedDict<'_, Ref> {
+        self.insert(Name(b"Font")).dict().typed()
+    }
+
+    /// Start writing the `/ColorSpace` dictionary. PDF 1.1+.
+    ///
+    /// Relevant types:
+    /// - [`ColorSpace`]
+    pub fn color_spaces(&mut self) -> TypedDict<'_, Ref> {
+        self.insert(Name(b"ColorSpace")).dict().typed()
+    }
+
+    /// Start writing the `/Pattern` dictionary. PDF 1.2+.
+    ///
+    /// Relevant types:
+    /// - [`TilingPattern`]
+    /// - [`ShadingPattern`]
+    pub fn patterns(&mut self) -> TypedDict<'_, Ref> {
+        self.insert(Name(b"Pattern")).dict().typed()
+    }
+
+    /// Start writing the `/Shading` dictionary. PDF 1.3+.
+    ///
+    /// Relevant types:
+    /// - [`Shading`]
+    pub fn shadings(&mut self) -> TypedDict<'_, Ref> {
+        self.insert(Name(b"Shading")).dict().typed()
+    }
+
+    /// Start writing the `/ExtGState` dictionary. PDF 1.2+.
+    ///
+    /// Relevant types:
+    /// - [`ExtGraphicsState`]
+    pub fn ext_g_states(&mut self) -> TypedDict<'_, Ref> {
+        self.insert(Name(b"ExtGState")).dict().typed()
+    }
+
+    /// Set the `/ProcSet` attribute.
+    ///
+    /// This defines what procedure sets are sent to an output device when
+    /// printing the file as PostScript. The attribute is only used for PDFs
+    /// with versions below 1.4.
+    pub fn proc_sets(&mut self, sets: impl IntoIterator<Item = ProcSet>) -> &mut Self {
+        self.insert(Name(b"ProcSet"))
+            .array()
+            .items(sets.into_iter().map(ProcSet::to_name));
+        self
+    }
+
+    /// Set the `/ProcSet` attribute to all available procedure sets.
+    ///
+    /// The PDF 1.7 specification recommends that modern PDFs either omit the
+    /// attribute or specify all available procedure sets, as this function
+    /// does.
+    pub fn proc_sets_all(&mut self) -> &mut Self {
+        self.proc_sets([
+            ProcSet::Pdf,
+            ProcSet::Text,
+            ProcSet::ImageGrayscale,
+            ProcSet::ImageColor,
+            ProcSet::ImageIndexed,
+        ])
+    }
+}
+
+deref!('a, Resources<'a> => Dict<'a>, dict);
+
+/// What procedure sets to send to a PostScript printer or other output device.
+///
+/// This enumeration provides compatibilty for printing PDFs of versions 1.3 and
+/// below.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum ProcSet {
+    /// Painting and graphics state.
+    Pdf,
+    /// Text.
+    Text,
+    /// Grayscale images and masks.
+    ImageGrayscale,
+    /// Color images.
+    ImageColor,
+    /// Images with color tables.
+    ImageIndexed,
+}
+
+impl ProcSet {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            ProcSet::Pdf => Name(b"PDF"),
+            ProcSet::Text => Name(b"Text"),
+            ProcSet::ImageGrayscale => Name(b"ImageB"),
+            ProcSet::ImageColor => Name(b"ImageC"),
+            ProcSet::ImageIndexed => Name(b"ImageI"),
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::types::{ColorSpace, RenderingIntent};
+use crate::types::RenderingIntent;
 
 /// Writer for an _image XObject stream_.
 ///
@@ -33,9 +33,8 @@ impl<'a> ImageXObject<'a> {
     /// Required for all images except if using the `JPXDecode` filter.
     /// If this is an image soft mask, the color space must be `DeviceGray`.
     /// Must not be `Pattern`.
-    pub fn color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.pair(Name(b"ColorSpace"), space.to_name());
-        self
+    pub fn color_space(&mut self) -> ColorSpace<'_> {
+        ColorSpace::start(self.insert(Name(b"ColorSpace")))
     }
 
     /// Write the `/BitsPerComponent` attribute. Required.
@@ -209,9 +208,8 @@ impl<'a> Group<'a> {
     ///
     /// This is optional for isolated groups and required for groups where the
     /// color space cannot be derived from the parent.
-    pub fn color_space(&mut self, space: ColorSpace) -> &mut Self {
-        self.pair(Name(b"CS"), space.to_name());
-        self
+    pub fn color_space(&mut self) -> ColorSpace<'_> {
+        ColorSpace::start(self.insert(Name(b"CS")))
     }
 
     /// Set the `/I` attribute to indicate whether the group is isolated.

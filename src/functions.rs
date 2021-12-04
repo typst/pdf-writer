@@ -2,7 +2,7 @@ use super::*;
 
 /// Way the function is defined in.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum FunctionType {
+enum FunctionType {
     /// A function that is derived from a set of sampled data.
     Sampled,
     /// A exponential function.

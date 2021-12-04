@@ -1,86 +1,64 @@
 use super::*;
 
-/// A color space.
-///
-/// These are either the predefined, parameter-less color spaces like
-/// `DeviceGray` or the ones defined by the user, accessed through the `Named`
-/// variant. A custom color space of types like `CalRGB` or `Pattern` can be set
-/// by registering it with the [`/ColorSpace`](ColorSpaces) dictionary in the
-/// current [`Resources`] dictionary.
+/// The type of a color space.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[allow(missing_docs)]
-pub enum ColorSpace<'a> {
-    DeviceGray,
+#[allow(unused)]
+enum ColorSpaceType {
+    CalGray,
+    CalRgb,
+    Lab,
+    IccBased,
     DeviceRgb,
     DeviceCmyk,
+    DeviceGray,
+    Indexed,
     Pattern,
-    Named(Name<'a>),
+    Separation,
+    DeviceN,
 }
 
-impl<'a> ColorSpace<'a> {
-    pub(crate) fn to_name(self) -> Name<'a> {
+impl ColorSpaceType {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
-            Self::DeviceGray => Name(b"DeviceGray"),
+            Self::CalRgb => Name(b"CalRGB"),
+            Self::CalGray => Name(b"CalGray"),
+            Self::Lab => Name(b"Lab"),
+            Self::IccBased => Name(b"ICCBased"),
             Self::DeviceRgb => Name(b"DeviceRGB"),
             Self::DeviceCmyk => Name(b"DeviceCMYK"),
+            Self::DeviceGray => Name(b"DeviceGray"),
+            Self::Separation => Name(b"Separation"),
+            Self::DeviceN => Name(b"DeviceN"),
+            Self::Indexed => Name(b"Indexed"),
             Self::Pattern => Name(b"Pattern"),
-            Self::Named(name) => name,
         }
     }
 }
 
-/// Writer for a _color space dictionary_.
+/// Writer for a _color space_.
 ///
-/// This struct is created by [`Resources::color_spaces`].
-pub struct ColorSpaces<'a> {
-    dict: Dict<'a>,
+/// This struct is created by [`PdfWriter::color_space`].
+pub struct ColorSpace<'a> {
+    obj: Obj<'a>,
 }
 
-impl<'a> Writer<'a> for ColorSpaces<'a> {
+impl<'a> Writer<'a> for ColorSpace<'a> {
     fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
+        Self { obj }
     }
 }
 
-impl<'a> ColorSpaces<'a> {
-    /// Write a `CalGray` color space.
-    pub fn cal_gray(
-        &mut self,
-        name: Name,
-        white_point: [f32; 3],
-        black_point: Option<[f32; 3]>,
-        gamma: Option<f32>,
-    ) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
-        array.item(ColorSpaceType::CalGray.to_name());
-
-        let mut dict = array.push().dict();
-        dict.insert(Name(b"WhitePoint")).array().items(white_point);
-
-        if let Some(black_point) = black_point {
-            dict.insert(Name(b"BlackPoint")).array().items(black_point);
-        }
-
-        if let Some(gamma) = gamma {
-            dict.pair(Name(b"Gamma"), gamma);
-        }
-
-        dict.finish();
-        array.finish();
-
-        self
-    }
-
-    /// Write a `CalRgb` color space.
+/// CIE-based color spaces.
+impl ColorSpace<'_> {
+    /// Write a `CalRGB` color space.
     pub fn cal_rgb(
-        &mut self,
-        name: Name,
+        self,
         white_point: [f32; 3],
         black_point: Option<[f32; 3]>,
         gamma: Option<f32>,
         matrix: Option<[f32; 9]>,
-    ) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
+    ) {
+        let mut array = self.obj.array();
         array.item(ColorSpaceType::CalRgb.to_name());
 
         let mut dict = array.push().dict();
@@ -97,22 +75,38 @@ impl<'a> ColorSpaces<'a> {
         if let Some(matrix) = matrix {
             dict.insert(Name(b"Matrix")).array().items(matrix);
         }
+    }
 
-        dict.finish();
-        array.finish();
+    /// Write a `CalGray` color space.
+    pub fn cal_gray(
+        self,
+        white_point: [f32; 3],
+        black_point: Option<[f32; 3]>,
+        gamma: Option<f32>,
+    ) {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::CalGray.to_name());
 
-        self
+        let mut dict = array.push().dict();
+        dict.insert(Name(b"WhitePoint")).array().items(white_point);
+
+        if let Some(black_point) = black_point {
+            dict.insert(Name(b"BlackPoint")).array().items(black_point);
+        }
+
+        if let Some(gamma) = gamma {
+            dict.pair(Name(b"Gamma"), gamma);
+        }
     }
 
     /// Write a `Lab` color space.
     pub fn lab(
-        &mut self,
-        name: Name,
+        self,
         white_point: [f32; 3],
         black_point: Option<[f32; 3]>,
         range: Option<[f32; 4]>,
-    ) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
+    ) {
+        let mut array = self.obj.array();
         array.item(ColorSpaceType::Lab.to_name());
 
         let mut dict = array.push().dict();
@@ -125,110 +119,74 @@ impl<'a> ColorSpaces<'a> {
         if let Some(range) = range {
             dict.insert(Name(b"Range")).array().items(range);
         }
+    }
 
-        dict.finish();
-        array.finish();
+    // TODO: ICC-based.
+}
 
-        self
+/// Device color spaces.
+impl ColorSpace<'_> {
+    /// Write a `DeviceRGB` color space.
+    pub fn device_rgb(self) {
+        self.obj.primitive(ColorSpaceType::DeviceRgb.to_name());
+    }
+
+    /// Write a `DeviceCMYK` color space.
+    pub fn device_cmyk(self) {
+        self.obj.primitive(ColorSpaceType::DeviceCmyk.to_name());
+    }
+
+    /// Write a `DeviceGray` color space.
+    pub fn device_gray(self) {
+        self.obj.primitive(ColorSpaceType::DeviceGray.to_name());
+    }
+}
+
+/// Special color spaces.
+impl ColorSpace<'_> {
+    /// Write a `Separation` color space. PDF 1.2+.
+    pub fn separation(self, color_name: Name, base: Name, tint: Ref) {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::Separation.to_name());
+        array.item(color_name);
+        array.item(base);
+        array.item(tint);
+    }
+
+    /// Write a `DeviceN` color space. PDF 1.3+.
+    pub fn device_n<'n>(
+        self,
+        names: impl IntoIterator<Item = Name<'n>>,
+        alternate_space: Name,
+        tint: Ref,
+    ) {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::DeviceN.to_name());
+        array.push().array().items(names);
+        array.item(alternate_space);
+        array.item(tint);
     }
 
     /// Write an `Indexed` color space. PDF 1.2+.
     ///
     /// The length of the lookup slice must be the product of the dimensions of
     /// the base color space and (`hival + 1`) and `hival` shall be at most 255.
-    pub fn indexed(
-        &mut self,
-        name: Name,
-        base: Name,
-        hival: i32,
-        lookup: &[u8],
-    ) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
+    pub fn indexed(self, base: Name, hival: i32, lookup: &[u8]) {
+        let mut array = self.obj.array();
         array.item(ColorSpaceType::Indexed.to_name());
         array.item(base);
         array.item(hival);
         array.item(Str(lookup));
-        array.finish();
-        self
-    }
-
-    /// Write a `Separation` color space. PDF 1.2+.
-    pub fn separation(
-        &mut self,
-        name: Name,
-        color_name: Name,
-        base: Name,
-        tint: Ref,
-    ) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
-        array.item(ColorSpaceType::Separation.to_name());
-        array.item(color_name);
-        array.item(base);
-        array.item(tint);
-        array.finish();
-        self
-    }
-
-    /// Write a `DeviceN` color space. PDF 1.3+.
-    pub fn device_n(
-        &mut self,
-        name: Name,
-        names: impl IntoIterator<Item = Name<'a>>,
-        alternate_space: Name,
-        tint: Ref,
-    ) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
-        array.item(ColorSpaceType::DeviceN.to_name());
-        array.push().array().items(names);
-        array.item(alternate_space);
-        array.item(tint);
-        array.finish();
-        self
     }
 
     /// Write a `Pattern` color space for uncolored patterns. PDF 1.2+.
     ///
     /// The `base` attribute is the color space in which the pattern color is
     /// specified upon use.
-    pub fn pattern(&mut self, name: Name, base: Name) -> &mut Self {
-        let mut array = self.dict.insert(name).array();
+    pub fn pattern(self, base: Name) {
+        let mut array = self.obj.array();
         array.item(ColorSpaceType::Pattern.to_name());
         array.item(base);
-        array.finish();
-        self
-    }
-}
-
-deref!('a, ColorSpaces<'a> => Dict<'a>, dict);
-
-/// A color space type that requires further parameters. These are for internal
-/// use. Instances of these color spaces may be used by defining them and their
-/// parameters through the [`/ColorSpace`](ColorSpaces) dictionary.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-enum ColorSpaceType {
-    CalGray,
-    CalRgb,
-    Lab,
-    #[allow(unused)]
-    IccBased,
-    Indexed,
-    Pattern,
-    Separation,
-    DeviceN,
-}
-
-impl ColorSpaceType {
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::CalGray => Name(b"CalGray"),
-            Self::CalRgb => Name(b"CalRGB"),
-            Self::Lab => Name(b"Lab"),
-            Self::IccBased => Name(b"ICCBased"),
-            Self::Indexed => Name(b"Indexed"),
-            Self::Pattern => Name(b"Pattern"),
-            Self::Separation => Name(b"Separation"),
-            Self::DeviceN => Name(b"DeviceN"),
-        }
     }
 }
 
@@ -410,7 +368,8 @@ deref!('a, ShadingPattern<'a> => Dict< 'a>, dict);
 
 /// Writer for a _shading dictionary_. PDF 1.3+.
 ///
-/// This struct is created by [`ShadingPattern::shading`].
+/// This struct is created by [`PdfWriter::shading`] and
+/// [`ShadingPattern::shading`].
 pub struct Shading<'a> {
     dict: Dict<'a>,
 }
@@ -435,16 +394,15 @@ impl<'a> Shading<'a> {
     ///
     /// Sets the color space of the shading function. May not be a `Pattern`
     /// space. Required.
-    pub fn color_space(&mut self, color_space: ColorSpace) -> &mut Self {
-        self.dict.pair(Name(b"ColorSpace"), color_space.to_name());
-        self
+    pub fn color_space(&mut self) -> ColorSpace<'_> {
+        ColorSpace::start(self.dict.insert(Name(b"ColorSpace")))
     }
 
     /// Write the `/Background` attribute.
     ///
     /// Sets the background color of the area to be shaded. The `background`
     /// iterator must contain exactly as many elements as the current
-    /// `ColorSpace` has dimensions.
+    /// color space has dimensions.
     pub fn background(&mut self, background: impl IntoIterator<Item = f32>) -> &mut Self {
         self.dict.insert(Name(b"Background")).array().items(background);
         self
