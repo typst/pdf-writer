@@ -57,7 +57,7 @@ impl ColorSpace<'_> {
         self,
         white_point: [f32; 3],
         black_point: Option<[f32; 3]>,
-        gamma: Option<f32>,
+        gamma: Option<[f32; 3]>,
         matrix: Option<[f32; 9]>,
     ) {
         let mut array = self.obj.array();
@@ -71,12 +71,50 @@ impl ColorSpace<'_> {
         }
 
         if let Some(gamma) = gamma {
-            dict.pair(Name(b"Gamma"), gamma);
+            dict.insert(Name(b"Gamma")).array().items(gamma);
         }
 
         if let Some(matrix) = matrix {
             dict.insert(Name(b"Matrix")).array().items(matrix);
         }
+    }
+
+    /// Write a `CalRGB` color space for sRGB.
+    pub fn srgb(self) {
+        self.cal_rgb(
+            [0.9505, 1.0, 1.089],
+            None,
+            Some([2.2, 2.2, 2.2]),
+            Some([
+                0.4124, 0.2126, 0.0193, 0.3576, 0.715, 0.1192, 0.1805, 0.0722, 0.9505,
+            ]),
+        )
+    }
+
+    /// Write a `CalRGB` color space for Adobe RGB.
+    pub fn adobe_rgb(self) {
+        self.cal_rgb(
+            [0.9505, 1.0, 1.089],
+            None,
+            Some([2.2, 2.2, 2.2]),
+            Some([
+                0.76670, 0.29734, 0.02703, 0.18556, 0.62736, 0.07069, 0.18823, 0.07529,
+                0.99134,
+            ]),
+        )
+    }
+
+    /// Write a `CalRGB` color space for Display P3.
+    pub fn display_p3(self) {
+        self.cal_rgb(
+            [0.9505, 1.0, 1.089],
+            None,
+            Some([2.2, 2.2, 2.2]),
+            Some([
+                0.48657, 0.2297, 0.0, 0.26567, 0.69174, 0.04511, 0.19822, 0.07929,
+                1.04394,
+            ]),
+        )
     }
 
     /// Write a `CalGray` color space.
@@ -99,6 +137,22 @@ impl ColorSpace<'_> {
         if let Some(gamma) = gamma {
             dict.pair(Name(b"Gamma"), gamma);
         }
+    }
+
+    /// Write a `CalGray` color space for CIE D65 at a 2.2 gamma, equivalent to
+    /// sRGB.
+    pub fn srgb_gray(self) {
+        self.cal_gray([0.9505, 1.0, 1.089], None, Some(2.2))
+    }
+
+    /// Write a `CalGray` color space for Adobe RGB.
+    pub fn adobe_rgb_gray(self) {
+        self.cal_gray([0.9505, 1.0, 1.089], None, Some(2.2))
+    }
+
+    /// Write a `CalGray` color space for Display P3.
+    pub fn display_p3_gray(self) {
+        self.cal_gray([0.9505, 1.0, 1.089], None, Some(2.2))
     }
 
     /// Write a `Lab` color space.
