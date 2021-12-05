@@ -185,7 +185,7 @@ impl<'a> Annotation<'a> {
     }
 
     /// Start writing the `/FS` attribute, setting which file to reference.
-    pub fn file(&mut self) -> FileSpec<'_> {
+    pub fn file_spec(&mut self) -> FileSpec<'_> {
         self.insert(Name(b"FS")).start()
     }
 
@@ -360,7 +360,7 @@ impl<'a> Action<'a> {
 
     /// Start writing the `/F` attribute, setting which file to go to or which
     /// application to launch.
-    pub fn file(&mut self) -> FileSpec<'_> {
+    pub fn file_spec(&mut self) -> FileSpec<'_> {
         self.insert(Name(b"F")).start()
     }
 

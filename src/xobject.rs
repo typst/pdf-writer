@@ -251,7 +251,7 @@ impl<'a> Writer<'a> for Reference<'a> {
 impl<'a> Reference<'a> {
     /// Start writing the `/F` attribute to set a file specification dictionary.
     /// Required.
-    pub fn file(&mut self) -> FileSpec<'_> {
+    pub fn file_spec(&mut self) -> FileSpec<'_> {
         self.insert(Name(b"F")).start()
     }
 

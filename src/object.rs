@@ -103,7 +103,9 @@ impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         for &byte in self.0 {
-            if matches!(byte, b'!' ..= b'~') && byte != b'#' && byte != b'/' {
+            // Quite a few characters must be escaped in names, so we take the
+            // safe route and allow only ASCII letters and numbers.
+            if byte.is_ascii_alphanumeric() {
                 buf.push(byte);
             } else {
                 buf.push(b'#');

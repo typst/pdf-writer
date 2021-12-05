@@ -2,8 +2,8 @@ use super::*;
 
 /// Writer for a _file specification dictionary_.
 ///
-/// This struct is created by [`Annotation::file`], [`Reference::file`], and
-/// [`Action::file`].
+/// This struct is created by [`Annotation::file_spec`],
+/// [`Reference::file_spec`], and [`Action::file_spec`].
 pub struct FileSpec<'a> {
     dict: Dict<'a>,
 }
@@ -54,9 +54,9 @@ impl<'a> FileSpec<'a> {
     /// Write the `/EF` attribute to reference an [embedded file](EmbeddedFile).
     /// PDF 1.3+.
     ///
-    /// This only sets an embedded file for the `F` attribute, set by the `path`
-    /// method. You will need to write this dictionary manually if you need to
-    /// set `UF`.
+    /// This only sets an embedded file for the `F` attribute corresponding to
+    /// the [`path`](Self::path) method. You will need to write this dictionary
+    /// manually if you need to set `UF`.
     pub fn embedded_file(&mut self, id: Ref) -> &mut Self {
         self.insert(Name(b"EF")).dict().pair(Name(b"F"), id);
         self

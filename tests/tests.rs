@@ -135,7 +135,7 @@ fn test_primitive_objects() {
     // Test names.
     test_primitive!(Name(b"Filter"), b"/Filter");
     test_primitive!(Name(b"A B"), br"/A#20B");
-    test_primitive!(Name(b"~+c"), br"/~+c");
+    test_primitive!(Name(b"~+c"), br"/#7E#2Bc");
     test_primitive!(Name(b"#"), br"/#23");
     test_primitive!(Name(b"\n"), br"/#0A");
 }

@@ -373,8 +373,8 @@ impl PdfWriter {
         self.indirect(id).start()
     }
 
-    /// Start writing an file specification dictionary.
-    pub fn file_spec<'a>(&'a mut self, id: Ref) -> FileSpec<'a> {
+    /// Start writing a file specification dictionary.
+    pub fn file_spec(&mut self, id: Ref) -> FileSpec<'_> {
         self.indirect(id).start()
     }
 
