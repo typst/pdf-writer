@@ -103,7 +103,7 @@ impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         for &byte in self.0 {
-            if matches!(byte, b'!' ..= b'~') && byte != b'#' {
+            if matches!(byte, b'!' ..= b'~') && byte != b'#' && byte != b'/' {
                 buf.push(byte);
             } else {
                 buf.push(b'#');
