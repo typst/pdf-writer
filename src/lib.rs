@@ -373,6 +373,11 @@ impl PdfWriter {
         self.indirect(id).start()
     }
 
+    /// Start writing an file specification dictionary.
+    pub fn file_spec<'a>(&'a mut self, id: Ref) -> FileSpec<'a> {
+        self.indirect(id).start()
+    }
+
     /// Start writing an embedded file stream.
     pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
         EmbeddedFile::start(self.stream(id, bytes))

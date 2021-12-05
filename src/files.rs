@@ -53,6 +53,10 @@ impl<'a> FileSpec<'a> {
 
     /// Write the `/EF` attribute to reference an [embedded file](EmbeddedFile).
     /// PDF 1.3+.
+    ///
+    /// This only sets an embedded file for the `F` attribute, set by the `path`
+    /// method. You will need to write this dictionary manually if you need to
+    /// set `UF`.
     pub fn embedded_file(&mut self, id: Ref) -> &mut Self {
         self.insert(Name(b"EF")).dict().pair(Name(b"F"), id);
         self
