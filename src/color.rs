@@ -1,5 +1,17 @@
 use super::*;
 
+/// CIE XYZ coordinates of the D65 noon daylight white.
+const CIE_D65: [f32; 3] = [0.9505, 1.0, 1.0888];
+
+/// CIE XYZ coordinates of the D50 horizon light white.
+const CIE_D50: [f32; 3] = [0.9642, 1.0, 0.8251];
+
+/// CIE XYZ coordinates of the E equal radiator white.
+const CIE_E: [f32; 3] = [1.000, 1.000, 1.000];
+
+/// CIE XYZ coordinates of the C north sky daylight white.
+const CIE_C: [f32; 3] = [0.9807, 1.0000, 1.1822];
+
 /// The type of a color space.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(unused)]
@@ -82,7 +94,7 @@ impl ColorSpace<'_> {
     /// Write a `CalRGB` color space for sRGB.
     pub fn srgb(self) {
         self.cal_rgb(
-            [0.9505, 1.0, 1.089],
+            CIE_D65,
             None,
             Some([2.2, 2.2, 2.2]),
             Some([
@@ -94,11 +106,11 @@ impl ColorSpace<'_> {
     /// Write a `CalRGB` color space for Adobe RGB.
     pub fn adobe_rgb(self) {
         self.cal_rgb(
-            [0.9505, 1.0, 1.089],
+            CIE_D65,
             None,
             Some([2.2, 2.2, 2.2]),
             Some([
-                0.76670, 0.29734, 0.02703, 0.18556, 0.62736, 0.07069, 0.18823, 0.07529,
+                0.57667, 0.29734, 0.02703, 0.18556, 0.62736, 0.07069, 0.18823, 0.07529,
                 0.99134,
             ]),
         )
@@ -107,12 +119,64 @@ impl ColorSpace<'_> {
     /// Write a `CalRGB` color space for Display P3.
     pub fn display_p3(self) {
         self.cal_rgb(
-            [0.9505, 1.0, 1.089],
+            CIE_D65,
             None,
             Some([2.2, 2.2, 2.2]),
             Some([
                 0.48657, 0.2297, 0.0, 0.26567, 0.69174, 0.04511, 0.19822, 0.07929,
                 1.04394,
+            ]),
+        )
+    }
+
+    /// Write a `CalRGB` color space for ProPhoto.
+    pub fn pro_photo(self) {
+        self.cal_rgb(
+            CIE_D50,
+            None,
+            Some([1.8, 1.8, 1.8]),
+            Some([
+                0.7976749, 0.2880402, 0.0, 0.1351917, 0.7118741, 0.0, 0.0313534,
+                0.0000857, 0.8252100,
+            ]),
+        )
+    }
+
+    /// Write a `CalRGB` color space for ECI RGB v1.
+    pub fn eci_rgb(self) {
+        self.cal_rgb(
+            CIE_D50,
+            None,
+            Some([1.8, 1.8, 1.8]),
+            Some([
+                0.6502043, 0.3202499, 0.0, 0.1780774, 0.6020711, 0.0678390, 0.1359384,
+                0.0776791, 0.7573710,
+            ]),
+        )
+    }
+
+    /// Write a `CalRGB` color space for NTSC RGB.
+    pub fn ntsc(self) {
+        self.cal_rgb(
+            CIE_C,
+            None,
+            Some([2.2, 2.2, 2.2]),
+            Some([
+                0.6068909, 0.2989164, 0.0, 0.1735011, 0.5865990, 0.0660957, 0.2003480,
+                0.1144845, 1.1162243,
+            ]),
+        )
+    }
+
+    /// Write a `CalRGB` color space for PAL/SECAM RGB.
+    pub fn pal(self) {
+        self.cal_rgb(
+            CIE_D65,
+            None,
+            Some([2.2, 2.2, 2.2]),
+            Some([
+                0.4306190, 0.2220379, 0.0201853, 0.3415419, 0.7066384, 0.1295504,
+                0.1783091, 0.0713236, 0.9390944,
             ]),
         )
     }
@@ -140,19 +204,27 @@ impl ColorSpace<'_> {
     }
 
     /// Write a `CalGray` color space for CIE D65 at a 2.2 gamma, equivalent to
-    /// sRGB.
-    pub fn srgb_gray(self) {
-        self.cal_gray([0.9505, 1.0, 1.089], None, Some(2.2))
+    /// sRGB, Adobe RGB, Display P3, PAL, ...
+    pub fn d65_gray(self) {
+        self.cal_gray(CIE_D65, None, Some(2.2))
     }
 
-    /// Write a `CalGray` color space for Adobe RGB.
-    pub fn adobe_rgb_gray(self) {
-        self.cal_gray([0.9505, 1.0, 1.089], None, Some(2.2))
+    /// Write a `CalGray` color space for CIE D50 (horizon light). Set a 1.8
+    /// gamma for ProPhoto or ECI RGB equivalency, 2.2 is another common value.
+    pub fn d50_gray(self, gamma: Option<f32>) {
+        self.cal_gray(CIE_D50, None, gamma)
     }
 
-    /// Write a `CalGray` color space for Display P3.
-    pub fn display_p3_gray(self) {
-        self.cal_gray([0.9505, 1.0, 1.089], None, Some(2.2))
+    /// Write a `CalGray` color space for CIE C (north sky daylight) at 2.2
+    /// gamma, equivalent to NTSC.
+    pub fn c_gray(self) {
+        self.cal_gray(CIE_C, None, Some(2.2))
+    }
+
+    /// Write a `CalGray` color space for CIE E (equal emission). Common gamma
+    /// values include 1.8 or 2.2.
+    pub fn e_gray(self, gamma: Option<f32>) {
+        self.cal_gray(CIE_E, None, gamma)
     }
 
     /// Write a `Lab` color space.
