@@ -18,6 +18,7 @@ ryu = "1.0"
 [dev-dependencies]
 iai = "0.1"
 miniz_oxide = "0.4"
+image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
 
 [[bench]]
 name = "oneshot"

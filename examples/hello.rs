@@ -1,3 +1,5 @@
+//! This example gives you a first introduction on how to use pdf-writer.
+
 use pdf_writer::types::{ActionType, AnnotationType, BorderType};
 use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref, Str, TextStr};
 
@@ -10,7 +12,7 @@ fn main() -> std::io::Result<()> {
     let page_tree_id = Ref::new(2);
     let page_id = Ref::new(3);
     let font_id = Ref::new(4);
-    let text_id = Ref::new(5);
+    let content_id = Ref::new(5);
     let font_name = Name(b"F1");
 
     // Write the document catalog with a reference to the page tree.
@@ -26,7 +28,7 @@ fn main() -> std::io::Result<()> {
     // text object we'll write later as the page's contents.
     page.media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
     page.parent(page_tree_id);
-    page.contents(text_id);
+    page.contents(content_id);
 
     // We also create the annotations list here that allows us to have things
     // like links or comments on the page.
@@ -76,14 +78,12 @@ fn main() -> std::io::Result<()> {
     // the standard encoding is used which happens to work with most ASCII
     // characters.
     let mut content = Content::new();
-    content
-        .begin_text()
-        .set_font(font_name, 14.0)
-        .next_line(108.0, 734.0)
-        .show(Str(b"Hello World from Rust!"))
-        .end_text();
-
-    writer.stream(text_id, &content.finish());
+    content.begin_text();
+    content.set_font(font_name, 14.0);
+    content.next_line(108.0, 734.0);
+    content.show(Str(b"Hello World from Rust!"));
+    content.end_text();
+    writer.stream(content_id, &content.finish());
 
     // Finish writing (this automatically creates the cross-reference table and
     // file trailer) and retrieve the resulting byte buffer.
