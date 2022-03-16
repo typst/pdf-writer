@@ -7,10 +7,12 @@ macro_rules! test {
         let mut expected = vec![];
         $(expected.extend($expected);)*
         if buf != expected {
-            assert_eq!(
-                String::from_utf8_lossy(&buf),
-                String::from_utf8_lossy(&expected),
-            );
+            println!("=========== EXPECTED =============");
+            println!("{}", String::from_utf8_lossy(&expected));
+            println!("============= FOUND ==============");
+            println!("{}", String::from_utf8_lossy(&buf));
+            println!("=============================");
+            panic!("assertion failed");
         }
     }}
 }
@@ -109,6 +111,18 @@ fn test_xref_free_list_long() {
         b"<<\n  /Size 6\n>>\n",
         b"startxref\n70\n%%EOF",
     )
+}
+
+#[test]
+#[should_panic(expected = "duplicate indirect reference id: 3")]
+fn test_xref_free_list_duplicate() {
+    let mut w = PdfWriter::new();
+    w.indirect(Ref::new(3)).primitive(1);
+    w.indirect(Ref::new(5)).primitive(2);
+    w.indirect(Ref::new(13)).primitive(1);
+    w.indirect(Ref::new(3)).primitive(1);
+    w.indirect(Ref::new(6)).primitive(2);
+    w.finish();
 }
 
 #[test]

@@ -658,7 +658,8 @@ pub struct Stream<'a> {
 impl<'a> Stream<'a> {
     /// Start writing a stream.
     ///
-    /// Panics if the object writer is not indirect.
+    /// Panics if the object writer is not indirect or the stream length exceeds
+    /// `i32::MAX`.
     pub(crate) fn start(obj: Obj<'a>, data: &'a [u8]) -> Self {
         assert!(obj.indirect);
 

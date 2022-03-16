@@ -204,6 +204,8 @@ impl PdfWriter {
 
     /// Write the cross-reference table and file trailer and return the
     /// underlying buffer.
+    ///
+    /// Panics if any indirect reference id was used twice.
     pub fn finish(mut self) -> Vec<u8> {
         self.offsets.sort();
 
@@ -214,31 +216,37 @@ impl PdfWriter {
         self.buf.push_int(xref_len);
         self.buf.push(b'\n');
 
-        let mut idx = 0;
-        let mut free = 0;
+        if self.offsets.is_empty() {
+            write!(self.buf, "0000000000 65535 f\r\n").unwrap();
+        }
 
-        loop {
-            // Find the next free entry.
-            let start = idx;
-            let mut link = free + 1;
-            while self.offsets.get(idx).map_or(false, |(id, _)| link == id.get()) {
-                idx += 1;
-                link += 1;
+        let mut written = 0;
+        for (i, (object_id, offset)) in self.offsets.iter().enumerate() {
+            if written > object_id.get() {
+                panic!("duplicate indirect reference id: {}", object_id.get());
             }
 
-            // A free entry links to the next free entry.
-            let gen = if free == 0 { "65535" } else { "00000" };
-            write!(self.buf, "{:010} {} f\r\n", link % xref_len, gen).unwrap();
-            free = link;
+            // Fill in free list.
+            for free_id in written .. object_id.get() {
+                let mut next = free_id + 1;
+                if next == object_id.get() {
+                    // Find next free id.
+                    for (used_id, _) in &self.offsets[i ..] {
+                        if next < used_id.get() {
+                            break;
+                        } else {
+                            next = used_id.get() + 1;
+                        }
+                    }
+                }
 
-            // A used entry contains the offset of the object in the file.
-            for &(_, offset) in &self.offsets[start .. idx] {
-                write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
+                let gen = if free_id == 0 { "65535" } else { "00000" };
+                write!(self.buf, "{:010} {} f\r\n", next % xref_len, gen).unwrap();
+                written += 1;
             }
 
-            if idx >= self.offsets.len() {
-                break;
-            }
+            write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
+            written += 1;
         }
 
         // Write the trailer dictionary.
@@ -322,6 +330,8 @@ impl PdfWriter {
     /// ```
     /// For all the specialized stream functions below, it works the same way:
     /// You can pass compressed data and specify a filter.
+    ///
+    /// Panics if the stream length exceeds `i32::MAX`.
     pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
         Stream::start(self.indirect(id), data.into())
     }
