@@ -1,5 +1,4 @@
 # pdf-writer
-[![Build status](https://github.com/typst/pdf-writer/workflows/Continuous%20integration/badge.svg)](https://github.com/typst/pdf-writer/actions)
 [![Crates.io](https://img.shields.io/crates/v/pdf-writer.svg)](https://crates.io/crates/pdf-writer)
 [![Documentation](https://docs.rs/pdf-writer/badge.svg)](https://docs.rs/pdf-writer)
 
@@ -40,8 +39,7 @@ writer.page(page_id)
 std::fs::write("target/empty.pdf", writer.finish())?;
 ```
 
-For a more comprehensive overview, check out the [hello world example], which
-creates a document with text and a link in it.
+For more examples, check out the [examples folder] in the repository.
 
 ## Safety
 This crate forbids unsafe code, but it depends on a few popular crates that use
@@ -50,4 +48,4 @@ unsafe internally.
 ## License
 This crate is dual-licensed under the MIT and Apache 2.0 licenses.
 
-[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
+[examples folder]: https://github.com/typst/pdf-writer/tree/main/examples

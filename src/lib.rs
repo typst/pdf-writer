@@ -65,8 +65,7 @@ std::fs::write("target/empty.pdf", writer.finish())?;
 # }
 ```
 
-For a more comprehensive overview, check out the [hello world example] in the
-repository, which creates a document with text and a link in it.
+For more examples, check out the [examples folder] in the repository.
 
 # Note
 This crate is rather low-level. It does not allocate or validate indirect reference
@@ -76,7 +75,7 @@ to the [PDF specification] to make sure you create valid PDFs.
 [page]: writers::Page
 [image]: writers::ImageXObject
 [`filter()`]: Stream::filter
-[hello world example]: https://github.com/typst/pdf-writer/tree/main/examples/hello.rs
+[examples folder]: https://github.com/typst/pdf-writer/tree/main/examples
 [PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
 */
 
@@ -333,7 +332,7 @@ impl PdfWriter {
     ///
     /// Panics if the stream length exceeds `i32::MAX`.
     pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
-        Stream::start(self.indirect(id), data.into())
+        Stream::start(self.indirect(id), data)
     }
 }
 

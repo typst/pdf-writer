@@ -2,7 +2,7 @@
 name = "pdf-writer"
 version = "0.4.1"
 authors = ["Laurenz <laurmaedje@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "A step-by-step PDF writer."
 repository = "https://github.com/typst/pdf-writer"
 readme = "README.md"

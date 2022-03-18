@@ -75,7 +75,7 @@ impl<'a> Operation<'a> {
             self.buf.push(b' ');
         }
         self.first = false;
-        Obj::direct(&mut self.buf, 0)
+        Obj::direct(self.buf, 0)
     }
 }
 
