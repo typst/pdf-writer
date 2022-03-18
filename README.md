@@ -44,7 +44,7 @@ For a more comprehensive overview, check out the [hello world example], which
 creates a document with text and a link in it.
 
 ## Safety
-This crate forbids unsafe code, but it depends on widespread crates that use
+This crate forbids unsafe code, but it depends on a few popular crates that use
 unsafe internally.
 
 ## License
