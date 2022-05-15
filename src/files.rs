@@ -8,13 +8,11 @@ pub struct FileSpec<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for FileSpec<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Filespec"));
-        Self { dict }
-    }
-}
+writer!(FileSpec: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Filespec"));
+    Self { dict }
+});
 
 impl<'a> FileSpec<'a> {
     /// Write the `/FS` attribute to set the file system this entry relates to.
@@ -105,11 +103,7 @@ pub struct EmbeddingParams<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for EmbeddingParams<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(EmbeddingParams: |obj| Self { dict: obj.dict() });
 
 impl<'a> EmbeddingParams<'a> {
     /// Write the `/Size` attribute to set the uncompressed file size in bytes.

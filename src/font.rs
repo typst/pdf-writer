@@ -7,14 +7,12 @@ pub struct Type1Font<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Type1Font<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Font"));
-        dict.pair(Name(b"Subtype"), Name(b"Type1"));
-        Self { dict }
-    }
-}
+writer!(Type1Font: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Font"));
+    dict.pair(Name(b"Subtype"), Name(b"Type1"));
+    Self { dict }
+});
 
 impl<'a> Type1Font<'a> {
     /// Write the `/Name` attribute, which is the name of the font in the
@@ -93,14 +91,12 @@ pub struct Type3Font<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Type3Font<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Font"));
-        dict.pair(Name(b"Subtype"), Name(b"Type3"));
-        Self { dict }
-    }
-}
+writer!(Type3Font: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Font"));
+    dict.pair(Name(b"Subtype"), Name(b"Type3"));
+    Self { dict }
+});
 
 impl<'a> Type3Font<'a> {
     /// Write the `/Name` attribute, which is the name of the font in the
@@ -198,13 +194,11 @@ pub struct Encoding<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Encoding<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Encoding"));
-        Self { dict }
-    }
-}
+writer!(Encoding: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Encoding"));
+    Self { dict }
+});
 
 impl<'a> Encoding<'a> {
     /// Write the `BaseEncoding` attribute, from which this encoding is
@@ -229,11 +223,7 @@ pub struct Differences<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Writer<'a> for Differences<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { array: obj.array() }
-    }
-}
+writer!(Differences: |obj| Self { array: obj.array() });
 
 impl<'a> Differences<'a> {
     /// Maps consecutive character codes starting at `start` to the given glyph
@@ -260,14 +250,12 @@ pub struct Type0Font<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Type0Font<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Font"));
-        dict.pair(Name(b"Subtype"), Name(b"Type0"));
-        Self { dict }
-    }
-}
+writer!(Type0Font: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Font"));
+    dict.pair(Name(b"Subtype"), Name(b"Type0"));
+    Self { dict }
+});
 
 impl<'a> Type0Font<'a> {
     /// Write the `/BaseFont` attribute. This is the PostScript name of the
@@ -317,13 +305,11 @@ pub struct CidFont<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for CidFont<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Font"));
-        Self { dict }
-    }
-}
+writer!(CidFont: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Font"));
+    Self { dict }
+});
 
 impl<'a> CidFont<'a> {
     /// Write the `/Subtype` attribute. Required.
@@ -402,11 +388,7 @@ pub struct Widths<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Writer<'a> for Widths<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { array: obj.array() }
-    }
-}
+writer!(Widths: |obj| Self { array: obj.array() });
 
 impl<'a> Widths<'a> {
     /// Specifies individual widths for a range of consecutive CIDs starting at
@@ -439,13 +421,11 @@ pub struct FontDescriptor<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for FontDescriptor<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"FontDescriptor"));
-        Self { dict }
-    }
-}
+writer!(FontDescriptor: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"FontDescriptor"));
+    Self { dict }
+});
 
 impl<'a> FontDescriptor<'a> {
     /// Write the `/FontName` attribute. Required.

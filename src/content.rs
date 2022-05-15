@@ -882,11 +882,7 @@ pub struct Resources<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Resources<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(Resources: |obj| Self { dict: obj.dict() });
 
 impl<'a> Resources<'a> {
     /// Start writing the `/XObject` dictionary.
@@ -1009,13 +1005,11 @@ pub struct ExtGraphicsState<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for ExtGraphicsState<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"ExtGState"));
-        Self { dict }
-    }
-}
+writer!(ExtGraphicsState: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"ExtGState"));
+    Self { dict }
+});
 
 impl<'a> ExtGraphicsState<'a> {
     /// `LW`: Set the line width. PDF 1.3+.
@@ -1252,13 +1246,11 @@ pub struct SoftMask<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for SoftMask<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Mask"));
-        Self { dict }
-    }
-}
+writer!(SoftMask: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Mask"));
+    Self { dict }
+});
 
 impl<'a> SoftMask<'a> {
     /// `S`: Set the soft mask subtype. Required.

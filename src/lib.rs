@@ -99,7 +99,7 @@ mod xobject;
 /// Strongly typed writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use annotations::{Action, Annotation, Annotations, BorderStyle};
+    pub use annotations::{Action, Annotation, BorderStyle};
     pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
     pub use content::{
         ExtGraphicsState, Operation, PositionedItems, Resources, ShowPositioned, SoftMask,
@@ -113,8 +113,8 @@ pub mod writers {
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
     pub use structure::{
-        Catalog, Destination, Destinations, DocumentInfo, Outline, OutlineItem, Page,
-        PageLabel, Pages, ViewerPreferences,
+        Catalog, Destination, DocumentInfo, Outline, OutlineItem, Page, PageLabel, Pages,
+        ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -378,8 +378,8 @@ impl PdfWriter {
     }
 
     /// Start writing a named destination dictionary.
-    pub fn destinations(&mut self, id: Ref) -> Destinations<'_> {
-        self.indirect(id).start()
+    pub fn destinations(&mut self, id: Ref) -> TypedDict<'_, Destination> {
+        self.indirect(id).dict().typed()
     }
 
     /// Start writing a file specification dictionary.

@@ -56,11 +56,7 @@ pub struct ColorSpace<'a> {
     obj: Obj<'a>,
 }
 
-impl<'a> Writer<'a> for ColorSpace<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { obj }
-    }
-}
+writer!(ColorSpace: |obj| Self { obj });
 
 /// CIE-based color spaces.
 impl ColorSpace<'_> {
@@ -463,14 +459,12 @@ pub struct ShadingPattern<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for ShadingPattern<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Pattern"));
-        dict.pair(Name(b"PatternType"), PatternType::Shading.to_int());
-        Self { dict }
-    }
-}
+writer!(ShadingPattern: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Pattern"));
+    dict.pair(Name(b"PatternType"), PatternType::Shading.to_int());
+    Self { dict }
+});
 
 impl<'a> ShadingPattern<'a> {
     /// Start writing the `/Shading` dictionary.
@@ -502,11 +496,7 @@ pub struct Shading<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Shading<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(Shading: |obj| Self { dict: obj.dict() });
 
 impl<'a> Shading<'a> {
     /// Write the `/ShadingType` attribute.

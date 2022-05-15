@@ -131,13 +131,11 @@ pub struct ExponentialFunction<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for ExponentialFunction<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"FunctionType"), FunctionType::Exponential.to_int());
-        Self { dict }
-    }
-}
+writer!(ExponentialFunction: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"FunctionType"), FunctionType::Exponential.to_int());
+    Self { dict }
+});
 
 impl<'a> ExponentialFunction<'a> {
     common_func_methods!();
@@ -179,13 +177,11 @@ pub struct StitchingFunction<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for StitchingFunction<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"FunctionType"), FunctionType::Stitching.to_int());
-        Self { dict }
-    }
-}
+writer!(StitchingFunction: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"FunctionType"), FunctionType::Stitching.to_int());
+    Self { dict }
+});
 
 impl<'a> StitchingFunction<'a> {
     common_func_methods!();

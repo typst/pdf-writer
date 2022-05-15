@@ -44,7 +44,7 @@ impl<'a> Catalog<'a> {
     }
 
     /// Write the `/Dests` attribute pointing to a
-    /// [named destinations dictionary](Destinations). PDF 1.1+.
+    /// [named destinations dictionary](PdfWriter::destinations). PDF 1.1+.
     pub fn destinations(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Dests"), id);
         self
@@ -137,11 +137,7 @@ pub struct ViewerPreferences<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for ViewerPreferences<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(ViewerPreferences: |obj| Self { dict: obj.dict() });
 
 impl<'a> ViewerPreferences<'a> {
     /// Write the `/HideToolbar` attribute to set whether the viewer should hide
@@ -288,11 +284,7 @@ pub struct DocumentInfo<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for DocumentInfo<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(DocumentInfo: |obj| Self { dict: obj.dict() });
 
 impl<'a> DocumentInfo<'a> {
     /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
@@ -544,9 +536,9 @@ impl<'a> Page<'a> {
         self.insert(Name(b"Trans")).start()
     }
 
-    /// Start writing the `/Annots` (annotations) array.
-    pub fn annotations(&mut self) -> Annotations<'_> {
-        self.insert(Name(b"Annots")).start()
+    /// Start writing the `/Annots` (annotations) array.'
+    pub fn annotations(&mut self) -> TypedArray<'_, Annotation> {
+        self.insert(Name(b"Annots")).array().typed()
     }
 
     /// Write the `/Tabs` attribute. This specifies the order in which the
@@ -705,41 +697,16 @@ bitflags::bitflags! {
     }
 }
 
-/// Writer for a _named destinations dictionary_.
-///
-/// This struct is created by [`PdfWriter::destinations`].
-pub struct Destinations<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Writer<'a> for Destinations<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
-
-impl<'a> Destinations<'a> {
-    /// Start adding another named destination.
-    pub fn insert(&mut self, name: Name) -> Destination<'_> {
-        self.dict.insert(name).start()
-    }
-}
-
-deref!('a, Destinations<'a> => Dict<'a>, dict);
-
 /// Writer for a _destination array_.
 ///
-/// This struct is created by [`Destinations::insert`] and
+/// A dictionary mapping to this struct is created by
+/// [`PdfWriter::destinations`]. This struct is also created by
 /// [`Action::destination_direct`].
 pub struct Destination<'a> {
     array: Array<'a>,
 }
 
-impl<'a> Writer<'a> for Destination<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { array: obj.array() }
-    }
-}
+writer!(Destination: |obj| Self { array: obj.array() });
 
 impl<'a> Destination<'a> {
     /// The target page. Required.

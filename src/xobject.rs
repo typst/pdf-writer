@@ -188,13 +188,11 @@ pub struct Group<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Group<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Group"));
-        Self { dict }
-    }
-}
+writer!(Group: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Group"));
+    Self { dict }
+});
 
 impl<'a> Group<'a> {
     /// Set the `/S` attribute to `/Transparency`. Required to set the remaining
@@ -242,11 +240,7 @@ pub struct Reference<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Reference<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(Reference: |obj| Self { dict: obj.dict() });
 
 impl<'a> Reference<'a> {
     /// Start writing the `/F` attribute to set a file specification dictionary.

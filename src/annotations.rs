@@ -1,41 +1,17 @@
 use super::*;
 
-/// Writer for the _annotations array_.
-///
-/// This struct is created by [`Page::annotations`].
-pub struct Annotations<'a> {
-    array: Array<'a>,
-}
-
-impl<'a> Writer<'a> for Annotations<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { array: obj.array() }
-    }
-}
-
-impl<'a> Annotations<'a> {
-    /// Start writing a new annotation dictionary.
-    pub fn push(&mut self) -> Annotation<'_> {
-        self.array.push().start()
-    }
-}
-
-deref!('a, Annotations<'a> => Array<'a>, array);
-
 /// Writer for an _annotation dictionary_.
 ///
-/// This struct is created by [`Annotations::push`].
+/// An array of this struct is created by [`Page::annotations`].
 pub struct Annotation<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Annotation<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Annot"));
-        Self { dict }
-    }
-}
+writer!(Annotation: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Annot"));
+    Self { dict }
+});
 
 impl<'a> Annotation<'a> {
     /// Write the `/Subtype` attribute to tell the viewer the type of this
@@ -330,13 +306,11 @@ pub struct Action<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Action<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Action"));
-        Self { dict }
-    }
-}
+writer!(Action: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Action"));
+    Self { dict }
+});
 
 impl<'a> Action<'a> {
     /// Write the `/S` attribute to set the action type.
@@ -444,13 +418,11 @@ pub struct BorderStyle<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for BorderStyle<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Border"));
-        Self { dict }
-    }
-}
+writer!(BorderStyle: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Border"));
+    Self { dict }
+});
 
 impl<'a> BorderStyle<'a> {
     /// Write the `/W` attribute. This is the width of the border in points.

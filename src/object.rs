@@ -5,6 +5,22 @@ use std::num::NonZeroI32;
 
 use super::*;
 
+/// A primitive type or a strongly typed writer.
+pub trait Type {}
+
+impl Type for bool {}
+impl Type for i32 {}
+impl Type for f32 {}
+impl Type for Str<'_> {}
+impl Type for TextStr<'_> {}
+impl Type for Name<'_> {}
+impl Type for Null {}
+impl Type for Ref {}
+impl Type for Rect {}
+impl Type for Date {}
+
+impl<'a, T: Writer<'a>> Type for T {}
+
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
@@ -409,6 +425,16 @@ pub trait Writer<'a> {
     fn start(obj: Obj<'a>) -> Self;
 }
 
+/// Rewrites a writer's lifetime.
+///
+/// This is a workaround to ignore the `'b` lifetime in a
+/// `TypedArray<'a, SomeWriter<'b>>` because that lifetime is meaningless. What
+/// we actually want is each item's `SomeWriter` to borrow from the array itself.
+pub trait Rewrite<'a> {
+    /// The writer with the rewritten lifetime.
+    type Output: Writer<'a>;
+}
+
 /// Writer for an array.
 pub struct Array<'a> {
     buf: &'a mut Vec<u8>,
@@ -417,18 +443,15 @@ pub struct Array<'a> {
     len: i32,
 }
 
-impl<'a> Writer<'a> for Array<'a> {
-    #[inline]
-    fn start(obj: Obj<'a>) -> Self {
-        obj.buf.push(b'[');
-        Self {
-            buf: obj.buf,
-            indirect: obj.indirect,
-            indent: obj.indent,
-            len: 0,
-        }
+writer!(Array: |obj| {
+    obj.buf.push(b'[');
+    Self {
+        buf: obj.buf,
+        indirect: obj.indirect,
+        indent: obj.indent,
+        len: 0,
     }
-}
+});
 
 impl<'a> Array<'a> {
     /// The number of written items.
@@ -470,7 +493,7 @@ impl<'a> Array<'a> {
 
     /// Convert into a typed version.
     #[inline]
-    pub fn typed<T: Primitive>(self) -> TypedArray<'a, T> {
+    pub fn typed<T: Type>(self) -> TypedArray<'a, T> {
         TypedArray::wrap(self)
     }
 }
@@ -485,7 +508,7 @@ impl Drop for Array<'_> {
     }
 }
 
-/// Writer for an array of a fixed primitive type.
+/// Writer for an array of items of a fixed type.
 pub struct TypedArray<'a, T> {
     array: Array<'a>,
     phantom: PhantomData<fn() -> T>,
@@ -493,7 +516,7 @@ pub struct TypedArray<'a, T> {
 
 impl<'a, T> TypedArray<'a, T>
 where
-    T: Primitive,
+    T: Type,
 {
     /// Wrap an array to make it type-safe.
     #[inline]
@@ -509,16 +532,33 @@ where
 
     /// Write an item.
     #[inline]
-    pub fn item(&mut self, value: T) -> &mut Self {
+    pub fn item(&mut self, value: T) -> &mut Self
+    where
+        T: Primitive,
+    {
         self.array.item(value);
         self
     }
 
     /// Write a sequence of items.
     #[inline]
-    pub fn items(&mut self, values: impl IntoIterator<Item = T>) -> &mut Self {
+    pub fn items(&mut self, values: impl IntoIterator<Item = T>) -> &mut Self
+    where
+        T: Primitive,
+    {
         self.array.items(values);
         self
+    }
+
+    /// Start writing an item with the subwriter.
+    ///
+    /// Returns `T` but with its lifetime rewritten from `'a` to `'b`.
+    #[inline]
+    pub fn push<'b>(&'b mut self) -> <T as Rewrite>::Output
+    where
+        T: Writer<'a> + Rewrite<'b>,
+    {
+        <T as Rewrite>::Output::start(self.array.push())
     }
 }
 
@@ -530,18 +570,15 @@ pub struct Dict<'a> {
     len: i32,
 }
 
-impl<'a> Writer<'a> for Dict<'a> {
-    #[inline]
-    fn start(obj: Obj<'a>) -> Self {
-        obj.buf.extend(b"<<");
-        Self {
-            buf: obj.buf,
-            indirect: obj.indirect,
-            indent: obj.indent.saturating_add(2),
-            len: 0,
-        }
+writer!(Dict: |obj| {
+    obj.buf.extend(b"<<");
+    Self {
+        buf: obj.buf,
+        indirect: obj.indirect,
+        indent: obj.indent.saturating_add(2),
+        len: 0,
     }
-}
+});
 
 impl<'a> Dict<'a> {
     /// The number of written pairs.
@@ -588,7 +625,7 @@ impl<'a> Dict<'a> {
 
     /// Convert into a typed version.
     #[inline]
-    pub fn typed<T: Primitive>(self) -> TypedDict<'a, T> {
+    pub fn typed<T: Type>(self) -> TypedDict<'a, T> {
         TypedDict::wrap(self)
     }
 }
@@ -609,7 +646,7 @@ impl Drop for Dict<'_> {
     }
 }
 
-/// Writer for a dictionary mapping to a fixed primitive type.
+/// Writer for a dictionary mapping to a fixed type.
 pub struct TypedDict<'a, T> {
     dict: Dict<'a>,
     phantom: PhantomData<fn() -> T>,
@@ -617,7 +654,7 @@ pub struct TypedDict<'a, T> {
 
 impl<'a, T> TypedDict<'a, T>
 where
-    T: Primitive,
+    T: Type,
 {
     /// Wrap a dictionary to make it type-safe.
     #[inline]
@@ -633,7 +670,10 @@ where
 
     /// Write a key-value pair.
     #[inline]
-    pub fn pair(&mut self, key: Name, value: T) -> &mut Self {
+    pub fn pair(&mut self, key: Name, value: T) -> &mut Self
+    where
+        T: Primitive,
+    {
         self.dict.pair(key, value);
         self
     }
@@ -643,9 +683,23 @@ where
     pub fn pairs<'n>(
         &mut self,
         pairs: impl IntoIterator<Item = (Name<'n>, T)>,
-    ) -> &mut Self {
+    ) -> &mut Self
+    where
+        T: Primitive,
+    {
         self.dict.pairs(pairs);
         self
+    }
+
+    /// Start writing a pair with the subwriter.
+    ///
+    /// Returns `T` but with its lifetime rewritten from `'a` to `'b`.
+    #[inline]
+    pub fn insert<'b>(&'b mut self, key: Name) -> <T as Rewrite>::Output
+    where
+        T: Writer<'a> + Rewrite<'b>,
+    {
+        <T as Rewrite>::Output::start(self.dict.insert(key))
     }
 }
 

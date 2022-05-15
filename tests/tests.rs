@@ -1,4 +1,6 @@
-use pdf_writer::{Date, Filter, Name, Null, Obj, PdfWriter, Rect, Ref, Str, TextStr};
+use pdf_writer::{
+    Date, Filter, Finish, Name, Null, Obj, PdfWriter, Rect, Ref, Str, TextStr,
+};
 
 /// Test that `buf` is the same as the result of concatenating the strings.
 macro_rules! test {
@@ -206,6 +208,9 @@ fn test_annotations() {
             let mut page = w.page(Ref::new(1));
             let mut annots = page.annotations();
             annots.push().rect(Rect::new(0.0, 0.0, 1.0, 1.0));
+            annots.push().rect(Rect::new(1.0, 1.0, 0.0, 0.0));
+            annots.finish();
+            page.bleed_box(Rect::new(-100.0, -100.0, 100.0, 100.0));
         }),
         b"1 0 obj\n",
         b"<<\n",
@@ -213,7 +218,11 @@ fn test_annotations() {
         b"  /Annots [<<\n",
         b"    /Type /Annot\n",
         b"    /Rect [0 0 1 1]\n",
+        b"  >> <<\n",
+        b"    /Type /Annot\n",
+        b"    /Rect [1 1 0 0]\n",
         b"  >>]\n",
+        b"  /BleedBox [-100 -100 100 100]\n",
         b">>\n",
         b"endobj\n\n",
     );
