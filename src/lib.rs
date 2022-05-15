@@ -85,6 +85,7 @@ to the [PDF specification] to make sure you create valid PDFs.
 #[macro_use]
 mod macros;
 mod annotations;
+mod attributes;
 mod buf;
 mod color;
 mod content;
@@ -100,9 +101,14 @@ mod xobject;
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, BorderStyle};
+    pub use attributes::{
+        AttributeArray, Attributes, FieldAttributes, LayoutAttributes, ListAttributes,
+        PropertyAttributes, TableAttributes, UserProperties, UserProperty,
+    };
     pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
     pub use content::{
-        ExtGraphicsState, Operation, PositionedItems, Resources, ShowPositioned, SoftMask,
+        ExtGraphicsState, MarkContent, Operation, PositionedItems, Resources,
+        ShowPositioned, SoftMask,
     };
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
@@ -113,8 +119,9 @@ pub mod writers {
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
     pub use structure::{
-        Catalog, Destination, DocumentInfo, Outline, OutlineItem, Page, PageLabel, Pages,
-        ViewerPreferences,
+        Catalog, Destination, DeveloperExtension, DocumentInfo, Extensions, MarkInfo,
+        MarkedRef, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages, RoleMap,
+        StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -127,17 +134,22 @@ pub mod types {
         ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
         HighlightEffect,
     };
+    pub use attributes::{
+        AttributeOwner, BlockAlign, FieldCheckState, FieldRole, InlineAlign,
+        LayoutBorderStyle, ListNumbering, Placement, RubyAlign, RubyPosition,
+        TableHeadingScope, TextAlign, TextDecorationType, WritingMode,
+    };
     pub use color::{PaintType, ShadingType, TilingType};
     pub use content::{
-        ColorSpaceOperand, LineCapStyle, LineJoinStyle, MaskType, ProcSet,
+        ColorSpaceOperand, LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet,
         RenderingIntent, TextRenderingMode,
     };
     pub use font::UnicodeCmap;
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
-        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, TabOrder,
-        TrappingStatus,
+        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
+        TabOrder, TrappingStatus,
     };
     pub use transitions::{TransitionAngle, TransitionStyle};
     pub use xobject::SMaskInData;

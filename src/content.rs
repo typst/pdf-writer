@@ -855,7 +855,80 @@ impl Content {
     }
 }
 
-// TODO: Marked content.
+/// Marked Content.
+impl Content {
+    /// `MP`: Write a marked-content point. PDF 1.2+.
+    #[inline]
+    pub fn marked_content_point(&mut self, tag: Name) -> &mut Self {
+        self.op("MP").operand(tag);
+        self
+    }
+
+    /// `DP`: Write a marked-content point with a property list. PDF 1.2+.
+    #[inline]
+    pub fn marked_content_point_with_props(&mut self, tag: Name) -> MarkContent<'_> {
+        let mut op = self.op("DP");
+        op.operand(tag);
+        MarkContent::start(op)
+    }
+
+    /// `BMC`: Begin a marked-content sequence. PDF 1.2+.
+    #[inline]
+    pub fn begin_marked_content(&mut self, tag: Name) -> &mut Self {
+        self.op("BMC").operand(tag);
+        self
+    }
+
+    /// `BDC`: Begin a marked-content sequence with a property list. PDF 1.2+.
+    #[inline]
+    pub fn begin_marked_content_with_props(&mut self, tag: Name) -> MarkContent<'_> {
+        let mut op = self.op("BDC");
+        op.operand(tag);
+        MarkContent::start(op)
+    }
+
+    /// `EMC`: End a marked-content sequence. PDF 1.2+.
+    #[inline]
+    pub fn end_marked_content(&mut self) -> &mut Self {
+        self.op("EMC");
+        self
+    }
+}
+
+/// Writer for the payload of a marked content sequence with properties.
+pub struct MarkContent<'a> {
+    op: Operation<'a>,
+}
+
+impl<'a> MarkContent<'a> {
+    #[inline]
+    pub(crate) fn start(op: Operation<'a>) -> Self {
+        Self { op }
+    }
+
+    /// Write the property list as a dictionary whose only entry is a `/MCID`
+    /// marked content identifier.
+    #[inline]
+    pub fn identify(mut self, identifier: i32) {
+        self.op.obj().dict().pair(Name(b"MCID"), identifier);
+    }
+
+    /// Write the property list as a dictionary with exclusively direct objects
+    /// as values. Mutually exclusive with [`reference`](Self::reference).
+    #[inline]
+    pub fn direct(&mut self) -> Dict<'_> {
+        self.op.obj().dict()
+    }
+
+    /// Reference a property list from the Resource dictionary. Mutually
+    /// exclusive with [`direct`](Self::direct).
+    #[inline]
+    pub fn reference(mut self, name: Name) {
+        self.op.operand(name);
+    }
+}
+
+deref!('a, MarkContent<'a> => Operation<'a>, op);
 
 /// Compatibility.
 impl Content {
@@ -963,6 +1036,14 @@ impl<'a> Resources<'a> {
             ProcSet::ImageIndexed,
         ])
     }
+
+    /// Set the `/Properties` attribute.
+    ///
+    /// This allows to write property lists with indirect objects for
+    /// marked-content sequences. PDF 1.2+.
+    pub fn properties(&mut self) -> Dict<'_> {
+        self.insert(Name(b"Properties")).dict()
+    }
 }
 
 deref!('a, Resources<'a> => Dict<'a>, dict);
@@ -1068,7 +1149,12 @@ impl<'a> ExtGraphicsState<'a> {
         self
     }
 
-    // TODO: `OPM`
+    /// `OPM`: Set the overprint mode for components that have been zeroed out.
+    /// PDF 1.3+.
+    pub fn overprint_mode(&mut self, mode: OverprintMode) -> &mut Self {
+        self.pair(Name(b"OPM"), mode.to_int());
+        self
+    }
 
     /// `Font`: Set the font. PDF 1.3+.
     pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
@@ -1235,6 +1321,27 @@ impl BlendMode {
             BlendMode::Saturation => Name(b"Saturation"),
             BlendMode::Color => Name(b"Color"),
             BlendMode::Luminosity => Name(b"Luminosity"),
+        }
+    }
+}
+
+/// How to behave when overprinting for colorants with the value zero.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum OverprintMode {
+    /// An overprint operation will always discard the underlying color, even if
+    /// one of the colorants is zero.
+    OverrideAllColorants,
+    /// An overprint operation will only discard the underlying colorant
+    /// component (e.g. cyan in CMYK) if the new corresponding colorant is
+    /// non-zero.
+    IgnoreZeroChannel,
+}
+
+impl OverprintMode {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            OverprintMode::OverrideAllColorants => 0,
+            OverprintMode::IgnoreZeroChannel => 1,
         }
     }
 }
