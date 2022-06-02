@@ -920,8 +920,9 @@ impl<'a> MarkContent<'a> {
         self.op.obj().dict()
     }
 
-    /// Reference a property list from the Resource dictionary. Mutually
-    /// exclusive with [`direct`](Self::direct).
+    /// Reference a property list from the Resource dictionary. These property
+    /// lists can be written using the [`Resources::properties`] method.
+    /// Mutually exclusive with [`direct`](Self::direct).
     #[inline]
     pub fn reference(mut self, name: Name) {
         self.op.operand(name);
@@ -1040,7 +1041,8 @@ impl<'a> Resources<'a> {
     /// Set the `/Properties` attribute.
     ///
     /// This allows to write property lists with indirect objects for
-    /// marked-content sequences. PDF 1.2+.
+    /// marked-content sequences. These propeties can be used by property lists
+    /// using the [`MarkContent::reference`] method. PDF 1.2+.
     pub fn properties(&mut self) -> Dict<'_> {
         self.insert(Name(b"Properties")).dict()
     }

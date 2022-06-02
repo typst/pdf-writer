@@ -59,6 +59,12 @@ impl<'a> Catalog<'a> {
         self
     }
 
+    /// Write the `/Names` attribute pointing to the document's
+    /// name dictionary. PDF 1.2+.
+    pub fn names(&mut self) -> Names<'_> {
+        self.insert(Name(b"Names")).start()
+    }
+
     /// Write the `/Dests` attribute pointing to a
     /// [named destinations dictionary](PdfWriter::destinations). PDF 1.1+.
     pub fn destinations(&mut self, id: Ref) -> &mut Self {
@@ -72,7 +78,7 @@ impl<'a> Catalog<'a> {
     }
 
     /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
-    pub fn page_labels(&mut self) -> Dict<'_> {
+    pub fn page_labels(&mut self) -> NumberTree<'_> {
         self.insert(Name(b"PageLabels")).start()
     }
 
@@ -175,6 +181,13 @@ impl<'a> Extensions<'a> {
     /// Write an extension dictionary given the vendor's registered prefix.
     pub fn insert(&mut self, prefix: Name) -> DeveloperExtension<'_> {
         self.dict.insert(prefix).start()
+    }
+
+    /// Write an PDF 1.7 Adobe Extension level dictionary. Currently, extension
+    /// levels 1, 3, 5, 6, and 8 are defined.
+    pub fn adobe_extension(&mut self, level: i32) -> &mut Self {
+        self.insert(Name(b"ADBE")).base_version(1, 7).extension_level(level);
+        self
     }
 }
 
@@ -294,28 +307,29 @@ impl<'a> Writer<'a> for StructTreeRoot<'a> {
 impl<'a> StructTreeRoot<'a> {
     /// Write the `/K` attribute to reference the immediate child of this
     /// element.
-    pub fn child(&mut self) -> StructElement<'_> {
-        self.dict.insert(Name(b"K")).start()
+    pub fn child(&mut self, id: Ref) -> &mut Self {
+        self.dict.pair(Name(b"K"), id);
+        self
     }
 
     /// Write the `/K` attribute to reference the immediate children of this
     /// element.
-    pub fn children(&mut self) -> Array<'_> {
-        self.dict.insert(Name(b"K")).array()
+    pub fn children(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"K")).array().typed()
     }
 
     /// Write the `/IDTree` attribute to map element identifiers to their
     /// corresponding structure element objects. Required if any elements have
     /// element identifiers.
-    pub fn id_tree(&mut self) -> Dict<'_> {
-        self.dict.insert(Name(b"IDTree")).dict()
+    pub fn id_tree(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"IDTree")).start()
     }
 
     /// Write the `/ParentTree` attribute to maps structure elements to the
     /// content items they belong to. Required if any structure elements contain
     /// content items.
-    pub fn parent_tree(&mut self) -> Dict<'_> {
-        self.dict.insert(Name(b"ParentTree")).dict()
+    pub fn parent_tree(&mut self) -> NumberTree<'_> {
+        self.dict.insert(Name(b"ParentTree")).start()
     }
 
     /// Write the `/ParentTreeNextKey` attribute to specify the next available key
@@ -341,8 +355,6 @@ impl<'a> StructTreeRoot<'a> {
 deref!('a, StructTreeRoot<'a> => Dict<'a>, dict);
 
 /// Writer for a _structure element dictionary_. PDF 1.3+
-///
-/// This struct is created by [`StructTreeRoot::child`].
 pub struct StructElement<'a> {
     dict: Dict<'a>,
 }
@@ -459,9 +471,10 @@ impl<'a> Writer<'a> for StructChildren<'a> {
 }
 
 impl<'a> StructChildren<'a> {
-    /// Write a structure element child.
-    pub fn structure_element(&mut self) -> StructElement<'_> {
-        self.arr.push().start()
+    /// Write a structure element child as an indirect object.
+    pub fn structure_element(&mut self, id: Ref) -> &mut Self {
+        self.arr.item(id);
+        self
     }
 
     /// Write an integer marked content identifier.
@@ -1115,6 +1128,13 @@ impl<'a> Page<'a> {
         self.insert(Name(b"Group")).start()
     }
 
+    /// Write the `/Thumb` attribute to set an image as the page thumbnail. Must
+    /// be RGB, Grayscale, or an indexed color space based on the former two.
+    pub fn thumbnail(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Thumb"), id);
+        self
+    }
+
     /// Write the `/Dur` attribute. This is the amount of seconds the page
     /// should be displayed before advancing to the next one. PDF 1.1+.
     pub fn duration(&mut self, seconds: f32) -> &mut Self {
@@ -1133,10 +1153,26 @@ impl<'a> Page<'a> {
         self.insert(Name(b"Annots")).array().typed()
     }
 
+    /// Write the `/StructParents` attribute to indicate the [structure tree
+    /// elements][1] the contents of this XObject may belong to. PDF 1.3+.
+    ///
+    /// [1]: StructElement
+    pub fn struct_parents(&mut self, key: i32) -> &mut Self {
+        self.pair(Name(b"StructParent"), key);
+        self
+    }
+
     /// Write the `/Tabs` attribute. This specifies the order in which the
     /// annotations should be focussed by hitting tab. PDF 1.5+.
     pub fn tab_order(&mut self, order: TabOrder) -> &mut Self {
         self.pair(Name(b"Tabs"), order.to_name());
+        self
+    }
+
+    /// Write the `/UserUnit` attribute. This sets how large a user space unit
+    /// is in printer's points (1/72 inch). This defaults to `1.0`. PDF 1.6+.
+    pub fn user_unit(&mut self, value: f32) -> &mut Self {
+        self.pair(Name(b"UserUnit"), value);
         self
     }
 }
@@ -1289,6 +1325,83 @@ bitflags::bitflags! {
     }
 }
 
+/// Writer for a _names dictionary_.
+///
+/// This dictionary can map various objects to names using name trees. This
+/// struct is created by [`PdfWriter::names`].
+pub struct Names<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> Writer<'a> for Names<'a> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+}
+
+impl Names<'_> {
+    /// Write the `/Dests` attribute to provide associations for
+    /// [destinations](Destination).
+    pub fn destinations(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"Dests")).start()
+    }
+
+    /// Write the `/AP` attribute to provide associations for appearance
+    /// streams. PDF 1.3+.
+    pub fn appearances(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"AP")).start()
+    }
+
+    /// Write the `/JavaScript` attribute to provide associations for
+    /// JavaScript actions. PDF 1.3+.
+    pub fn javascript(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"JavaScript")).start()
+    }
+
+    /// Write the `/Pages` attribute to name [pages](Page). PDF 1.3+.
+    pub fn pages(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"Pages")).start()
+    }
+
+    /// Write the `/Template` attribute to name [pages](Pages) outside of the
+    /// page tree as templates for interactive forms. PDF 1.3+.
+    pub fn templates(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"Templates")).start()
+    }
+
+    /// Write the `/IDS` attribute to map identifiers to Web Capture content
+    /// sets. PDF 1.3+.
+    pub fn capture_ids(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"IDS")).start()
+    }
+
+    /// Write the `/URLS` attribute to map URLs to Web Capture content sets. PDF
+    /// 1.3+.
+    pub fn capture_urls(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"URLS")).start()
+    }
+
+    /// Write the `/EmbeddedFiles` attribute to name [embedded
+    /// files](EmbeddedFile). PDF 1.4+.
+    pub fn embedded_files(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"EmbeddedFiles")).start()
+    }
+
+    /// Write the `/AlternatePresentations` attribute to name alternate
+    /// presentations. PDF 1.4+.
+    pub fn alternate_presentations(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"AlternatePresentations")).start()
+    }
+
+    /// Write the `/Renditions` attribute to name renditions. The names must
+    /// conform to Unicode. PDF 1.5+.
+    pub fn renditions(&mut self) -> NameTree<'_> {
+        self.dict.insert(Name(b"Renditions")).start()
+    }
+}
+
+deref!('a, Names<'a> => Dict<'a>, dict);
+
 /// Writer for a _destination array_.
 ///
 /// A dictionary mapping to this struct is created by
@@ -1367,10 +1480,12 @@ deref!('a, Destination<'a> => Array<'a>, array);
 
 /// What order to tab through the annotations on a page.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[allow(missing_docs)]
 pub enum TabOrder {
+    /// Navigate the annotations horizontally, then vertically.
     RowOrder,
+    /// Navigate the annotations vertically, then horizontally.
     ColumnOrder,
+    /// Navigate the annotations in the order they appear in the structure tree.
     StructureOrder,
 }
 

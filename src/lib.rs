@@ -118,6 +118,7 @@ pub mod writers {
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
+    pub use object::{NameTreeEntries, NumberTreeEntries};
     pub use structure::{
         Catalog, Destination, DeveloperExtension, DocumentInfo, Extensions, MarkInfo,
         MarkedRef, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages, RoleMap,
@@ -156,7 +157,10 @@ pub mod types {
 }
 
 pub use content::Content;
-pub use object::*;
+pub use object::{
+    Array, Date, Dict, Finish, Name, NameTree, Null, NumberTree, Obj, Primitive, Rect,
+    Ref, Str, Stream, TextStr, TreePrimitive, TypedArray, TypedDict, Writer,
+};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
@@ -403,6 +407,11 @@ impl PdfWriter {
     pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
         EmbeddedFile::start(self.stream(id, bytes))
     }
+
+    /// Start writing a structure tree element.
+    pub fn structure_element(&mut self, id: Ref) -> StructElement<'_> {
+        self.indirect(id).start()
+    }
 }
 
 /// Graphics and content.
@@ -533,6 +542,19 @@ impl PdfWriter {
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
         PostScriptFunction::start(self.stream(id, code))
+    }
+}
+
+/// Tree data structures.
+impl PdfWriter {
+    /// Start writing a name tree node.
+    pub fn name_tree(&mut self, id: Ref) -> NameTree<'_> {
+        self.indirect(id).start()
+    }
+
+    /// Start writing a number tree node.
+    pub fn number_tree(&mut self, id: Ref) -> NumberTree<'_> {
+        self.indirect(id).start()
     }
 }
 
