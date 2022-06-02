@@ -102,7 +102,7 @@ pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, BorderStyle};
     pub use attributes::{
-        AttributeArray, Attributes, FieldAttributes, LayoutAttributes, ListAttributes,
+        Attributes, FieldAttributes, LayoutAttributes, ListAttributes,
         PropertyAttributes, TableAttributes, UserProperties, UserProperty,
     };
     pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
@@ -120,9 +120,9 @@ pub mod writers {
     };
     pub use object::{NameTreeEntries, NumberTreeEntries};
     pub use structure::{
-        Catalog, Destination, DeveloperExtension, DocumentInfo, Extensions, MarkInfo,
-        MarkedRef, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages, RoleMap,
-        StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
+        Catalog, Destination, DeveloperExtension, DocumentInfo, MarkInfo, MarkedRef,
+        ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages, RoleMap, StructChildren,
+        StructElement, StructTreeRoot, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -158,8 +158,9 @@ pub mod types {
 
 pub use content::Content;
 pub use object::{
-    Array, Date, Dict, Finish, Name, NameTree, Null, NumberTree, Obj, Primitive, Rect,
-    Ref, Str, Stream, TextStr, TreePrimitive, TypedArray, TypedDict, Writer,
+    Array, Date, Dict, Filter, Finish, Name, NameTree, Null, NumberTree, Obj, Primitive,
+    Rect, Ref, Rewrite, Str, Stream, TextStr, TreePrimitive, TypedArray, TypedDict,
+    Writer,
 };
 
 use std::fmt::{self, Debug, Formatter};

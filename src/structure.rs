@@ -47,9 +47,11 @@ impl<'a> Catalog<'a> {
     }
 
     /// Write the `/Extensions` dictionary to specify which PDF extensions are
-    /// in use in the document. PDF 1.5+.
-    pub fn extensions(&mut self) -> Extensions<'_> {
-        self.insert(Name(b"Extensions")).start()
+    /// in use in the document. The dictionary maps a vendor name to an
+    /// extension dictionary. The Adobe PDF extensions use the Name prefix
+    /// `ADBE`. PDF 1.5+.
+    pub fn extensions(&mut self) -> TypedDict<'_, DeveloperExtension> {
+        self.insert(Name(b"Extensions")).dict().typed()
     }
 
     /// Write the `/Outlines` attribute pointing to the root
@@ -163,35 +165,6 @@ impl PageMode {
         }
     }
 }
-
-/// Writer for a _extensions dictionary_. PDF 1.7+.
-///
-/// This struct is created by [`Catalog::extensions`].
-pub struct Extensions<'a> {
-    dict: Dict<'a>,
-}
-
-impl<'a> Writer<'a> for Extensions<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
-
-impl<'a> Extensions<'a> {
-    /// Write an extension dictionary given the vendor's registered prefix.
-    pub fn insert(&mut self, prefix: Name) -> DeveloperExtension<'_> {
-        self.dict.insert(prefix).start()
-    }
-
-    /// Write an PDF 1.7 Adobe Extension level dictionary. Currently, extension
-    /// levels 1, 3, 5, 6, and 8 are defined.
-    pub fn adobe_extension(&mut self, level: i32) -> &mut Self {
-        self.insert(Name(b"ADBE")).base_version(1, 7).extension_level(level);
-        self
-    }
-}
-
-deref!('a, Extensions<'a> => Dict<'a>, dict);
 
 /// Writer for a _developer extension dictionary_. PDF 1.7+.
 ///
@@ -405,8 +378,8 @@ impl<'a> StructElement<'a> {
 
     /// Write the `/A` attribute to specify the attributes of this structure
     /// element.
-    pub fn attributes(&mut self) -> AttributeArray<'_> {
-        self.dict.insert(Name(b"A")).start()
+    pub fn attributes(&mut self) -> TypedArray<'_, Attributes> {
+        self.dict.insert(Name(b"A")).array().typed()
     }
 
     /// Write the `/C` attribute to associate the structure element with an

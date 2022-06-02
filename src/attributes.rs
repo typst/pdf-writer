@@ -1,29 +1,8 @@
 use super::*;
 
-/// Writer for an _attribute array_. PDF 1.4+
-///
-/// This struct is created by [`StructElement::attributes`].
-pub struct AttributeArray<'a> {
-    arr: Array<'a>,
-}
-
-impl<'a> Writer<'a> for AttributeArray<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { arr: obj.array() }
-    }
-}
-
-impl<'a> AttributeArray<'a> {
-    /// Start writing an attribute dictionary.
-    pub fn attributes(&mut self) -> Attributes<'_> {
-        self.arr.push().start()
-    }
-}
-
 /// Writer for an _attribute dictionary_. PDF 1.4+
 ///
-/// This struct is created by [`AttributeArray::attributes`]. It is required to set
-/// the `/O` attribute by calling any of the methods.
+/// This struct must set the `/O` attribute by calling any of the methods.
 pub struct Attributes<'a> {
     obj: Obj<'a>,
 }
