@@ -7,13 +7,11 @@ pub struct Catalog<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Catalog<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Catalog"));
-        Self { dict }
-    }
-}
+writer!(Catalog: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Catalog"));
+    Self { dict }
+});
 
 impl<'a> Catalog<'a> {
     /// Write the `/Pages` attribute pointing to the root page tree.
@@ -80,7 +78,7 @@ impl<'a> Catalog<'a> {
     }
 
     /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
-    pub fn page_labels(&mut self) -> NumberTree<'_> {
+    pub fn page_labels(&mut self) -> NumberTree<'_, Ref> {
         self.insert(Name(b"PageLabels")).start()
     }
 
@@ -173,13 +171,11 @@ pub struct DeveloperExtension<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for DeveloperExtension<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"DeveloperExtension"));
-        Self { dict }
-    }
-}
+writer!(DeveloperExtension: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"DeveloperExtension"));
+    Self { dict }
+});
 
 impl<'a> DeveloperExtension<'a> {
     /// Write the `/BaseVersion` attribute to specify the version of PDF this
@@ -269,13 +265,11 @@ pub struct StructTreeRoot<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for StructTreeRoot<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"StructTreeRoot"));
-        Self { dict }
-    }
-}
+writer!(StructTreeRoot: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"StructTreeRoot"));
+    Self { dict }
+});
 
 impl<'a> StructTreeRoot<'a> {
     /// Write the `/K` attribute to reference the immediate child of this
@@ -294,14 +288,14 @@ impl<'a> StructTreeRoot<'a> {
     /// Write the `/IDTree` attribute to map element identifiers to their
     /// corresponding structure element objects. Required if any elements have
     /// element identifiers.
-    pub fn id_tree(&mut self) -> NameTree<'_> {
+    pub fn id_tree(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"IDTree")).start()
     }
 
     /// Write the `/ParentTree` attribute to maps structure elements to the
     /// content items they belong to. Required if any structure elements contain
     /// content items.
-    pub fn parent_tree(&mut self) -> NumberTree<'_> {
+    pub fn parent_tree(&mut self) -> NumberTree<'_, Ref> {
         self.dict.insert(Name(b"ParentTree")).start()
     }
 
@@ -332,13 +326,11 @@ pub struct StructElement<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for StructElement<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"StructElem"));
-        Self { dict }
-    }
-}
+writer!(StructElement: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"StructElem"));
+    Self { dict }
+});
 
 impl<'a> StructElement<'a> {
     /// Write the `/S` attribute to specify the role of this structure element.
@@ -437,11 +429,7 @@ pub struct StructChildren<'a> {
     arr: Array<'a>,
 }
 
-impl<'a> Writer<'a> for StructChildren<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { arr: obj.array() }
-    }
-}
+writer!(StructChildren: |obj| Self { arr: obj.array() });
 
 impl<'a> StructChildren<'a> {
     /// Write a structure element child as an indirect object.
@@ -476,13 +464,11 @@ pub struct MarkedRef<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for MarkedRef<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"MCR"));
-        Self { dict }
-    }
-}
+writer!(MarkedRef: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"MCR"));
+    Self { dict }
+});
 
 impl<'a> MarkedRef<'a> {
     /// Write the `/Pg` attribute to specify the page some or all of this
@@ -525,13 +511,11 @@ pub struct ObjectRef<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for ObjectRef<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"OBJR"));
-        Self { dict }
-    }
-}
+writer!(ObjectRef: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"OBJR"));
+    Self { dict }
+});
 
 impl<'a> ObjectRef<'a> {
     /// Write the `/Pg` attribute to specify the page some or all of this
@@ -557,11 +541,7 @@ pub struct RoleMap<'a> {
     dict: TypedDict<'a, Name<'a>>,
 }
 
-impl<'a> Writer<'a> for RoleMap<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict().typed() }
-    }
-}
+writer!(RoleMap: |obj| Self { dict: obj.dict().typed() });
 
 impl<'a> RoleMap<'a> {
     /// Write an entry mapping a custom name to a pre-defined role.
@@ -737,11 +717,7 @@ pub struct MarkInfo<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for MarkInfo<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(MarkInfo: |obj| Self { dict: obj.dict() });
 
 impl<'a> MarkInfo<'a> {
     /// Write the `/Marked` attribute to indicate whether the document conforms
@@ -793,13 +769,11 @@ pub struct PageLabel<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for PageLabel<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"PageLabel"));
-        Self { dict }
-    }
-}
+writer!(PageLabel: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"PageLabel"));
+    Self { dict }
+});
 
 impl<'a> PageLabel<'a> {
     /// Write the `/S` attribute to set the page label's numbering style.
@@ -959,13 +933,11 @@ pub struct Pages<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Pages<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Pages"));
-        Self { dict }
-    }
-}
+writer!(Pages: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Pages"));
+    Self { dict }
+});
 
 impl<'a> Pages<'a> {
     /// Write the `/Parent` attribute. Required except in root node.
@@ -1010,13 +982,11 @@ pub struct Page<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Page<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Page"));
-        Self { dict }
-    }
-}
+writer!(Page: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Page"));
+    Self { dict }
+});
 
 impl<'a> Page<'a> {
     /// Write the `/Parent` attribute. Required.
@@ -1159,13 +1129,11 @@ pub struct Outline<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Outline<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Outlines"));
-        Self { dict }
-    }
-}
+writer!(Outline: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Outlines"));
+    Self { dict }
+});
 
 impl<'a> Outline<'a> {
     /// Write the `/First` attribute which points to the first
@@ -1202,13 +1170,7 @@ pub struct OutlineItem<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for OutlineItem<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"Type"), Name(b"Outlines"));
-        Self { dict }
-    }
-}
+writer!(OutlineItem: |obj| Self { dict: obj.dict() });
 
 impl<'a> OutlineItem<'a> {
     /// Write the `/Title` attribute.
@@ -1306,69 +1268,65 @@ pub struct Names<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Names<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(Names: |obj| Self { dict: obj.dict() });
 
 impl Names<'_> {
     /// Write the `/Dests` attribute to provide associations for
     /// [destinations](Destination).
-    pub fn destinations(&mut self) -> NameTree<'_> {
+    pub fn destinations(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Dests")).start()
     }
 
     /// Write the `/AP` attribute to provide associations for appearance
     /// streams. PDF 1.3+.
-    pub fn appearances(&mut self) -> NameTree<'_> {
+    pub fn appearances(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"AP")).start()
     }
 
     /// Write the `/JavaScript` attribute to provide associations for
     /// JavaScript actions. PDF 1.3+.
-    pub fn javascript(&mut self) -> NameTree<'_> {
+    pub fn javascript(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"JavaScript")).start()
     }
 
     /// Write the `/Pages` attribute to name [pages](Page). PDF 1.3+.
-    pub fn pages(&mut self) -> NameTree<'_> {
+    pub fn pages(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Pages")).start()
     }
 
     /// Write the `/Template` attribute to name [pages](Pages) outside of the
     /// page tree as templates for interactive forms. PDF 1.3+.
-    pub fn templates(&mut self) -> NameTree<'_> {
+    pub fn templates(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Templates")).start()
     }
 
     /// Write the `/IDS` attribute to map identifiers to Web Capture content
     /// sets. PDF 1.3+.
-    pub fn capture_ids(&mut self) -> NameTree<'_> {
+    pub fn capture_ids(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"IDS")).start()
     }
 
     /// Write the `/URLS` attribute to map URLs to Web Capture content sets. PDF
     /// 1.3+.
-    pub fn capture_urls(&mut self) -> NameTree<'_> {
+    pub fn capture_urls(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"URLS")).start()
     }
 
     /// Write the `/EmbeddedFiles` attribute to name [embedded
     /// files](EmbeddedFile). PDF 1.4+.
-    pub fn embedded_files(&mut self) -> NameTree<'_> {
+    pub fn embedded_files(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"EmbeddedFiles")).start()
     }
 
     /// Write the `/AlternatePresentations` attribute to name alternate
     /// presentations. PDF 1.4+.
-    pub fn alternate_presentations(&mut self) -> NameTree<'_> {
+    pub fn alternate_presentations(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"AlternatePresentations")).start()
     }
 
     /// Write the `/Renditions` attribute to name renditions. The names must
     /// conform to Unicode. PDF 1.5+.
-    pub fn renditions(&mut self) -> NameTree<'_> {
+    pub fn renditions(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Renditions")).start()
     }
 }

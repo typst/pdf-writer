@@ -160,8 +160,7 @@ pub mod types {
 pub use content::Content;
 pub use object::{
     Array, Date, Dict, Filter, Finish, Name, NameTree, Null, NumberTree, Obj, Primitive,
-    Rect, Ref, Rewrite, Str, Stream, TextStr, TreePrimitive, TypedArray, TypedDict,
-    Writer,
+    Rect, Ref, Rewrite, Str, Stream, TextStr, TypedArray, TypedDict, Writer,
 };
 
 use std::fmt::{self, Debug, Formatter};
@@ -550,12 +549,12 @@ impl PdfWriter {
 /// Tree data structures.
 impl PdfWriter {
     /// Start writing a name tree node.
-    pub fn name_tree(&mut self, id: Ref) -> NameTree<'_> {
+    pub fn name_tree<T: Primitive>(&mut self, id: Ref) -> NameTree<'_, T> {
         self.indirect(id).start()
     }
 
     /// Start writing a number tree node.
-    pub fn number_tree(&mut self, id: Ref) -> NumberTree<'_> {
+    pub fn number_tree<T: Primitive>(&mut self, id: Ref) -> NumberTree<'_, T> {
         self.indirect(id).start()
     }
 }

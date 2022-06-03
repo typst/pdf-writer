@@ -950,11 +950,7 @@ pub struct Artifact<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for Artifact<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(Artifact: |obj| Self { dict: obj.dict() });
 
 impl<'a> Artifact<'a> {
     /// Write the `/Type` entry to set the type of artifact.

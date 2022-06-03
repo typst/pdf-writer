@@ -7,11 +7,7 @@ pub struct Attributes<'a> {
     obj: Obj<'a>,
 }
 
-impl<'a> Writer<'a> for Attributes<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { obj }
-    }
-}
+writer!(Attributes: |obj| Self { obj });
 
 impl<'a> Attributes<'a> {
     /// Set the `/O` attribute to user-defined and start writing the `/P` array
@@ -58,13 +54,11 @@ pub struct PropertyAttributes<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for PropertyAttributes<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"O"), AttributeOwner::User.to_name());
-        Self { dict }
-    }
-}
+writer!(PropertyAttributes: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"O"), AttributeOwner::User.to_name());
+    Self { dict }
+});
 
 impl<'a> PropertyAttributes<'a> {
     /// Write a user property.
@@ -82,11 +76,7 @@ pub struct UserProperties<'a> {
     arr: Array<'a>,
 }
 
-impl<'a> Writer<'a> for UserProperties<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { arr: obj.array() }
-    }
-}
+writer!(UserProperties: |obj| Self { arr: obj.array() });
 
 impl<'a> UserProperties<'a> {
     /// Write a user property.
@@ -104,11 +94,7 @@ pub struct UserProperty<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for UserProperty<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        Self { dict: obj.dict() }
-    }
-}
+writer!(UserProperty: |obj| Self { dict: obj.dict() });
 
 impl<'a> UserProperty<'a> {
     /// Write the `/N` attribute to set the name of the property.
@@ -144,13 +130,11 @@ pub struct LayoutAttributes<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for LayoutAttributes<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"O"), AttributeOwner::Layout.to_name());
-        Self { dict }
-    }
-}
+writer!(LayoutAttributes: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"O"), AttributeOwner::Layout.to_name());
+    Self { dict }
+});
 
 /// General layout attributes.
 impl<'a> LayoutAttributes<'a> {
@@ -622,13 +606,11 @@ pub struct ListAttributes<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for ListAttributes<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"O"), AttributeOwner::List.to_name());
-        Self { dict }
-    }
-}
+writer!(ListAttributes: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"O"), AttributeOwner::List.to_name());
+    Self { dict }
+});
 
 impl<'a> ListAttributes<'a> {
     /// Write the `/ListNumbering` attribute.
@@ -686,13 +668,11 @@ pub struct FieldAttributes<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for FieldAttributes<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"O"), AttributeOwner::PrintField.to_name());
-        Self { dict }
-    }
-}
+writer!(FieldAttributes: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"O"), AttributeOwner::PrintField.to_name());
+    Self { dict }
+});
 
 impl<'a> FieldAttributes<'a> {
     /// Write the `/Role` attribute to determine the kind of form control.
@@ -769,13 +749,11 @@ pub struct TableAttributes<'a> {
     dict: Dict<'a>,
 }
 
-impl<'a> Writer<'a> for TableAttributes<'a> {
-    fn start(obj: Obj<'a>) -> Self {
-        let mut dict = obj.dict();
-        dict.pair(Name(b"O"), AttributeOwner::Table.to_name());
-        Self { dict }
-    }
-}
+writer!(TableAttributes: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"O"), AttributeOwner::Table.to_name());
+    Self { dict }
+});
 
 impl<'a> TableAttributes<'a> {
     /// Write the `/RowSpan` attribute to set the number of rows that shall be
