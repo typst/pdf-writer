@@ -107,7 +107,7 @@ pub mod writers {
     };
     pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
     pub use content::{
-        ExtGraphicsState, MarkContent, Operation, PositionedItems, Resources,
+        Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems, Resources,
         ShowPositioned, SoftMask,
     };
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
@@ -142,8 +142,9 @@ pub mod types {
     };
     pub use color::{PaintType, ShadingType, TilingType};
     pub use content::{
-        ColorSpaceOperand, LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet,
-        RenderingIntent, TextRenderingMode,
+        ArtifactAttachment, ArtifactKind, ArtifactSubtype, ColorSpaceOperand,
+        LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
+        TextRenderingMode,
     };
     pub use font::UnicodeCmap;
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};

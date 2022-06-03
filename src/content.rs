@@ -895,7 +895,7 @@ impl Content {
     }
 }
 
-/// Writer for the payload of a marked content sequence with properties.
+/// Writer for a _begin marked content operation_.
 pub struct MarkContent<'a> {
     op: Operation<'a>,
 }
@@ -911,6 +911,20 @@ impl<'a> MarkContent<'a> {
     #[inline]
     pub fn identify(mut self, identifier: i32) {
         self.op.obj().dict().pair(Name(b"MCID"), identifier);
+    }
+
+    /// Write the property list as a dictionary whose only entry is a `/ActualText`
+    /// attribute. PDF 1.5+.
+    #[inline]
+    pub fn actual_text(mut self, text: TextStr) {
+        self.op.obj().dict().pair(Name(b"ActualText"), text);
+    }
+
+    /// Write an artifact dictionary as the property list. The tag should be
+    /// `/Artifact`. PDF 1.4+.
+    #[inline]
+    pub fn artifact(&mut self) -> Artifact<'_> {
+        self.op.obj().start()
     }
 
     /// Write the property list as a dictionary with exclusively direct objects
@@ -930,6 +944,118 @@ impl<'a> MarkContent<'a> {
 }
 
 deref!('a, MarkContent<'a> => Operation<'a>, op);
+
+/// Writer for an _artifact property list dictionary_. PDF 1.4+.
+pub struct Artifact<'a> {
+    dict: Dict<'a>,
+}
+
+impl<'a> Writer<'a> for Artifact<'a> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict() }
+    }
+}
+
+impl<'a> Artifact<'a> {
+    /// Write the `/Type` entry to set the type of artifact.
+    pub fn kind(&mut self, kind: ArtifactKind) -> &mut Self {
+        self.dict.pair(Name(b"Type"), kind.to_name());
+        self
+    }
+
+    /// Write the `/Subtype` entry to set the subtype of pagination artifacts.
+    /// PDF 1.7+.
+    pub fn subtype(&mut self, subtype: ArtifactSubtype) -> &mut Self {
+        self.dict.pair(Name(b"Subtype"), subtype.to_name());
+        self
+    }
+
+    /// Write the `/BBox` entry to set the bounding box of the artifact.
+    /// Required for background artifacts.
+    pub fn bounding_box(&mut self, bbox: Rect) -> &mut Self {
+        self.dict.pair(Name(b"BBox"), bbox);
+        self
+    }
+
+    /// Write the `/Attached` entry to set where the artifact is attached to
+    /// the page. Only for pagination and full-page background artifacts.
+    pub fn attached(&mut self, attachment: ArtifactAttachment) -> &mut Self {
+        self.dict.pair(Name(b"Attached"), attachment.to_name());
+        self
+    }
+}
+
+deref!('a, Artifact<'a> => Dict<'a>, dict);
+
+/// The various types of layout artifacts.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ArtifactKind {
+    /// Artifacts of the pagination process like headers, footers, page numbers.
+    Pagination,
+    /// Artifacts of the layout process such as footnote rules.
+    Layout,
+    /// Artifacts of the page, like printer's marks.
+    Page,
+    /// Background image artifacts. PDF 1.7+.
+    Background,
+}
+
+impl ArtifactKind {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Pagination => Name(b"Pagination"),
+            Self::Layout => Name(b"Layout"),
+            Self::Page => Name(b"Page"),
+            Self::Background => Name(b"Background"),
+        }
+    }
+}
+
+/// The various subtypes of pagination artifacts.
+/// PDF 1.7+.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArtifactSubtype<'a> {
+    /// Headers.
+    Header,
+    /// Footers.
+    Footer,
+    /// Background watermarks.
+    Watermark,
+    /// Custom subtype named according to ISO 32000-1:2008 Annex E.
+    Custom(Name<'a>),
+}
+
+impl<'a> ArtifactSubtype<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Header => Name(b"Header"),
+            Self::Footer => Name(b"Footer"),
+            Self::Watermark => Name(b"Watermark"),
+            Self::Custom(name) => name,
+        }
+    }
+}
+
+/// Where a layout [`Artifact`] is attached to the page edge.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum ArtifactAttachment {
+    Left,
+    Top,
+    Right,
+    Bottom,
+}
+
+impl ArtifactAttachment {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Left => Name(b"Left"),
+            Self::Top => Name(b"Top"),
+            Self::Right => Name(b"Right"),
+            Self::Bottom => Name(b"Bottom"),
+        }
+    }
+}
 
 /// Compatibility.
 impl Content {

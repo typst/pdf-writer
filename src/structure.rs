@@ -168,7 +168,7 @@ impl PageMode {
 
 /// Writer for a _developer extension dictionary_. PDF 1.7+.
 ///
-/// This struct is created by [`Extensions::insert`].
+/// An array of this struct is created by [`Catalog::extensions`].
 pub struct DeveloperExtension<'a> {
     dict: Dict<'a>,
 }
