@@ -51,6 +51,37 @@ impl<'a> ImageXObject<'a> {
         self
     }
 
+    /// Write the `/ImageMask` attribute to set whether this image is a clipping
+    /// mask. If so, the `/BitsPerComponent` must be `1` and `/Mask` and
+    /// `/ColorSpace` attributes shall be left undefined.
+    pub fn image_mask(&mut self, mask: bool) -> &mut Self {
+        self.pair(Name(b"ImageMask"), mask);
+        self
+    }
+
+    /// Write the `/Mask` attribute to set a color key mask. The iterable color
+    /// argument must contain a range of colors (minimum and maximum) for each
+    /// channel that shall be masked out. PDF 1.3+.
+    pub fn color_mask(&mut self, colors: impl IntoIterator<Item = i32>) -> &mut Self {
+        self.insert(Name(b"Mask")).array().typed().items(colors);
+        self
+    }
+
+    /// Write the `/Mask` attribute to set another image as the stencil mask of
+    /// this image.
+    pub fn stencil_mask(&mut self, mask: Ref) -> &mut Self {
+        self.pair(Name(b"Mask"), mask);
+        self
+    }
+
+    /// Write the `/Decode` attribute to set the decoding of the image sample
+    /// colors to the specified color space. Must have twice the amount of
+    /// elements as the color space.
+    pub fn decode(&mut self, decode: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.insert(Name(b"Decode")).array().typed().items(decode);
+        self
+    }
+
     /// Write the `/Interpolate` attribute.
     pub fn interpolate(&mut self, interpolate: bool) -> &mut Self {
         self.pair(Name(b"Interpolate"), interpolate);
@@ -79,6 +110,13 @@ impl<'a> ImageXObject<'a> {
     /// something other than `Ignore`, the `SMask` attribute must not be used.
     pub fn s_mask_in_data(&mut self, mode: SMaskInData) -> &mut Self {
         self.pair(Name(b"SMaskInData"), mode.to_int());
+        self
+    }
+
+    /// Write the `/StructParent` attribute to indicate the [structure tree
+    /// element][StructElement] this image belongs to. PDF 1.3+.
+    pub fn struct_parent(&mut self, key: i32) -> &mut Self {
+        self.pair(Name(b"StructParent"), key);
         self
     }
 
@@ -158,6 +196,22 @@ impl<'a> FormXObject<'a> {
     /// let this XObject be known as a group. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
         self.insert(Name(b"Group")).start()
+    }
+
+    /// Write the `/StructParent` attribute to indicate the [structure tree
+    /// element][StructElement] this XObject belongs to. Mutually exclusive with
+    /// [`Self::struct_parents`]. PDF 1.3+.
+    pub fn struct_parent(&mut self, key: i32) -> &mut Self {
+        self.pair(Name(b"StructParent"), key);
+        self
+    }
+
+    /// Write the `/StructParents` attribute to indicate the [structure tree
+    /// elements][StructElement] the contents of this XObject may belong to.
+    /// Mutually exclusive with [`Self::struct_parent`]. PDF 1.3+.
+    pub fn struct_parents(&mut self, key: i32) -> &mut Self {
+        self.pair(Name(b"StructParents"), key);
+        self
     }
 
     /// Start writing the `/Ref` dictionary to identify the page from an external document

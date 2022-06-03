@@ -115,6 +115,13 @@ impl<'a> Annotation<'a> {
         self
     }
 
+    /// Write the `/StructParent` attribute to indicate the [structure tree
+    /// element][StructElement] this annotation belongs to. PDF 1.3+.
+    pub fn struct_parent(&mut self, key: i32) -> &mut Self {
+        self.pair(Name(b"StructParent"), key);
+        self
+    }
+
     /// Start writing the `/A` dictionary. Only permissible for the subtype
     /// `Link`.
     pub fn action(&mut self) -> Action<'_> {

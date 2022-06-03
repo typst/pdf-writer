@@ -855,7 +855,225 @@ impl Content {
     }
 }
 
-// TODO: Marked content.
+/// Marked Content.
+impl Content {
+    /// `MP`: Write a marked-content point. PDF 1.2+.
+    #[inline]
+    pub fn marked_content_point(&mut self, tag: Name) -> &mut Self {
+        self.op("MP").operand(tag);
+        self
+    }
+
+    /// `DP`: Write a marked-content point with a property list. PDF 1.2+.
+    #[inline]
+    pub fn marked_content_point_with_properties(&mut self, tag: Name) -> MarkContent<'_> {
+        let mut op = self.op("DP");
+        op.operand(tag);
+        MarkContent::start(op)
+    }
+
+    /// `BMC`: Begin a marked-content sequence. PDF 1.2+.
+    #[inline]
+    pub fn begin_marked_content(&mut self, tag: Name) -> &mut Self {
+        self.op("BMC").operand(tag);
+        self
+    }
+
+    /// `BDC`: Begin a marked-content sequence with a property list. PDF 1.2+.
+    #[inline]
+    pub fn begin_marked_content_with_properties(&mut self, tag: Name) -> MarkContent<'_> {
+        let mut op = self.op("BDC");
+        op.operand(tag);
+        MarkContent::start(op)
+    }
+
+    /// `EMC`: End a marked-content sequence. PDF 1.2+.
+    #[inline]
+    pub fn end_marked_content(&mut self) -> &mut Self {
+        self.op("EMC");
+        self
+    }
+}
+
+/// Writer for a _begin marked content operation_. PDF 1.3+.
+pub struct MarkContent<'a> {
+    op: Operation<'a>,
+}
+
+impl<'a> MarkContent<'a> {
+    #[inline]
+    pub(crate) fn start(op: Operation<'a>) -> Self {
+        Self { op }
+    }
+
+    /// Start writing this marked content's property list. Mutually exclusive
+    /// with [`direct`](Self::properties_named).
+    #[inline]
+    pub fn properties_direct(&mut self) -> PropertyList<'_> {
+        self.op.obj().start()
+    }
+
+    /// Reference a property list from the Resource dictionary. These property
+    /// lists can be written using the [`Resources::properties`] method.
+    /// Mutually exclusive with [`direct`](Self::properties_direct).
+    #[inline]
+    pub fn properties_named(mut self, name: Name) {
+        self.op.operand(name);
+    }
+}
+
+deref!('a, MarkContent<'a> => Operation<'a>, op);
+
+/// Writer for _property list dictionary_. Can be used as a generic dictionary.
+/// PDF 1.3+.
+pub struct PropertyList<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(PropertyList: |obj| Self { dict: obj.dict() });
+
+impl<'a> PropertyList<'a> {
+    /// Write the `/MCID` marked content identifier.
+    pub fn identify(&mut self, identifier: i32) -> &mut Self {
+        self.pair(Name(b"MCID"), identifier);
+        self
+    }
+
+    /// Write the `/ActualText` attribute to indicate the text replacement of
+    /// this marked content sequence. PDF 1.5+.
+    pub fn actual_text(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"ActualText"), text);
+        self
+    }
+
+    /// Start writing the attributes of an artifact. The Tag must have been
+    /// `/Artifact`. PDF 1.4+.
+    pub fn artifact(self) -> Artifact<'a> {
+        Artifact::start_with_dict(self.dict)
+    }
+}
+
+deref!('a, PropertyList<'a> => Dict<'a>, dict);
+
+/// Writer for an _actifact property list dictionary_. PDF 1.4+.
+pub struct Artifact<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(Artifact: |obj| Self::start_with_dict(obj.dict()));
+
+impl<'a> Artifact<'a> {
+    pub(crate) fn start_with_dict(dict: Dict<'a>) -> Self {
+        Self { dict }
+    }
+
+    /// Write the `/Type` entry to set the type of artifact. Specific to
+    /// artifacts. PDF 1.4+.
+    pub fn kind(&mut self, kind: ArtifactType) -> &mut Self {
+        self.pair(Name(b"Type"), kind.to_name());
+        self
+    }
+
+    /// Write the `/Subtype` entry to set the subtype of pagination artifacts.
+    /// Specific to artifacts. PDF 1.7+.
+    pub fn subtype(&mut self, subtype: ArtifactSubtype) -> &mut Self {
+        self.pair(Name(b"Subtype"), subtype.to_name());
+        self
+    }
+
+    /// Write the `/BBox` entry to set the bounding box of the artifact.
+    /// Specific to artifacts. Required for background artifacts. PDF 1.4+.
+    pub fn bounding_box(&mut self, bbox: Rect) -> &mut Self {
+        self.pair(Name(b"BBox"), bbox);
+        self
+    }
+
+    /// Write the `/Attached` entry to set where the artifact is attached to the
+    /// page. Only for pagination and full-page background artifacts. Specific
+    /// to artifacts. PDF 1.4+.
+    pub fn attached(
+        &mut self,
+        attachment: impl IntoIterator<Item = ArtifactAttachment>,
+    ) -> &mut Self {
+        self.insert(Name(b"Attached"))
+            .array()
+            .typed()
+            .items(attachment.into_iter().map(ArtifactAttachment::to_name));
+        self
+    }
+}
+
+deref!('a, Artifact<'a> => Dict<'a>, dict);
+
+/// The various types of layout artifacts.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ArtifactType {
+    /// Artifacts of the pagination process like headers, footers, page numbers.
+    Pagination,
+    /// Artifacts of the layout process such as footnote rules.
+    Layout,
+    /// Artifacts of the page, like printer's marks.
+    Page,
+    /// Background image artifacts. PDF 1.7+.
+    Background,
+}
+
+impl ArtifactType {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Pagination => Name(b"Pagination"),
+            Self::Layout => Name(b"Layout"),
+            Self::Page => Name(b"Page"),
+            Self::Background => Name(b"Background"),
+        }
+    }
+}
+
+/// The various subtypes of pagination artifacts.
+/// PDF 1.7+.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ArtifactSubtype<'a> {
+    /// Headers.
+    Header,
+    /// Footers.
+    Footer,
+    /// Background watermarks.
+    Watermark,
+    /// Custom subtype named according to ISO 32000-1:2008 Annex E.
+    Custom(Name<'a>),
+}
+
+impl<'a> ArtifactSubtype<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Header => Name(b"Header"),
+            Self::Footer => Name(b"Footer"),
+            Self::Watermark => Name(b"Watermark"),
+            Self::Custom(name) => name,
+        }
+    }
+}
+
+/// Where a layout [`Artifact`] is attached to the page edge.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[allow(missing_docs)]
+pub enum ArtifactAttachment {
+    Left,
+    Top,
+    Right,
+    Bottom,
+}
+
+impl ArtifactAttachment {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Left => Name(b"Left"),
+            Self::Top => Name(b"Top"),
+            Self::Right => Name(b"Right"),
+            Self::Bottom => Name(b"Bottom"),
+        }
+    }
+}
 
 /// Compatibility.
 impl Content {
@@ -963,6 +1181,15 @@ impl<'a> Resources<'a> {
             ProcSet::ImageIndexed,
         ])
     }
+
+    /// Set the `/Properties` attribute.
+    ///
+    /// This allows to write property lists with indirect objects for
+    /// marked-content sequences. These propeties can be used by property lists
+    /// using the [`MarkContent::properties_named`] method. PDF 1.2+.
+    pub fn properties(&mut self) -> TypedDict<'_, PropertyList> {
+        self.insert(Name(b"Properties")).dict().typed()
+    }
 }
 
 deref!('a, Resources<'a> => Dict<'a>, dict);
@@ -1068,7 +1295,12 @@ impl<'a> ExtGraphicsState<'a> {
         self
     }
 
-    // TODO: `OPM`
+    /// `OPM`: Set the overprint mode for components that have been zeroed out.
+    /// PDF 1.3+.
+    pub fn overprint_mode(&mut self, mode: OverprintMode) -> &mut Self {
+        self.pair(Name(b"OPM"), mode.to_int());
+        self
+    }
 
     /// `Font`: Set the font. PDF 1.3+.
     pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
@@ -1235,6 +1467,27 @@ impl BlendMode {
             BlendMode::Saturation => Name(b"Saturation"),
             BlendMode::Color => Name(b"Color"),
             BlendMode::Luminosity => Name(b"Luminosity"),
+        }
+    }
+}
+
+/// How to behave when overprinting for colorants with the value zero.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum OverprintMode {
+    /// An overprint operation will always discard the underlying color, even if
+    /// one of the colorants is zero.
+    OverrideAllColorants,
+    /// An overprint operation will only discard the underlying colorant
+    /// component (e.g. cyan in CMYK) if the new corresponding colorant is
+    /// non-zero.
+    IgnoreZeroChannel,
+}
+
+impl OverprintMode {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            OverprintMode::OverrideAllColorants => 0,
+            OverprintMode::IgnoreZeroChannel => 1,
         }
     }
 }

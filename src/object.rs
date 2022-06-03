@@ -514,6 +514,16 @@ pub struct TypedArray<'a, T> {
     phantom: PhantomData<fn() -> T>,
 }
 
+impl<'a, T> Writer<'a> for TypedArray<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { array: obj.array(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for TypedArray<'any, T> {
+    type Output = TypedArray<'a, T>;
+}
+
 impl<'a, T> TypedArray<'a, T>
 where
     T: Type,
@@ -652,6 +662,16 @@ pub struct TypedDict<'a, T> {
     phantom: PhantomData<fn() -> T>,
 }
 
+impl<'a, T> Writer<'a> for TypedDict<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for TypedDict<'any, T> {
+    type Output = TypedDict<'a, T>;
+}
+
 impl<'a, T> TypedDict<'a, T>
 where
     T: Type,
@@ -777,6 +797,158 @@ impl Filter {
             Self::JpxDecode => Name(b"JPXDecode"),
             Self::Crypt => Name(b"Crypt"),
         }
+    }
+}
+
+/// Writer for a _name tree node_.
+///
+/// Name trees associate a large number of names with PDF objects. They are
+/// lexically ordered search trees. Root nodes may directly contain all leafs,
+/// however, this might degrade performance for very large numbers of
+/// name-object pairs.
+///
+/// For each node, either the `/Kids` or `/Names` attribute must be set, but
+/// never both.
+pub struct NameTree<'a, T> {
+    dict: Dict<'a>,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> Writer<'a> for NameTree<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for NameTree<'any, T> {
+    type Output = NameTree<'a, T>;
+}
+
+impl<T> NameTree<'_, T> {
+    /// Write the `/Kids` entry to set the child name tree nodes of this node.
+    pub fn kids(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"Kids")).array().typed()
+    }
+
+    /// Write the `/Names` entry to set the immediate name to object mappings of
+    /// this child.
+    pub fn names(&mut self) -> NameTreeEntries<'_, T> {
+        self.dict.insert(Name(b"Names")).start()
+    }
+
+    /// Write the `/Limits` array to set the range of names in this node. This
+    /// is required for every node except the root node.
+    pub fn limits(&mut self, min: Name, max: Name) -> &mut Self {
+        self.dict.insert(Name(b"Limits")).array().typed().items([min, max]);
+        self
+    }
+}
+
+/// Writer for a _name tree names_ array.
+///
+/// The children must be added in ascending lexical order. Their minimum and
+/// maximum keys must not exceed the `/Limits` property of the parent [`NameTree`]
+/// node. This struct is created by [`NameTree::names`].
+pub struct NameTreeEntries<'a, T> {
+    arr: Array<'a>,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> Writer<'a> for NameTreeEntries<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { arr: obj.array(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for NameTreeEntries<'any, T> {
+    type Output = NameTreeEntries<'a, T>;
+}
+
+impl<T> NameTreeEntries<'_, T>
+where
+    T: Primitive,
+{
+    /// Insert a name-value pair.
+    pub fn insert(&mut self, key: Str, value: T) -> &mut Self {
+        self.arr.item(key);
+        self.arr.item(value);
+        self
+    }
+}
+
+/// Writer for a _number tree node_.
+///
+/// Number trees associate a many integers with PDF objects. They are search
+/// trees in ascending order. Root nodes may directly contain all leafs,
+/// however, this might degrade performance for very large numbers of
+/// integer-object pairs.
+///
+/// For each node, either the `/Kids` or `/Nums` attribute must be set, but
+/// never both.
+pub struct NumberTree<'a, T> {
+    dict: Dict<'a>,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> Writer<'a> for NumberTree<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for NumberTree<'any, T> {
+    type Output = NumberTree<'a, T>;
+}
+
+impl<T> NumberTree<'_, T> {
+    /// Write the `/Kids` entry to set the child number tree nodes of this node.
+    pub fn kids(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"Kids")).array().typed()
+    }
+
+    /// Write the `/Nums` entry to set the immediate integer to object mappings
+    /// of this child.
+    pub fn nums(&mut self) -> NumberTreeEntries<'_, T> {
+        self.dict.insert(Name(b"Nums")).start()
+    }
+
+    /// Write the `/Limits` array to set the range of numbers in this node. This
+    /// is required for every node except the root node.
+    pub fn limits(&mut self, min: i32, max: i32) -> &mut Self {
+        self.dict.insert(Name(b"Limits")).array().typed().items([min, max]);
+        self
+    }
+}
+
+/// Writer for a _number tree numbers_ array.
+///
+/// The children must be added in ascending order. Their minimum and
+/// maximum keys must not exceed the `/Limits` property of the parent [`NumberTree`]
+/// node. This struct is created by [`NumberTree::nums`].
+pub struct NumberTreeEntries<'a, T> {
+    arr: Array<'a>,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> Writer<'a> for NumberTreeEntries<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { arr: obj.array(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for NumberTreeEntries<'any, T> {
+    type Output = NumberTreeEntries<'a, T>;
+}
+
+impl<T> NumberTreeEntries<'_, T>
+where
+    T: Primitive,
+{
+    /// Insert a number-value pair.
+    pub fn insert(&mut self, key: i32, value: T) -> &mut Self {
+        self.arr.item(key);
+        self.arr.item(value);
+        self
     }
 }
 

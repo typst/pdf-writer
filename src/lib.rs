@@ -85,6 +85,7 @@ to the [PDF specification] to make sure you create valid PDFs.
 #[macro_use]
 mod macros;
 mod annotations;
+mod attributes;
 mod buf;
 mod color;
 mod content;
@@ -100,9 +101,14 @@ mod xobject;
 pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, BorderStyle};
+    pub use attributes::{
+        Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
+        UserProperty,
+    };
     pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
     pub use content::{
-        ExtGraphicsState, Operation, PositionedItems, Resources, ShowPositioned, SoftMask,
+        Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems,
+        PropertyList, Resources, ShowPositioned, SoftMask,
     };
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
@@ -112,9 +118,11 @@ pub mod writers {
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
+    pub use object::{NameTreeEntries, NumberTreeEntries};
     pub use structure::{
-        Catalog, Destination, DocumentInfo, Outline, OutlineItem, Page, PageLabel, Pages,
-        ViewerPreferences,
+        Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
+        MarkedRef, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages,
+        RoleMap, StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -127,24 +135,33 @@ pub mod types {
         ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
         HighlightEffect,
     };
+    pub use attributes::{
+        AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
+        LayoutBorderStyle, ListNumbering, Placement, RubyAlign, RubyPosition,
+        TableHeaderScope, TextAlign, TextDecorationType, WritingMode,
+    };
     pub use color::{PaintType, ShadingType, TilingType};
     pub use content::{
-        ColorSpaceOperand, LineCapStyle, LineJoinStyle, MaskType, ProcSet,
-        RenderingIntent, TextRenderingMode,
+        ArtifactAttachment, ArtifactSubtype, ArtifactType, ColorSpaceOperand,
+        LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
+        TextRenderingMode,
     };
     pub use font::UnicodeCmap;
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
-        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, TabOrder,
-        TrappingStatus,
+        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
+        TabOrder, TrappingStatus,
     };
     pub use transitions::{TransitionAngle, TransitionStyle};
     pub use xobject::SMaskInData;
 }
 
 pub use content::Content;
-pub use object::*;
+pub use object::{
+    Array, Date, Dict, Filter, Finish, Name, NameTree, Null, NumberTree, Obj, Primitive,
+    Rect, Ref, Rewrite, Str, Stream, TextStr, TypedArray, TypedDict, Writer,
+};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
@@ -391,6 +408,11 @@ impl PdfWriter {
     pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
         EmbeddedFile::start(self.stream(id, bytes))
     }
+
+    /// Start writing a structure tree element.
+    pub fn struct_element(&mut self, id: Ref) -> StructElement<'_> {
+        self.indirect(id).start()
+    }
 }
 
 /// Graphics and content.
@@ -521,6 +543,19 @@ impl PdfWriter {
         code: &'a [u8],
     ) -> PostScriptFunction<'a> {
         PostScriptFunction::start(self.stream(id, code))
+    }
+}
+
+/// Tree data structures.
+impl PdfWriter {
+    /// Start writing a name tree node.
+    pub fn name_tree<T: Primitive>(&mut self, id: Ref) -> NameTree<'_, T> {
+        self.indirect(id).start()
+    }
+
+    /// Start writing a number tree node.
+    pub fn number_tree<T: Primitive>(&mut self, id: Ref) -> NumberTree<'_, T> {
+        self.indirect(id).start()
     }
 }
 
