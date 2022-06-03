@@ -114,9 +114,7 @@ impl<'a> ImageXObject<'a> {
     }
 
     /// Write the `/StructParent` attribute to indicate the [structure tree
-    /// element][1] this image belongs to. PDF 1.3+.
-    ///
-    /// [1]: StructElement
+    /// element][StructElement] this image belongs to. PDF 1.3+.
     pub fn struct_parent(&mut self, key: i32) -> &mut Self {
         self.pair(Name(b"StructParent"), key);
         self
@@ -201,22 +199,18 @@ impl<'a> FormXObject<'a> {
     }
 
     /// Write the `/StructParent` attribute to indicate the [structure tree
-    /// element][1] this XObject belongs to. Mutually exclusive with
+    /// element][StructElement] this XObject belongs to. Mutually exclusive with
     /// [`Self::struct_parents`]. PDF 1.3+.
-    ///
-    /// [1]: StructElement
     pub fn struct_parent(&mut self, key: i32) -> &mut Self {
         self.pair(Name(b"StructParent"), key);
         self
     }
 
     /// Write the `/StructParents` attribute to indicate the [structure tree
-    /// elements][1] the contents of this XObject may belong to. Mutually
-    /// exclusive with [`Self::struct_parent`]. PDF 1.3+.
-    ///
-    /// [1]: StructElement
+    /// elements][StructElement] the contents of this XObject may belong to.
+    /// Mutually exclusive with [`Self::struct_parent`]. PDF 1.3+.
     pub fn struct_parents(&mut self, key: i32) -> &mut Self {
-        self.pair(Name(b"StructParent"), key);
+        self.pair(Name(b"StructParents"), key);
         self
     }
 

@@ -514,6 +514,16 @@ pub struct TypedArray<'a, T> {
     phantom: PhantomData<fn() -> T>,
 }
 
+impl<'a, T> Writer<'a> for TypedArray<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { array: obj.array(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for TypedArray<'any, T> {
+    type Output = TypedArray<'a, T>;
+}
+
 impl<'a, T> TypedArray<'a, T>
 where
     T: Type,
@@ -650,6 +660,16 @@ impl Drop for Dict<'_> {
 pub struct TypedDict<'a, T> {
     dict: Dict<'a>,
     phantom: PhantomData<fn() -> T>,
+}
+
+impl<'a, T> Writer<'a> for TypedDict<'a, T> {
+    fn start(obj: Obj<'a>) -> Self {
+        Self { dict: obj.dict(), phantom: PhantomData }
+    }
+}
+
+impl<'a, 'any, T> Rewrite<'a> for TypedDict<'any, T> {
+    type Output = TypedDict<'a, T>;
 }
 
 impl<'a, T> TypedDict<'a, T>

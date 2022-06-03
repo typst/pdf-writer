@@ -27,10 +27,58 @@ impl<'a> Catalog<'a> {
         self
     }
 
+    /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
+    pub fn page_labels(&mut self) -> NumberTree<'_, Ref> {
+        self.insert(Name(b"PageLabels")).start()
+    }
+
     /// Write the `/PageMode` attribute to set which chrome elements the viewer
     /// should show.
     pub fn page_mode(&mut self, mode: PageMode) -> &mut Self {
         self.pair(Name(b"PageMode"), mode.to_name());
+        self
+    }
+
+    /// Start writing the `/ViewerPreferences` dictionary. PDF 1.2+.
+    pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
+        self.insert(Name(b"ViewerPreferences")).start()
+    }
+
+    /// Start writing the `/Names` dictionary. PDF 1.2+.
+    pub fn names(&mut self) -> Names<'_> {
+        self.insert(Name(b"Names")).start()
+    }
+
+    /// Write the `/Dests` attribute pointing to a
+    /// [named destinations dictionary](PdfWriter::destinations). PDF 1.1+.
+    pub fn destinations(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Dests"), id);
+        self
+    }
+
+    /// Write the `/Outlines` attribute pointing to the root
+    /// [outline dictionary](Outline).
+    pub fn outlines(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Outlines"), id);
+        self
+    }
+
+    /// Write the `/StructTreeRoot` attribute to specify the root of the document's
+    /// structure tree. PDF 1.3+.
+    pub fn struct_tree_root(&mut self) -> StructTreeRoot<'_> {
+        self.insert(Name(b"StructTreeRoot")).start()
+    }
+
+    /// Write the `/MarkInfo` dictionary to specify this document's conformance
+    /// to the tagged PDF specification. PDF 1.4+.
+    pub fn mark_info(&mut self) -> MarkInfo<'_> {
+        self.insert(Name(b"MarkInfo")).start()
+    }
+
+    /// Write the `/Lang` attribute to specify the language of the document as a
+    /// RFC 3066 language tag. PDF 1.4+.
+    pub fn lang(&mut self, lang: TextStr) -> &mut Self {
+        self.pair(Name(b"Lang"), lang);
         self
     }
 
@@ -50,55 +98,6 @@ impl<'a> Catalog<'a> {
     /// `ADBE`. PDF 1.5+.
     pub fn extensions(&mut self) -> TypedDict<'_, DeveloperExtension> {
         self.insert(Name(b"Extensions")).dict().typed()
-    }
-
-    /// Write the `/Outlines` attribute pointing to the root
-    /// [outline dictionary](Outline).
-    pub fn outlines(&mut self, id: Ref) -> &mut Self {
-        self.pair(Name(b"Outlines"), id);
-        self
-    }
-
-    /// Write the `/Names` attribute pointing to the document's
-    /// name dictionary. PDF 1.2+.
-    pub fn names(&mut self) -> Names<'_> {
-        self.insert(Name(b"Names")).start()
-    }
-
-    /// Write the `/Dests` attribute pointing to a
-    /// [named destinations dictionary](PdfWriter::destinations). PDF 1.1+.
-    pub fn destinations(&mut self, id: Ref) -> &mut Self {
-        self.pair(Name(b"Dests"), id);
-        self
-    }
-
-    /// Start writing the `/ViewerPreferences` dictionary. PDF 1.2+.
-    pub fn viewer_preferences(&mut self) -> ViewerPreferences<'_> {
-        self.insert(Name(b"ViewerPreferences")).start()
-    }
-
-    /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
-    pub fn page_labels(&mut self) -> NumberTree<'_, Ref> {
-        self.insert(Name(b"PageLabels")).start()
-    }
-
-    /// Write the `/Lang` attribute to specify the language of the document as a
-    /// RFC 3066 language tag. PDF 1.4+.
-    pub fn lang(&mut self, lang: TextStr) -> &mut Self {
-        self.pair(Name(b"Lang"), lang);
-        self
-    }
-
-    /// Write the `/StructTreeRoot` attribute to specify the root of the document's
-    /// structure tree. PDF 1.3+.
-    pub fn struct_tree_root(&mut self) -> StructTreeRoot<'_> {
-        self.insert(Name(b"StructTreeRoot")).start()
-    }
-
-    /// Write the `/MarkInfo` dictionary to specify this document's conformance
-    /// to the tagged PDF specification. PDF 1.4+.
-    pub fn mark_info(&mut self) -> MarkInfo<'_> {
-        self.insert(Name(b"MarkInfo")).start()
     }
 }
 
@@ -306,16 +305,17 @@ impl<'a> StructTreeRoot<'a> {
         self
     }
 
-    /// Write the `/RoleMap` attribute to map structure element names to their
-    /// approximate equivalents from the standard set of types. PDF 1.4+.
+    /// Start writing the `/RoleMap` attribute to map structure element names to
+    /// their approximate equivalents from the standard set of types. PDF 1.4+.
     pub fn role_map(&mut self) -> RoleMap<'_> {
         self.dict.insert(Name(b"RoleMap")).start()
     }
 
-    /// Write the `/ClassMap` attribute to map objects designating attribute
-    /// classes to their corresponding attribute objects or arrays thereof.
-    pub fn class_map(&mut self) -> Dict<'_> {
-        self.dict.insert(Name(b"ClassMap")).dict()
+    /// Start writing the `/ClassMap` attribute to map objects designating
+    /// attribute classes to their corresponding attribute objects or arrays
+    /// thereof.
+    pub fn class_map(&mut self) -> ClassMap<'_> {
+        self.dict.insert(Name(b"ClassMap")).start()
     }
 }
 
@@ -360,6 +360,25 @@ impl<'a> StructElement<'a> {
     pub fn page(&mut self, page: Ref) -> &mut Self {
         self.dict.pair(Name(b"Pg"), page);
         self
+    }
+
+    /// Write the `/K` attribute to reference the immediate child of this
+    /// element.
+    pub fn child(&mut self, id: Ref) -> &mut Self {
+        self.dict.pair(Name(b"K"), id);
+        self
+    }
+
+    /// Write the `/K` attribute to reference the immediate marked content child of
+    /// this element.
+    pub fn marked_content_child(&mut self) -> MarkedRef<'_> {
+        self.dict.insert(Name(b"K")).start()
+    }
+
+    /// Write the `/K` attribute to reference the immediate object child of this
+    /// element.
+    pub fn object_child(&mut self) -> ObjectRef<'_> {
+        self.dict.insert(Name(b"K")).start()
     }
 
     /// Write the `/K` attribute to specify the children elements and associated
@@ -433,7 +452,7 @@ writer!(StructChildren: |obj| Self { arr: obj.array() });
 
 impl<'a> StructChildren<'a> {
     /// Write a structure element child as an indirect object.
-    pub fn structure_element(&mut self, id: Ref) -> &mut Self {
+    pub fn struct_element(&mut self, id: Ref) -> &mut Self {
         self.arr.item(id);
         self
     }
@@ -459,7 +478,8 @@ deref!('a, StructChildren<'a> => Array<'a>, arr);
 
 /// Writer for a _marked content reference dictionary_. PDF 1.3+
 ///
-/// This struct is created by [`StructChildren::marked_content_ref`].
+/// This struct is created by [`StructChildren::marked_content_ref`] and
+/// [`StructElement::marked_content_child`].
 pub struct MarkedRef<'a> {
     dict: Dict<'a>,
 }
@@ -471,25 +491,25 @@ writer!(MarkedRef: |obj| {
 });
 
 impl<'a> MarkedRef<'a> {
-    /// Write the `/Pg` attribute to specify the page some or all of this
-    /// structure element is located on.
+    /// Write the `/Pg` attribute to specify the page the referenced marked
+    /// content sequence is located on.
     pub fn page(&mut self, page: Ref) -> &mut Self {
         self.dict.pair(Name(b"Pg"), page);
         self
     }
 
     /// Write the `/Stm` attribute to specify the content stream containing this
-    /// makred content sequence if it was not on a page. If this content is
+    /// marked content sequence if it was not on a page. If this content is
     /// missing, writing the page attribute here or in the associated structure
     /// element is required.
-    pub fn content_stream(&mut self, stream: Ref) -> &mut Self {
+    pub fn stream(&mut self, stream: Ref) -> &mut Self {
         self.dict.pair(Name(b"Stm"), stream);
         self
     }
 
     /// Write the `/StmOwn` attribute to specify which object owns the content
     /// stream specified by the `/Stm` attribute.
-    pub fn content_stream_owner(&mut self, owner: Ref) -> &mut Self {
+    pub fn stream_owner(&mut self, owner: Ref) -> &mut Self {
         self.dict.pair(Name(b"StmOwn"), owner);
         self
     }
@@ -553,7 +573,32 @@ impl<'a> RoleMap<'a> {
 
 deref!('a, RoleMap<'a> => TypedDict<'a, Name<'a>>, dict);
 
-/// Role the structure element fulfills in the document. PDF 1.4+.
+/// Writer for a _class map dictionary_. PDF 1.4+
+///
+/// This struct is created by [`StructTreeRoot::class_map`].
+pub struct ClassMap<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(ClassMap: |obj| Self { dict: obj.dict() });
+
+impl<'a> ClassMap<'a> {
+    /// Start writing an attributes dictionary for a class name.
+    pub fn single(&mut self, name: Name) -> Attributes<'_> {
+        self.dict.insert(name).start()
+    }
+
+    /// Start writing an array of attribute dictionaries for a class name.
+    pub fn multiple(&mut self, name: Name) -> TypedArray<'_, Attributes> {
+        self.dict.insert(name).array().typed()
+    }
+}
+
+deref!('a, ClassMap<'a> => Dict<'a>, dict);
+
+/// Role the structure element fulfills in the document. These are the
+/// predefined standard roles, the writer may, however, write their own and then
+/// provide a mapping. PDF 1.4+.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum StructRole {
     /// The whole document.
@@ -1071,8 +1116,9 @@ impl<'a> Page<'a> {
         self.insert(Name(b"Group")).start()
     }
 
-    /// Write the `/Thumb` attribute to set an image as the page thumbnail. Must
-    /// be RGB, Grayscale, or an indexed color space based on the former two.
+    /// Write the `/Thumb` attribute to set an [image][ImageXObject] as the page
+    /// thumbnail. Must be RGB, Grayscale, or an indexed color space based on
+    /// the former two.
     pub fn thumbnail(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Thumb"), id);
         self
@@ -1097,11 +1143,9 @@ impl<'a> Page<'a> {
     }
 
     /// Write the `/StructParents` attribute to indicate the [structure tree
-    /// elements][1] the contents of this XObject may belong to. PDF 1.3+.
-    ///
-    /// [1]: StructElement
+    /// elements][StructElement] the contents of this XObject may belong to. PDF 1.3+.
     pub fn struct_parents(&mut self, key: i32) -> &mut Self {
-        self.pair(Name(b"StructParent"), key);
+        self.pair(Name(b"StructParents"), key);
         self
     }
 
@@ -1263,7 +1307,7 @@ bitflags::bitflags! {
 /// Writer for a _names dictionary_.
 ///
 /// This dictionary can map various objects to names using name trees. This
-/// struct is created by [`PdfWriter::names`].
+/// struct is created by [`Catalog::names`].
 pub struct Names<'a> {
     dict: Dict<'a>,
 }

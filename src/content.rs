@@ -866,7 +866,7 @@ impl Content {
 
     /// `DP`: Write a marked-content point with a property list. PDF 1.2+.
     #[inline]
-    pub fn marked_content_point_with_props(&mut self, tag: Name) -> MarkContent<'_> {
+    pub fn marked_content_point_with_properties(&mut self, tag: Name) -> MarkContent<'_> {
         let mut op = self.op("DP");
         op.operand(tag);
         MarkContent::start(op)
@@ -881,7 +881,7 @@ impl Content {
 
     /// `BDC`: Begin a marked-content sequence with a property list. PDF 1.2+.
     #[inline]
-    pub fn begin_marked_content_with_props(&mut self, tag: Name) -> MarkContent<'_> {
+    pub fn begin_marked_content_with_properties(&mut self, tag: Name) -> MarkContent<'_> {
         let mut op = self.op("BDC");
         op.operand(tag);
         MarkContent::start(op)
@@ -895,7 +895,7 @@ impl Content {
     }
 }
 
-/// Writer for a _begin marked content operation_.
+/// Writer for a _begin marked content operation_. PDF 1.3+.
 pub struct MarkContent<'a> {
     op: Operation<'a>,
 }
@@ -906,77 +906,99 @@ impl<'a> MarkContent<'a> {
         Self { op }
     }
 
-    /// Write the property list as a dictionary whose only entry is a `/MCID`
-    /// marked content identifier.
+    /// Start writing this marked content's property list. Mutually exclusive
+    /// with [`direct`](Self::properties_named).
     #[inline]
-    pub fn identify(mut self, identifier: i32) {
-        self.op.obj().dict().pair(Name(b"MCID"), identifier);
-    }
-
-    /// Write the property list as a dictionary whose only entry is a `/ActualText`
-    /// attribute. PDF 1.5+.
-    #[inline]
-    pub fn actual_text(mut self, text: TextStr) {
-        self.op.obj().dict().pair(Name(b"ActualText"), text);
-    }
-
-    /// Write an artifact dictionary as the property list. The tag should be
-    /// `/Artifact`. PDF 1.4+.
-    #[inline]
-    pub fn artifact(&mut self) -> Artifact<'_> {
+    pub fn properties_direct(&mut self) -> PropertyList<'_> {
         self.op.obj().start()
-    }
-
-    /// Write the property list as a dictionary with exclusively direct objects
-    /// as values. Mutually exclusive with [`reference`](Self::reference).
-    #[inline]
-    pub fn direct(&mut self) -> Dict<'_> {
-        self.op.obj().dict()
     }
 
     /// Reference a property list from the Resource dictionary. These property
     /// lists can be written using the [`Resources::properties`] method.
-    /// Mutually exclusive with [`direct`](Self::direct).
+    /// Mutually exclusive with [`direct`](Self::properties_direct).
     #[inline]
-    pub fn reference(mut self, name: Name) {
+    pub fn properties_named(mut self, name: Name) {
         self.op.operand(name);
     }
 }
 
 deref!('a, MarkContent<'a> => Operation<'a>, op);
 
-/// Writer for an _artifact property list dictionary_. PDF 1.4+.
+/// Writer for _property list dictionary_. Can be used as a generic dictionary.
+/// PDF 1.3+.
+pub struct PropertyList<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(PropertyList: |obj| Self { dict: obj.dict() });
+
+impl<'a> PropertyList<'a> {
+    /// Write the `/MCID` marked content identifier.
+    pub fn identify(&mut self, identifier: i32) -> &mut Self {
+        self.pair(Name(b"MCID"), identifier);
+        self
+    }
+
+    /// Write the `/ActualText` attribute to indicate the text replacement of
+    /// this marked content sequence. PDF 1.5+.
+    pub fn actual_text(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"ActualText"), text);
+        self
+    }
+
+    /// Start writing the attributes of an artifact. The Tag must have been
+    /// `/Artifact`. PDF 1.4+.
+    pub fn artifact(self) -> Artifact<'a> {
+        Artifact::start_with_dict(self.dict)
+    }
+}
+
+deref!('a, PropertyList<'a> => Dict<'a>, dict);
+
+/// Writer for an _actifact property list dictionary_. PDF 1.4+.
 pub struct Artifact<'a> {
     dict: Dict<'a>,
 }
 
-writer!(Artifact: |obj| Self { dict: obj.dict() });
+writer!(Artifact: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> Artifact<'a> {
-    /// Write the `/Type` entry to set the type of artifact.
-    pub fn kind(&mut self, kind: ArtifactKind) -> &mut Self {
-        self.dict.pair(Name(b"Type"), kind.to_name());
+    pub(crate) fn start_with_dict(dict: Dict<'a>) -> Self {
+        Self { dict }
+    }
+
+    /// Write the `/Type` entry to set the type of artifact. Specific to
+    /// artifacts. PDF 1.4+.
+    pub fn kind(&mut self, kind: ArtifactType) -> &mut Self {
+        self.pair(Name(b"Type"), kind.to_name());
         self
     }
 
     /// Write the `/Subtype` entry to set the subtype of pagination artifacts.
-    /// PDF 1.7+.
+    /// Specific to artifacts. PDF 1.7+.
     pub fn subtype(&mut self, subtype: ArtifactSubtype) -> &mut Self {
-        self.dict.pair(Name(b"Subtype"), subtype.to_name());
+        self.pair(Name(b"Subtype"), subtype.to_name());
         self
     }
 
     /// Write the `/BBox` entry to set the bounding box of the artifact.
-    /// Required for background artifacts.
+    /// Specific to artifacts. Required for background artifacts. PDF 1.4+.
     pub fn bounding_box(&mut self, bbox: Rect) -> &mut Self {
-        self.dict.pair(Name(b"BBox"), bbox);
+        self.pair(Name(b"BBox"), bbox);
         self
     }
 
-    /// Write the `/Attached` entry to set where the artifact is attached to
-    /// the page. Only for pagination and full-page background artifacts.
-    pub fn attached(&mut self, attachment: ArtifactAttachment) -> &mut Self {
-        self.dict.pair(Name(b"Attached"), attachment.to_name());
+    /// Write the `/Attached` entry to set where the artifact is attached to the
+    /// page. Only for pagination and full-page background artifacts. Specific
+    /// to artifacts. PDF 1.4+.
+    pub fn attached(
+        &mut self,
+        attachment: impl IntoIterator<Item = ArtifactAttachment>,
+    ) -> &mut Self {
+        self.insert(Name(b"Attached"))
+            .array()
+            .typed()
+            .items(attachment.into_iter().map(ArtifactAttachment::to_name));
         self
     }
 }
@@ -985,7 +1007,7 @@ deref!('a, Artifact<'a> => Dict<'a>, dict);
 
 /// The various types of layout artifacts.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ArtifactKind {
+pub enum ArtifactType {
     /// Artifacts of the pagination process like headers, footers, page numbers.
     Pagination,
     /// Artifacts of the layout process such as footnote rules.
@@ -996,7 +1018,7 @@ pub enum ArtifactKind {
     Background,
 }
 
-impl ArtifactKind {
+impl ArtifactType {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Pagination => Name(b"Pagination"),
@@ -1164,9 +1186,9 @@ impl<'a> Resources<'a> {
     ///
     /// This allows to write property lists with indirect objects for
     /// marked-content sequences. These propeties can be used by property lists
-    /// using the [`MarkContent::reference`] method. PDF 1.2+.
-    pub fn properties(&mut self) -> Dict<'_> {
-        self.insert(Name(b"Properties")).dict()
+    /// using the [`MarkContent::properties_named`] method. PDF 1.2+.
+    pub fn properties(&mut self) -> TypedDict<'_, PropertyList> {
+        self.insert(Name(b"Properties")).dict().typed()
     }
 }
 

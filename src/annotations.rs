@@ -116,9 +116,7 @@ impl<'a> Annotation<'a> {
     }
 
     /// Write the `/StructParent` attribute to indicate the [structure tree
-    /// element][1] this annotation belongs to. PDF 1.3+.
-    ///
-    /// [1]: StructElement
+    /// element][StructElement] this annotation belongs to. PDF 1.3+.
     pub fn struct_parent(&mut self, key: i32) -> &mut Self {
         self.pair(Name(b"StructParent"), key);
         self

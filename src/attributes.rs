@@ -2,94 +2,58 @@ use super::*;
 
 /// Writer for an _attribute dictionary_. PDF 1.4+
 ///
-/// This struct must set the `/O` attribute by calling any of the methods.
+/// This struct must set the `/O` attribute by calling any of the methods. This
+/// struct is created by [`ClassMap::single`]. An array of this struct is
+/// created by [`StructElement::attributes`] and [`ClassMap::multiple`].
 pub struct Attributes<'a> {
-    obj: Obj<'a>,
+    dict: Dict<'a>,
 }
 
-writer!(Attributes: |obj| Self { obj });
+writer!(Attributes: |obj| Self { dict: obj.dict() });
 
 impl<'a> Attributes<'a> {
+    /// Start writing a custom attribute dictionary with `/O` set to `owner`.
+    ///
+    /// Should not be called when using any of the other methods.
+    pub fn owner(&mut self, owner: AttributeOwner) -> &mut Self {
+        self.pair(Name(b"O"), owner.to_name());
+        self
+    }
+
     /// Set the `/O` attribute to user-defined and start writing the `/P` array
     /// with user properties. PDF 1.6+
-    pub fn user_properties(self) -> PropertyAttributes<'a> {
-        PropertyAttributes::start(self.obj)
+    pub fn user(&mut self) -> TypedArray<'_, UserProperty> {
+        self.pair(Name(b"O"), AttributeOwner::User.to_name());
+        self.insert(Name(b"P")).array().typed()
     }
 
     /// Set the `/O` attribute to `Layout` to write layout parameters.
     pub fn layout(self) -> LayoutAttributes<'a> {
-        LayoutAttributes::start(self.obj)
+        LayoutAttributes::start_with_dict(self.dict)
     }
 
     /// Set the `/O` attribute to `List` to write list attributes.
     pub fn list(self) -> ListAttributes<'a> {
-        ListAttributes::start(self.obj)
+        ListAttributes::start_with_dict(self.dict)
     }
 
     /// Set the `/O` attribute to `PrintField` to write attributes for the
     /// appearance of form fields. PDF 1.6+
     pub fn field(self) -> FieldAttributes<'a> {
-        FieldAttributes::start(self.obj)
+        FieldAttributes::start_with_dict(self.dict)
     }
 
     /// Set the `/O` attribute to `Table` to write table attributes.
     pub fn table(self) -> TableAttributes<'a> {
-        TableAttributes::start(self.obj)
-    }
-
-    /// Write the `/O` attribute.
-    pub fn custom(self, owner: AttributeOwner) -> Dict<'a> {
-        let mut dict = self.obj.dict();
-        dict.pair(Name(b"O"), owner.to_name());
-        dict
+        TableAttributes::start_with_dict(self.dict)
     }
 }
 
-deref!('a, Attributes<'a> => Obj<'a>, obj);
-
-/// Writer for an _user property attributes dictionary_. PDF 1.6+
-///
-/// This struct is created by [`Attributes::user_properties`].
-pub struct PropertyAttributes<'a> {
-    dict: Dict<'a>,
-}
-
-writer!(PropertyAttributes: |obj| {
-    let mut dict = obj.dict();
-    dict.pair(Name(b"O"), AttributeOwner::User.to_name());
-    Self { dict }
-});
-
-impl<'a> PropertyAttributes<'a> {
-    /// Write a user property.
-    pub fn properties(&mut self) -> UserProperties<'_> {
-        self.dict.insert(Name(b"P")).start()
-    }
-}
-
-deref!('a, PropertyAttributes<'a> => Dict<'a>, dict);
-
-/// Writer for an _user property array_. PDF 1.6+
-///
-/// This struct is created by [`Attributes::user_properties`].
-pub struct UserProperties<'a> {
-    arr: Array<'a>,
-}
-
-writer!(UserProperties: |obj| Self { arr: obj.array() });
-
-impl<'a> UserProperties<'a> {
-    /// Write a user property.
-    pub fn property(&mut self) -> UserProperty<'_> {
-        self.arr.push().start()
-    }
-}
-
-deref!('a, UserProperties<'a> => Array<'a>, arr);
+deref!('a, Attributes<'a> => Dict<'a>, dict);
 
 /// Writer for an _user property dictionary_. PDF 1.6+
 ///
-/// This struct is created by [`UserProperties::property`].
+/// An array of this struct is created by [`Attributes::user`].
 pub struct UserProperty<'a> {
     dict: Dict<'a>,
 }
@@ -130,14 +94,15 @@ pub struct LayoutAttributes<'a> {
     dict: Dict<'a>,
 }
 
-writer!(LayoutAttributes: |obj| {
-    let mut dict = obj.dict();
-    dict.pair(Name(b"O"), AttributeOwner::Layout.to_name());
-    Self { dict }
-});
+writer!(LayoutAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 /// General layout attributes.
 impl<'a> LayoutAttributes<'a> {
+    pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
+        dict.pair(Name(b"O"), AttributeOwner::Layout.to_name());
+        Self { dict }
+    }
+
     /// Write the `/Placement` attribute.
     pub fn placement(&mut self, placement: Placement) -> &mut Self {
         self.dict.pair(Name(b"Placement"), placement.to_name());
@@ -168,26 +133,34 @@ impl<'a> LayoutAttributes<'a> {
     }
 
     /// Write the `/BorderStyle` attribute.
-    pub fn border_style(&mut self, style: LayoutBorderStyle) -> &mut Self {
-        self.dict.pair(Name(b"BorderStyle"), style.to_name());
+    pub fn border_style(&mut self, style: [LayoutBorderStyle; 4]) -> &mut Self {
+        self.dict
+            .insert(Name(b"BorderStyle"))
+            .array()
+            .typed()
+            .items(style.into_iter().map(LayoutBorderStyle::to_name));
         self
     }
 
     /// Write the `/BorderThickness` attribute.
-    pub fn border_thickness(&mut self, thickness: f32) -> &mut Self {
-        self.dict.pair(Name(b"BorderThickness"), thickness);
-        self
-    }
-
-    /// Write the `/Color` attribute.
-    pub fn color(&mut self, color: [f32; 3]) -> &mut Self {
-        self.dict.insert(Name(b"Color")).array().typed().items(color);
+    pub fn border_thickness(&mut self, thickness: [f32; 4]) -> &mut Self {
+        self.dict
+            .insert(Name(b"BorderThickness"))
+            .array()
+            .typed()
+            .items(thickness);
         self
     }
 
     /// Write the `/Padding` attribute.
     pub fn padding(&mut self, padding: [f32; 4]) -> &mut Self {
         self.dict.insert(Name(b"Padding")).array().typed().items(padding);
+        self
+    }
+
+    /// Write the `/Color` attribute.
+    pub fn color(&mut self, color: [f32; 3]) -> &mut Self {
+        self.dict.insert(Name(b"Color")).array().typed().items(color);
         self
     }
 }
@@ -199,11 +172,14 @@ pub enum Placement {
     Block,
     /// Stacked in the inline order.
     Inline,
-    /// Before edge coincides with that of reference area.
+    /// Before edge coincides with that of reference area, touching the edge of
+    /// the previous block.
     Before,
-    /// Start edge coincides with that of reference area.
+    /// Start edge coincides with that of reference area, aligned on the
+    /// non-stacking axis of the reference area.
     Start,
-    /// End edge coincides with that of reference area.
+    /// End edge coincides with that of reference area, aligned on the
+    /// non-stacking axis of the reference area.
     End,
 }
 
@@ -223,19 +199,19 @@ impl Placement {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum WritingMode {
     /// Horizontal writing mode, left-to-right.
-    HorizontalLeftToRight,
+    LtrTtb,
     /// Horizontal writing mode, right-to-left.
-    HorizontalRightToLeft,
+    RtlTtb,
     /// Vertical writing mode, right-to-left.
-    VerticalRightToLeft,
+    TtbRtl,
 }
 
 impl WritingMode {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
-            Self::HorizontalLeftToRight => Name(b"LrTb"),
-            Self::HorizontalRightToLeft => Name(b"RlTb"),
-            Self::VerticalRightToLeft => Name(b"TbRl"),
+            Self::LtrTtb => Name(b"LrTb"),
+            Self::RtlTtb => Name(b"RlTb"),
+            Self::TtbRtl => Name(b"TbRl"),
         }
     }
 }
@@ -383,14 +359,18 @@ impl LayoutAttributes<'_> {
     }
 
     /// Write the `/TBorderStyle` attribute. PDF 1.5+.
-    pub fn table_border_style(&mut self, style: LayoutBorderStyle) -> &mut Self {
-        self.dict.pair(Name(b"TBorderStyle"), style.to_name());
+    pub fn table_border_style(&mut self, style: [LayoutBorderStyle; 4]) -> &mut Self {
+        self.dict
+            .insert(Name(b"TBorderStyle"))
+            .array()
+            .typed()
+            .items(style.into_iter().map(LayoutBorderStyle::to_name));
         self
     }
 
     /// Write the `/TPadding` attribute. PDF 1.5+.
-    pub fn table_padding(&mut self, padding: [f32; 4]) -> &mut Self {
-        self.dict.insert(Name(b"TPadding")).array().typed().items(padding);
+    pub fn table_padding(&mut self, padding: f32) -> &mut Self {
+        self.dict.pair(Name(b"TPadding"), padding);
         self
     }
 }
@@ -419,6 +399,27 @@ impl BlockAlign {
     }
 }
 
+/// Grouping elements.
+impl<'a> LayoutAttributes<'a> {
+    /// Write the `/ColumnCount` attribute. PDF 1.6+.
+    pub fn column_count(&mut self, count: i32) -> &mut Self {
+        self.dict.pair(Name(b"ColumnCount"), count);
+        self
+    }
+
+    /// Start writing the `/ColumnWidths` array. The last number in the array is
+    /// used for all extra columns. PDF 1.6+.
+    pub fn column_widths(&mut self) -> TypedArray<'_, f32> {
+        self.dict.insert(Name(b"ColumnWidths")).array().typed()
+    }
+
+    /// Start writing the `/ColumnGap` array. The last number in the array is used
+    /// for all extra columns. PDF 1.6+.
+    pub fn column_gap(&mut self) -> TypedArray<'_, f32> {
+        self.dict.insert(Name(b"ColumnGap")).array().typed()
+    }
+}
+
 /// The inline alignment.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum InlineAlign {
@@ -443,8 +444,8 @@ impl InlineAlign {
 /// Inline elements.
 impl LayoutAttributes<'_> {
     /// Write the `/LineHeight` attribute.
-    pub fn line_height(&mut self, height: f32) -> &mut Self {
-        self.dict.pair(Name(b"LineHeight"), height);
+    pub fn line_height(&mut self, height: LineHeight) -> &mut Self {
+        height.write(self.dict.insert(Name(b"LineHeight")));
         self
     }
 
@@ -477,6 +478,28 @@ impl LayoutAttributes<'_> {
     }
 }
 
+/// The height of a line.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum LineHeight {
+    /// Adjust the line height automatically, taking `/BaselineShift` into
+    /// account.
+    Normal,
+    /// Adjust the line height automatically.
+    Auto,
+    /// Set a fixed line height.
+    Custom(f32),
+}
+
+impl LineHeight {
+    pub(crate) fn write(self, obj: Obj) {
+        match self {
+            Self::Normal => obj.primitive(Name(b"Normal")),
+            Self::Auto => obj.primitive(Name(b"Auto")),
+            Self::Custom(height) => obj.primitive(height),
+        }
+    }
+}
+
 /// The text decoration type (over- and underlines).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TextDecorationType {
@@ -501,30 +524,10 @@ impl TextDecorationType {
     }
 }
 
-/// Grouping elements.
-impl<'a> LayoutAttributes<'a> {
-    /// Write the `/ColumnCount` attribute. PDF 1.6+.
-    pub fn column_count(&mut self, count: i32) -> &mut Self {
-        self.dict.pair(Name(b"ColumnCount"), count);
-        self
-    }
-
-    /// Start writing the `/ColumnWidths` array. The last number in the array is
-    /// used for all extra columns. PDF 1.6+.
-    pub fn column_widths(&mut self) -> TypedArray<'_, f32> {
-        self.dict.insert(Name(b"ColumnWidths")).array().typed()
-    }
-
-    /// Start writing the `/ColumnGap` array. The last number in the array is used
-    /// for all extra columns. PDF 1.6+.
-    pub fn column_gap(&mut self) -> TypedArray<'_, f32> {
-        self.dict.insert(Name(b"ColumnGap")).array().typed()
-    }
-}
-
 /// Vertical Text.
 impl LayoutAttributes<'_> {
-    /// Write the `/GlyphOrientationVertical` attribute as an angle between 0 and 360. PDF 1.5+.
+    /// Write the `/GlyphOrientationVertical` attribute as an angle between -90
+    /// and 360 in multiples of 90. PDF 1.5+.
     pub fn glyph_orientation_vertical(&mut self, angle: f32) -> &mut Self {
         self.dict.pair(Name(b"GlyphOrientationVertical"), angle);
         self
@@ -606,13 +609,14 @@ pub struct ListAttributes<'a> {
     dict: Dict<'a>,
 }
 
-writer!(ListAttributes: |obj| {
-    let mut dict = obj.dict();
-    dict.pair(Name(b"O"), AttributeOwner::List.to_name());
-    Self { dict }
-});
+writer!(ListAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> ListAttributes<'a> {
+    pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
+        dict.pair(Name(b"O"), AttributeOwner::List.to_name());
+        Self { dict }
+    }
+
     /// Write the `/ListNumbering` attribute.
     pub fn list_numbering(&mut self, numbering: ListNumbering) -> &mut Self {
         self.dict.pair(Name(b"ListNumbering"), numbering.to_name());
@@ -661,20 +665,21 @@ impl ListNumbering {
     }
 }
 
-/// Writer for an _PrintFields attributes dictionary_. PDF 1.6+
+/// Writer for an _PrintField attributes dictionary_. PDF 1.6+
 ///
 /// This struct is created by [`Attributes::field`].
 pub struct FieldAttributes<'a> {
     dict: Dict<'a>,
 }
 
-writer!(FieldAttributes: |obj| {
-    let mut dict = obj.dict();
-    dict.pair(Name(b"O"), AttributeOwner::PrintField.to_name());
-    Self { dict }
-});
+writer!(FieldAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> FieldAttributes<'a> {
+    pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
+        dict.pair(Name(b"O"), AttributeOwner::PrintField.to_name());
+        Self { dict }
+    }
+
     /// Write the `/Role` attribute to determine the kind of form control.
     pub fn role(&mut self, role: FieldRole) -> &mut Self {
         self.dict.pair(Name(b"Role"), role.to_name());
@@ -683,13 +688,13 @@ impl<'a> FieldAttributes<'a> {
 
     /// Write the `/checked` attribute to set whether a radio button or checkbox
     /// is checked.
-    pub fn checked(&mut self, checked: FieldCheckState) -> &mut Self {
+    pub fn checked(&mut self, checked: FieldState) -> &mut Self {
         self.dict.pair(Name(b"checked"), checked.to_name());
         self
     }
 
     /// Write the `/Desc` attribute to set the description of the form control.
-    pub fn desc(&mut self, desc: TextStr) -> &mut Self {
+    pub fn description(&mut self, desc: TextStr) -> &mut Self {
         self.dict.pair(Name(b"Desc"), desc);
         self
     }
@@ -721,9 +726,9 @@ impl FieldRole {
     }
 }
 
-/// The checked state of a check box or radio button.
+/// Whether a check box or radio button is checked.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum FieldCheckState {
+pub enum FieldState {
     /// The check box or radio button is unchecked.
     Unchecked,
     /// The check box or radio button is checked.
@@ -732,7 +737,7 @@ pub enum FieldCheckState {
     Neutral,
 }
 
-impl FieldCheckState {
+impl FieldState {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Unchecked => Name(b"off"),
@@ -742,20 +747,21 @@ impl FieldCheckState {
     }
 }
 
-/// Writer for an _table attributes dictionary_. PDF 1.4+
+/// Writer for a _table attributes dictionary_. PDF 1.4+
 ///
 /// This struct is created by [`Attributes::table`].
 pub struct TableAttributes<'a> {
     dict: Dict<'a>,
 }
 
-writer!(TableAttributes: |obj| {
-    let mut dict = obj.dict();
-    dict.pair(Name(b"O"), AttributeOwner::Table.to_name());
-    Self { dict }
-});
+writer!(TableAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> TableAttributes<'a> {
+    pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
+        dict.pair(Name(b"O"), AttributeOwner::Table.to_name());
+        Self { dict }
+    }
+
     /// Write the `/RowSpan` attribute to set the number of rows that shall be
     /// spanned by this cell.
     pub fn row_span(&mut self, row_span: i32) -> &mut Self {
@@ -778,7 +784,7 @@ impl<'a> TableAttributes<'a> {
 
     /// Write the `/Scope` attribute to define whether a table header cell
     /// refers to its row or column.
-    pub fn scope(&mut self, scope: TableHeadingScope) -> &mut Self {
+    pub fn scope(&mut self, scope: TableHeaderScope) -> &mut Self {
         self.dict.pair(Name(b"Scope"), scope.to_name());
         self
     }
@@ -795,7 +801,7 @@ deref!('a, TableAttributes<'a> => Dict<'a>, dict);
 
 /// The scope of a table header cell.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum TableHeadingScope {
+pub enum TableHeaderScope {
     /// The header cell refers to the row.
     Row,
     /// The header cell refers to the column.
@@ -804,7 +810,7 @@ pub enum TableHeadingScope {
     Both,
 }
 
-impl TableHeadingScope {
+impl TableHeaderScope {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Row => Name(b"Row"),

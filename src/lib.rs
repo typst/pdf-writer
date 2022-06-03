@@ -102,13 +102,13 @@ pub mod writers {
     use super::*;
     pub use annotations::{Action, Annotation, BorderStyle};
     pub use attributes::{
-        Attributes, FieldAttributes, LayoutAttributes, ListAttributes,
-        PropertyAttributes, TableAttributes, UserProperties, UserProperty,
+        Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
+        UserProperty,
     };
     pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
     pub use content::{
-        Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems, Resources,
-        ShowPositioned, SoftMask,
+        Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems,
+        PropertyList, Resources, ShowPositioned, SoftMask,
     };
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
@@ -120,9 +120,9 @@ pub mod writers {
     };
     pub use object::{NameTreeEntries, NumberTreeEntries};
     pub use structure::{
-        Catalog, Destination, DeveloperExtension, DocumentInfo, MarkInfo, MarkedRef,
-        ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages, RoleMap, StructChildren,
-        StructElement, StructTreeRoot, ViewerPreferences,
+        Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
+        MarkedRef, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages,
+        RoleMap, StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -136,13 +136,13 @@ pub mod types {
         HighlightEffect,
     };
     pub use attributes::{
-        AttributeOwner, BlockAlign, FieldCheckState, FieldRole, InlineAlign,
+        AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
         LayoutBorderStyle, ListNumbering, Placement, RubyAlign, RubyPosition,
-        TableHeadingScope, TextAlign, TextDecorationType, WritingMode,
+        TableHeaderScope, TextAlign, TextDecorationType, WritingMode,
     };
     pub use color::{PaintType, ShadingType, TilingType};
     pub use content::{
-        ArtifactAttachment, ArtifactKind, ArtifactSubtype, ColorSpaceOperand,
+        ArtifactAttachment, ArtifactSubtype, ArtifactType, ColorSpaceOperand,
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
         TextRenderingMode,
     };
@@ -410,7 +410,7 @@ impl PdfWriter {
     }
 
     /// Start writing a structure tree element.
-    pub fn structure_element(&mut self, id: Ref) -> StructElement<'_> {
+    pub fn struct_element(&mut self, id: Ref) -> StructElement<'_> {
         self.indirect(id).start()
     }
 }
