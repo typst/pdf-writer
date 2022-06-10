@@ -101,11 +101,16 @@ pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        let mut bytes = vec![254, 255];
-        for v in self.0.encode_utf16() {
-            bytes.extend(v.to_be_bytes());
+        // ASCII and PDFDocEncoding match for 32 up to 126.
+        if self.0.bytes().all(|b| matches!(b, 32 ..= 126)) {
+            Str(self.0.as_bytes()).write(buf);
+        } else {
+            let mut bytes = vec![254, 255];
+            for v in self.0.encode_utf16() {
+                bytes.extend(v.to_be_bytes());
+            }
+            Str(&bytes).write(buf);
         }
-        Str(&bytes).write(buf);
     }
 }
 
@@ -218,7 +223,7 @@ impl Primitive for Rect {
     }
 }
 
-/// A date, represented as a text string.
+/// A date, written as a text string.
 ///
 /// A field is only respected if all superior fields are supplied. For example,
 /// to set the minute, the hour, day, etc. have to be set. Similarly, in order

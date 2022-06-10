@@ -146,7 +146,8 @@ fn test_primitive_objects() {
     test_primitive!(Str(br"\n"), b"<5C6E>");
 
     // Test text strings.
-    test_primitive!(TextStr("Hallo"), b"(\xfe\xff\0H\0a\0l\0l\0o)");
+    test_primitive!(TextStr("Hallo"), b"(Hallo)");
+    test_primitive!(TextStr("😀!"), b"(\xFE\xFF\xD8\x3D\xDE\0\0!)");
 
     // Test names.
     test_primitive!(Name(b"Filter"), b"/Filter");
