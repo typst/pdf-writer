@@ -393,8 +393,8 @@ impl ActionType {
     }
 }
 
-/// Highlighting effect applied when a user holds the mouse button over some
-/// annotations.
+/// Highlighting effect applied when a user holds the mouse button over an
+/// annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum HighlightEffect {
     /// No effect.

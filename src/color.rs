@@ -305,8 +305,8 @@ impl ColorSpace<'_> {
 
     /// Write a `Pattern` color space for uncolored patterns. PDF 1.2+.
     ///
-    /// The `base` attribute is the color space in which the pattern color is
-    /// specified upon use.
+    /// The `base` attribute is the color space in which the pattern's
+    /// [tint](Content::set_stroke_pattern) color is specified upon use.
     pub fn pattern(self, base: Name) {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::Pattern.to_name());
@@ -340,8 +340,7 @@ pub struct TilingPattern<'a> {
 }
 
 impl<'a> TilingPattern<'a> {
-    /// Create a new tiling pattern writer.
-    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+    pub(crate) fn start_with_stream(mut stream: Stream<'a>) -> Self {
         stream.pair(Name(b"Type"), Name(b"Pattern"));
         stream.pair(Name(b"PatternType"), PatternType::Tiling.to_int());
         Self { stream }
@@ -480,7 +479,7 @@ impl<'a> ShadingPattern<'a> {
         self
     }
 
-    /// Begin writing the `/ExtGState` attribute.
+    /// Start writing the `/ExtGState` attribute.
     pub fn ext_graphics(&mut self) -> ExtGraphicsState<'_> {
         self.dict.insert(Name(b"ExtGState")).start()
     }
@@ -508,7 +507,7 @@ impl<'a> Shading<'a> {
         self
     }
 
-    /// Write the `/ColorSpace` attribute.
+    /// Start writing the `/ColorSpace` attribute.
     ///
     /// Sets the color space of the shading function. May not be a `Pattern`
     /// space. Required.

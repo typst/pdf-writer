@@ -12,7 +12,7 @@ pub struct Attributes<'a> {
 writer!(Attributes: |obj| Self { dict: obj.dict() });
 
 impl<'a> Attributes<'a> {
-    /// Start writing a custom attribute dictionary with `/O` set to `owner`.
+    /// Write the `/O` attribute to set the owner.
     ///
     /// Should not be called when using any of the other methods.
     pub fn owner(&mut self, owner: AttributeOwner) -> &mut Self {
@@ -27,23 +27,23 @@ impl<'a> Attributes<'a> {
         self.insert(Name(b"P")).array().typed()
     }
 
-    /// Set the `/O` attribute to `Layout` to write layout parameters.
+    /// Set the `/O` attribute to `Layout` to start writing layout parameters.
     pub fn layout(self) -> LayoutAttributes<'a> {
         LayoutAttributes::start_with_dict(self.dict)
     }
 
-    /// Set the `/O` attribute to `List` to write list attributes.
+    /// Set the `/O` attribute to `List` to start writing list attributes.
     pub fn list(self) -> ListAttributes<'a> {
         ListAttributes::start_with_dict(self.dict)
     }
 
-    /// Set the `/O` attribute to `PrintField` to write attributes for the
-    /// appearance of form fields. PDF 1.6+
+    /// Set the `/O` attribute to `PrintField` to start writing attributes for
+    /// the appearance of form fields. PDF 1.6+
     pub fn field(self) -> FieldAttributes<'a> {
         FieldAttributes::start_with_dict(self.dict)
     }
 
-    /// Set the `/O` attribute to `Table` to write table attributes.
+    /// Set the `/O` attribute to `Table` to start writing table attributes.
     pub fn table(self) -> TableAttributes<'a> {
         TableAttributes::start_with_dict(self.dict)
     }
@@ -165,7 +165,7 @@ impl<'a> LayoutAttributes<'a> {
     }
 }
 
-/// Placement of an element. PDF 1.4+.
+/// Placement of an element.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Placement {
     /// Stacked in the block order.
@@ -195,7 +195,7 @@ impl Placement {
     }
 }
 
-/// Writing direction. PDF 1.4+.
+/// Writing direction.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum WritingMode {
     /// Horizontal writing mode, left-to-right.
@@ -216,7 +216,7 @@ impl WritingMode {
     }
 }
 
-/// Layout border style. PDF 1.4+.
+/// Layout border style.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum LayoutBorderStyle {
     /// No border.
@@ -820,7 +820,7 @@ impl TableHeaderScope {
     }
 }
 
-/// Owner of the attribute dictionary. PDF 1.4+.
+/// Owner of the attribute dictionary.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AttributeOwner {
     /// General layout attributes.

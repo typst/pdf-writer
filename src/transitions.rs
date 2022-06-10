@@ -64,7 +64,7 @@ impl<'a> Transition<'a> {
 
 deref!('a, Transition<'a> => Dict<'a>, dict);
 
-/// A kind of transition.
+/// A kind of page transition.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TransitionStyle {
     /// Split the slide down the middle.
@@ -112,7 +112,7 @@ impl TransitionStyle {
     }
 }
 
-/// The angle at which a transition plays.
+/// From where to where a page transition plays.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum TransitionAngle {
@@ -121,7 +121,7 @@ pub enum TransitionAngle {
     RightToLeft,
     TopToBottom,
     TopLeftToBottomRight,
-    /// No direction in the `Fly` style.
+    /// No direction. Only allowed if the transition style is `Fly`.
     None,
 }
 

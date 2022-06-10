@@ -68,7 +68,7 @@ impl<'a> Operation<'a> {
         self
     }
 
-    /// Write an an arbitrary object operand.
+    /// Start writing an an arbitrary object operand.
     #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
         if !self.first {
@@ -587,7 +587,7 @@ impl Content {
         self
     }
 
-    /// `TJ`: Show text with individual glyph positioning.
+    /// `TJ`: Start showing text with individual glyph positioning.
     #[inline]
     pub fn show_positioned(&mut self) -> ShowPositioned<'_> {
         ShowPositioned::start(self.op("TJ"))
@@ -607,10 +607,10 @@ impl<'a> ShowPositioned<'a> {
         Self { op }
     }
 
-    /// Write the array of strings and adjustments. Required.
+    /// Start writing the array of strings and adjustments. Required.
     #[inline]
     pub fn items(&mut self) -> PositionedItems<'_> {
-        PositionedItems::new(self.op.obj())
+        PositionedItems::start(self.op.obj())
     }
 }
 
@@ -625,7 +625,7 @@ pub struct PositionedItems<'a> {
 
 impl<'a> PositionedItems<'a> {
     #[inline]
-    pub(crate) fn new(obj: Obj<'a>) -> Self {
+    pub(crate) fn start(obj: Obj<'a>) -> Self {
         Self { array: obj.array() }
     }
 
@@ -659,6 +659,7 @@ impl Content {
     /// `d0`: Starts a Type 3 glyph that contains color information.
     /// - `wx` defines the glyph's width
     /// - `wy` is set to 0.0 automatically
+    #[inline]
     pub fn start_color_glyph(&mut self, wx: f32) -> &mut Self {
         self.op("d0").operands([wx, 0.0]);
         self
@@ -669,6 +670,7 @@ impl Content {
     /// - `wy` is set to 0.0 automatically
     /// - `ll_x` and `ll_y` define the lower-left corner of the glyph bounding box
     /// - `ur_x` and `ur_y` define the upper-right corner of the glyph bounding box
+    #[inline]
     pub fn start_shape_glyph(
         &mut self,
         wx: f32,
@@ -804,24 +806,42 @@ impl Content {
 
 /// A color space operand to the [`CS`](Content::set_stroke_color_space) or
 /// [`cs`](Content::set_fill_color_space) operator.
-///
-/// These are either the predefined, parameter-less color spaces like
-/// `DeviceGray` or the ones defined by the user, accessed through the `Named`
-/// variant. A custom color space of types like `CalRGB` or `Pattern` can be set
-/// by registering it with the [`color_spaces`](Resources::color_spaces)
-/// dictionary.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[allow(missing_docs)]
 pub enum ColorSpaceOperand<'a> {
+    /// The predefined, parameterless gray device-dependent color space. Needs
+    /// no further entries in the resource dictionary. This is not a normed
+    /// color space, meaning the exact look depends on the device.
+    ///
+    /// Writing `cs` with this is equivalent to writing `g`.
     DeviceGray,
+    /// The predefined, parameterless RGB device-dependent color space. Needs no
+    /// further entries in the resource dictionary.
+    ///
+    /// Writing `cs` with this is equivalent to writing `rg`.
     DeviceRgb,
+    /// The predefined, parameterless CMYK device-dependent color space. Needs
+    /// no further entries in the resource dictionary.
+    ///
+    /// Writing `cs` with this is equivalent to writing `k`.
     DeviceCmyk,
+    /// A pattern with color defined by the pattern itself.
+    ///
+    /// When writing a `cs` operation with this, you must also write an `scn`
+    /// operation with a name pointing to an entry in the current resource
+    /// dictionary's [pattern dictionary](Resources::patterns).
     Pattern,
-    /// A named color space defined the current [`Resources`] dictionary.
+    /// A named color space defined in the current resource dictionary's [color
+    /// space dictionary](Resources::color_spaces).
+    ///
+    /// When this points to a pattern color space, You must also write an `scn`
+    /// operation with a name pointing to an entry in the current resource
+    /// dictionary's [pattern dictionary](Resources::patterns). The color will
+    /// be taken from the `tint` passed to `SCN` and not the pattern itself.
     Named(Name<'a>),
 }
 
 impl<'a> ColorSpaceOperand<'a> {
+    #[inline]
     pub(crate) fn to_name(self) -> Name<'a> {
         match self {
             Self::DeviceGray => Name(b"DeviceGray"),
@@ -864,7 +884,7 @@ impl Content {
         self
     }
 
-    /// `DP`: Write a marked-content point with a property list. PDF 1.2+.
+    /// `DP`: Start writing a marked-content point operation. PDF 1.2+.
     #[inline]
     pub fn marked_content_point_with_properties(&mut self, tag: Name) -> MarkContent<'_> {
         let mut op = self.op("DP");
@@ -879,7 +899,7 @@ impl Content {
         self
     }
 
-    /// `BDC`: Begin a marked-content sequence with a property list. PDF 1.2+.
+    /// `BDC`: Start writing a "begin marked content" operation. PDF 1.2+.
     #[inline]
     pub fn begin_marked_content_with_properties(&mut self, tag: Name) -> MarkContent<'_> {
         let mut op = self.op("BDC");
@@ -934,6 +954,7 @@ writer!(PropertyList: |obj| Self { dict: obj.dict() });
 
 impl<'a> PropertyList<'a> {
     /// Write the `/MCID` marked content identifier.
+    #[inline]
     pub fn identify(&mut self, identifier: i32) -> &mut Self {
         self.pair(Name(b"MCID"), identifier);
         self
@@ -941,13 +962,15 @@ impl<'a> PropertyList<'a> {
 
     /// Write the `/ActualText` attribute to indicate the text replacement of
     /// this marked content sequence. PDF 1.5+.
+    #[inline]
     pub fn actual_text(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"ActualText"), text);
         self
     }
 
-    /// Start writing the attributes of an artifact. The Tag must have been
-    /// `/Artifact`. PDF 1.4+.
+    /// Start writing artifact property list. The tag of the marked content
+    /// operation must have been `/Artifact`. PDF 1.4+.
+    #[inline]
     pub fn artifact(self) -> Artifact<'a> {
         Artifact::start_with_dict(self.dict)
     }
@@ -963,12 +986,14 @@ pub struct Artifact<'a> {
 writer!(Artifact: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> Artifact<'a> {
+    #[inline]
     pub(crate) fn start_with_dict(dict: Dict<'a>) -> Self {
         Self { dict }
     }
 
     /// Write the `/Type` entry to set the type of artifact. Specific to
     /// artifacts. PDF 1.4+.
+    #[inline]
     pub fn kind(&mut self, kind: ArtifactType) -> &mut Self {
         self.pair(Name(b"Type"), kind.to_name());
         self
@@ -976,6 +1001,7 @@ impl<'a> Artifact<'a> {
 
     /// Write the `/Subtype` entry to set the subtype of pagination artifacts.
     /// Specific to artifacts. PDF 1.7+.
+    #[inline]
     pub fn subtype(&mut self, subtype: ArtifactSubtype) -> &mut Self {
         self.pair(Name(b"Subtype"), subtype.to_name());
         self
@@ -983,6 +1009,7 @@ impl<'a> Artifact<'a> {
 
     /// Write the `/BBox` entry to set the bounding box of the artifact.
     /// Specific to artifacts. Required for background artifacts. PDF 1.4+.
+    #[inline]
     pub fn bounding_box(&mut self, bbox: Rect) -> &mut Self {
         self.pair(Name(b"BBox"), bbox);
         self
@@ -991,6 +1018,7 @@ impl<'a> Artifact<'a> {
     /// Write the `/Attached` entry to set where the artifact is attached to the
     /// page. Only for pagination and full-page background artifacts. Specific
     /// to artifacts. PDF 1.4+.
+    #[inline]
     pub fn attached(
         &mut self,
         attachment: impl IntoIterator<Item = ArtifactAttachment>,
@@ -1019,6 +1047,7 @@ pub enum ArtifactType {
 }
 
 impl ArtifactType {
+    #[inline]
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Pagination => Name(b"Pagination"),
@@ -1030,7 +1059,6 @@ impl ArtifactType {
 }
 
 /// The various subtypes of pagination artifacts.
-/// PDF 1.7+.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ArtifactSubtype<'a> {
     /// Headers.
@@ -1044,6 +1072,7 @@ pub enum ArtifactSubtype<'a> {
 }
 
 impl<'a> ArtifactSubtype<'a> {
+    #[inline]
     pub(crate) fn to_name(self) -> Name<'a> {
         match self {
             Self::Header => Name(b"Header"),
@@ -1065,6 +1094,7 @@ pub enum ArtifactAttachment {
 }
 
 impl ArtifactAttachment {
+    #[inline]
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Left => Name(b"Left"),
@@ -1155,7 +1185,7 @@ impl<'a> Resources<'a> {
         self.insert(Name(b"ExtGState")).dict()
     }
 
-    /// Set the `/ProcSet` attribute.
+    /// Write the `/ProcSet` attribute.
     ///
     /// This defines what procedure sets are sent to an output device when
     /// printing the file as PostScript. The attribute is only used for PDFs
@@ -1167,7 +1197,7 @@ impl<'a> Resources<'a> {
         self
     }
 
-    /// Set the `/ProcSet` attribute to all available procedure sets.
+    /// Write the `/ProcSet` attribute with all available procedure sets.
     ///
     /// The PDF 1.7 specification recommends that modern PDFs either omit the
     /// attribute or specify all available procedure sets, as this function
@@ -1182,7 +1212,7 @@ impl<'a> Resources<'a> {
         ])
     }
 
-    /// Set the `/Properties` attribute.
+    /// Start writing the `/Properties` attribute.
     ///
     /// This allows to write property lists with indirect objects for
     /// marked-content sequences. These propeties can be used by property lists
@@ -1239,31 +1269,31 @@ writer!(ExtGraphicsState: |obj| {
 });
 
 impl<'a> ExtGraphicsState<'a> {
-    /// `LW`: Set the line width. PDF 1.3+.
+    /// Write the `LW` attribute to set the line width. PDF 1.3+.
     pub fn line_width(&mut self, width: f32) -> &mut Self {
         self.pair(Name(b"LW"), width);
         self
     }
 
-    /// `LC`: Set the line cap style. PDF 1.3+.
+    /// Write the `LC` attribute to set the line cap style. PDF 1.3+.
     pub fn line_cap(&mut self, cap: LineCapStyle) -> &mut Self {
         self.pair(Name(b"LC"), cap.to_int());
         self
     }
 
-    /// `LJ`: Set the line join style. PDF 1.3+.
+    /// Write the `LJ` attribute to set the line join style. PDF 1.3+.
     pub fn line_join(&mut self, join: LineJoinStyle) -> &mut Self {
         self.pair(Name(b"LJ"), join.to_int());
         self
     }
 
-    /// `ML`: Set the miter limit. PDF 1.3+.
+    /// Write the `ML` attribute to set the miter limit. PDF 1.3+.
     pub fn miter_limit(&mut self, limit: f32) -> &mut Self {
         self.pair(Name(b"ML"), limit);
         self
     }
 
-    /// `D`: Set the dash pattern. PDF 1.3+.
+    /// Write the `D` attribute to set the dash pattern. PDF 1.3+.
     pub fn dash_pattern(
         &mut self,
         pattern: impl IntoIterator<Item = f32>,
@@ -1276,33 +1306,35 @@ impl<'a> ExtGraphicsState<'a> {
         self
     }
 
-    /// `RI`: Set the rendering intent. PDF 1.3+.
+    /// Write the `RI` attribute to set the rendering intent. PDF 1.3+.
     pub fn rendering_intent(&mut self, intent: RenderingIntent) -> &mut Self {
         self.pair(Name(b"RI"), intent.to_name());
         self
     }
 
-    /// `OP`: Set the overprint mode for all operations, except if an `op` entry
-    /// is present. If so, only influence the stroking operations. PDF 1.2+.
+    /// Write the `OP` attribute to set the overprint mode for all operations,
+    /// except if an `op` entry is present. If so, only influence the stroking
+    /// operations. PDF 1.2+.
     pub fn overprint(&mut self, overprint: bool) -> &mut Self {
         self.pair(Name(b"OP"), overprint);
         self
     }
 
-    /// `op`: Set the overprint mode for fill operations. PDF 1.3+.
+    /// Write the `op` attribute to set the overprint mode for fill operations.
+    /// PDF 1.3+.
     pub fn overprint_fill(&mut self, overprint: bool) -> &mut Self {
         self.pair(Name(b"op"), overprint);
         self
     }
 
-    /// `OPM`: Set the overprint mode for components that have been zeroed out.
-    /// PDF 1.3+.
+    /// Write the `OPM` attribute to set the overprint mode for components that
+    /// have been zeroed out. PDF 1.3+.
     pub fn overprint_mode(&mut self, mode: OverprintMode) -> &mut Self {
         self.pair(Name(b"OPM"), mode.to_int());
         self
     }
 
-    /// `Font`: Set the font. PDF 1.3+.
+    /// Write the `Font` attribute to set the font. PDF 1.3+.
     pub fn font(&mut self, font: Name, size: f32) -> &mut Self {
         let mut array = self.insert(Name(b"Font")).array();
         array.item(font);
@@ -1311,113 +1343,117 @@ impl<'a> ExtGraphicsState<'a> {
         self
     }
 
-    /// `BG`: Set the black generation function.
+    /// Write the `BG` attribute to set the black generation function.
     pub fn black_generation(&mut self, func: Ref) -> &mut Self {
         self.pair(Name(b"BG"), func);
         self
     }
 
-    /// `BG2`: Set the black-generation function back to the function that has
-    /// been in effect at the beginning of the page. PDF 1.3+.
+    /// Write the `BG2` attribute to set the black-generation function back to
+    /// the function that has been in effect at the beginning of the page. PDF
+    /// 1.3+.
     pub fn black_generation_default(&mut self) -> &mut Self {
         self.pair(Name(b"BG2"), Name(b"Default"));
         self
     }
 
-    /// `UCR`: Set the undercolor removal function.
+    /// Write the `UCR` attribute to set the undercolor removal function.
     pub fn undercolor_removal(&mut self, func: Ref) -> &mut Self {
         self.pair(Name(b"UCR"), func);
         self
     }
 
-    /// `UCR2`: Set the undercolor removal function back to the function that
-    /// has been in effect at the beginning of the page. PDF 1.3+.
+    /// Write the `UCR2` attribute to set the undercolor removal function back
+    /// to the function that has been in effect at the beginning of the page.
+    /// PDF 1.3+.
     pub fn undercolor_removal_default(&mut self) -> &mut Self {
         self.pair(Name(b"UCR2"), Name(b"Default"));
         self
     }
 
-    /// `TR`: Set the transfer function.
+    /// Write the `TR` attribute to set the transfer function.
     pub fn transfer(&mut self, func: Ref) -> &mut Self {
         self.pair(Name(b"TR"), func);
         self
     }
 
-    /// `TR2`: Set the transfer function back to the function that has been in
-    /// effect at the beginning of the page. PDF 1.3+.
+    /// Write the `TR2` attribute to set the transfer function back to the
+    /// function that has been in effect at the beginning of the page. PDF 1.3+.
     pub fn transfer_default(&mut self) -> &mut Self {
         self.pair(Name(b"TR2"), Name(b"Default"));
         self
     }
 
-    /// `HT`: Set the halftone.
+    /// Write the `HT` attribute to set the halftone.
     pub fn halftone(&mut self, ht: Ref) -> &mut Self {
         self.pair(Name(b"HT"), ht);
         self
     }
 
-    /// `HT`: Set the halftone back to the halftone that has been in effect at
-    /// the beginning of the page.
+    /// Write the `HT` attribute to set the halftone back to the one that has
+    /// been in effect at the beginning of the page.
     pub fn halftone_default(&mut self) -> &mut Self {
         self.pair(Name(b"HT"), Name(b"Default"));
         self
     }
 
-    /// `FL`: Set the flatness tolerance. PDF 1.3+.
+    /// Write the `FL` attribute to set the flatness tolerance. PDF 1.3+.
     pub fn flatness(&mut self, tolerance: f32) -> &mut Self {
         self.pair(Name(b"FL"), tolerance);
         self
     }
 
-    /// `SM`: Set the smoothness tolerance. PDF 1.3+.
+    /// Write the `SM` attribute to set the smoothness tolerance. PDF 1.3+.
     pub fn smoothness(&mut self, tolerance: f32) -> &mut Self {
         self.pair(Name(b"SM"), tolerance);
         self
     }
 
-    /// `SA`: Set automatic stroke adjustment.
+    /// Write the `SA` attribute to set automatic stroke adjustment.
     pub fn stroke_adjustment(&mut self, adjust: bool) -> &mut Self {
         self.pair(Name(b"SA"), adjust);
         self
     }
 
-    /// `BM`: Set the blend mode. PDF 1.4+.
+    /// Write the `BM` attribute to set the blend mode. PDF 1.4+.
     pub fn blend_mode(&mut self, mode: BlendMode) -> &mut Self {
         self.pair(Name(b"BM"), mode.to_name());
         self
     }
 
-    /// `SMask`: Set the soft mask using a dictionary. PDF 1.4+.
+    /// Start writing the `SMask` attribute. PDF 1.4+.
     pub fn soft_mask(&mut self) -> SoftMask<'_> {
         self.insert(Name(b"SMask")).start()
     }
 
-    /// `SMask`: Set the soft mask using a name. PDF 1.4+.
+    /// Write the `SMask` attribute using a name. PDF 1.4+.
     pub fn soft_mask_name(&mut self, mask: Name) -> &mut Self {
         self.pair(Name(b"SMask"), mask);
         self
     }
 
-    /// `CA`: Set the stroking alpha constant. PDF 1.4+.
+    /// Write the `CA` attribute to set the stroking alpha constant. PDF 1.4+.
     pub fn stroking_alpha(&mut self, alpha: f32) -> &mut Self {
         self.pair(Name(b"CA"), alpha);
         self
     }
 
-    /// `ca`: Set the non-stroking alpha constant. PDF 1.4+.
+    /// Write the `ca` attribute to set the non-stroking alpha constant. PDF
+    /// 1.4+.
     pub fn non_stroking_alpha(&mut self, alpha: f32) -> &mut Self {
         self.pair(Name(b"ca"), alpha);
         self
     }
 
-    /// `AIS`: Set the alpha source flag. `CA` and `ca` values as well as the
-    /// `SMask` will be interpreted as shape instead of opacity. PDF 1.4+.
+    /// Write the `AIS` attribute to set the alpha source flag. `CA` and `ca`
+    /// values as well as the `SMask` will be interpreted as shape instead of
+    /// opacity. PDF 1.4+.
     pub fn alpha_source(&mut self, source: bool) -> &mut Self {
         self.pair(Name(b"AIS"), source);
         self
     }
 
-    /// `TK`: Set the text knockout flag. PDF 1.4+.
+    /// Write the `TK` attribute to set the text knockout flag. PDF 1.4+.
     pub fn text_knockout(&mut self, knockout: bool) -> &mut Self {
         self.pair(Name(b"TK"), knockout);
         self
@@ -1506,13 +1542,13 @@ writer!(SoftMask: |obj| {
 });
 
 impl<'a> SoftMask<'a> {
-    /// `S`: Set the soft mask subtype. Required.
+    /// Write the `S` attribute to set the soft mask subtype. Required.
     pub fn subtype(&mut self, subtype: MaskType) -> &mut Self {
         self.pair(Name(b"S"), subtype.to_name());
         self
     }
 
-    /// `G`: Set the soft mask. Must be a transparency group XObject. The group
+    /// Write the `G` attribute to set the transparency group XObject. The group
     /// has to have a color space set in the `/CS` attribute if the mask subtype
     /// is `Luminosity`. Required.
     pub fn group(&mut self, group: Ref) -> &mut Self {
@@ -1520,16 +1556,16 @@ impl<'a> SoftMask<'a> {
         self
     }
 
-    /// `BC`: Set the background color for the transparency group. Only
-    /// applicable if the mask subtype is `Luminosity`. Has to be set in the
-    /// group's color space.
+    /// Write the `BC` attribute to set the background color for the
+    /// transparency group. Only applicable if the mask subtype is `Luminosity`.
+    /// Has to be set in the group's color space.
     pub fn backdrop(&mut self, color: impl IntoIterator<Item = f32>) -> &mut Self {
         self.insert(Name(b"BC")).array().items(color);
         self
     }
 
-    /// `TR`: A function that maps from the group's output values to the mask
-    /// opacity.
+    /// Write the `TR` attribute, a function that maps from the group's output
+    /// values to the mask opacity.
     pub fn transfer_function(&mut self, function: Ref) -> &mut Self {
         self.pair(Name(b"TR"), function);
         self

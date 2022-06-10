@@ -28,7 +28,7 @@ impl<'a> ImageXObject<'a> {
         self
     }
 
-    /// Write the `/ColorSpace` attribute.
+    /// Start writing the `/ColorSpace` attribute.
     ///
     /// Required for all images except if using the `JPXDecode` filter.
     /// If this is an image soft mask, the color space must be `DeviceGray`.
@@ -185,15 +185,15 @@ impl<'a> FormXObject<'a> {
         self
     }
 
-    /// Start writing the `/Resources` dictionary to specify the resources used by the
-    /// XObject. This makes it independant of the parent content stream it is
-    /// eventually invoked in. PDF 1.2+.
+    /// Start writing the `/Resources` dictionary to specify the resources used
+    /// by the XObject. This makes it independant of the parent content stream
+    /// it is eventually invoked in. PDF 1.2+.
     pub fn resources(&mut self) -> Resources<'_> {
         self.insert(Name(b"Resources")).start()
     }
 
-    /// Start writing the `/Group` dictionary to set up transparency model parameters and
-    /// let this XObject be known as a group. PDF 1.4+.
+    /// Start writing the `/Group` dictionary to set up transparency model
+    /// parameters and let this XObject be known as a group. PDF 1.4+.
     pub fn group(&mut self) -> Group<'_> {
         self.insert(Name(b"Group")).start()
     }
@@ -214,8 +214,8 @@ impl<'a> FormXObject<'a> {
         self
     }
 
-    /// Start writing the `/Ref` dictionary to identify the page from an external document
-    /// that the XObject is a reference to. PDF 1.4+.
+    /// Start writing the `/Ref` dictionary to identify the page from an
+    /// external document that the XObject is a reference to. PDF 1.4+.
     pub fn reference(&mut self) -> Reference<'_> {
         self.insert(Name(b"Ref")).start()
     }
@@ -256,7 +256,7 @@ impl<'a> Group<'a> {
         self
     }
 
-    /// Set the `/CS` attribute to set the color space.
+    /// Start writing the `/CS` attribute to set the color space.
     ///
     /// This is optional for isolated groups and required for groups where the
     /// color space cannot be derived from the parent.

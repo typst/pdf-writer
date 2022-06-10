@@ -120,8 +120,8 @@ impl<'a> Type3Font<'a> {
         self
     }
 
-    /// Write the `/CharProcs` dictionary, which maps glyph names to glyph
-    /// content streams. Required.
+    /// Start writing the `/CharProcs` dictionary, which maps glyph names to
+    /// glyph content streams. Required.
     ///
     /// Each glyph's content stream must start with either the
     /// [`d0`](crate::Content::start_color_glyph) or

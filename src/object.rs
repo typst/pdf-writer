@@ -391,13 +391,13 @@ impl<'a> Obj<'a> {
         }
     }
 
-    /// Write an array.
+    /// Start writing an array.
     #[inline]
     pub fn array(self) -> Array<'a> {
         self.start()
     }
 
-    /// Write a dictionary.
+    /// Start writing a dictionary.
     #[inline]
     pub fn dict(self) -> Dict<'a> {
         self.start()
@@ -565,7 +565,7 @@ where
         self
     }
 
-    /// Start writing an item with the subwriter.
+    /// Start writing an item with the typed writer.
     ///
     /// Returns `T` but with its lifetime rewritten from `'a` to `'b`.
     #[inline]
@@ -716,7 +716,7 @@ where
         self
     }
 
-    /// Start writing a pair with the subwriter.
+    /// Start writing a pair with the typed writer.
     ///
     /// Returns `T` but with its lifetime rewritten from `'a` to `'b`.
     #[inline]
@@ -830,13 +830,13 @@ impl<'a, 'any, T> Rewrite<'a> for NameTree<'any, T> {
 }
 
 impl<T> NameTree<'_, T> {
-    /// Write the `/Kids` entry to set the child name tree nodes of this node.
+    /// Start writing the `/Kids` attribute with the children of this node.
     pub fn kids(&mut self) -> TypedArray<'_, Ref> {
         self.dict.insert(Name(b"Kids")).array().typed()
     }
 
-    /// Write the `/Names` entry to set the immediate name to object mappings of
-    /// this child.
+    /// Start writing the `/Names` attribute to set the immediate name-to-object
+    /// mappings of this node.
     pub fn names(&mut self) -> NameTreeEntries<'_, T> {
         self.dict.insert(Name(b"Names")).start()
     }
@@ -906,13 +906,13 @@ impl<'a, 'any, T> Rewrite<'a> for NumberTree<'any, T> {
 }
 
 impl<T> NumberTree<'_, T> {
-    /// Write the `/Kids` entry to set the child number tree nodes of this node.
+    /// Start writing the `/Kids` attribute with the children of this node.
     pub fn kids(&mut self) -> TypedArray<'_, Ref> {
         self.dict.insert(Name(b"Kids")).array().typed()
     }
 
-    /// Write the `/Nums` entry to set the immediate integer to object mappings
-    /// of this child.
+    /// Start writing the `/Nums` attribute to set the immediate
+    /// number-to-object mappings of this node.
     pub fn nums(&mut self) -> NumberTreeEntries<'_, T> {
         self.dict.insert(Name(b"Nums")).start()
     }

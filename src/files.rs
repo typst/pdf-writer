@@ -37,9 +37,9 @@ impl<'a> FileSpec<'a> {
         self
     }
 
-    /// Write the `/V` attribute to indicate whether to cache the file.
-    pub fn volatile(&mut self, no_cache: bool) -> &mut Self {
-        self.pair(Name(b"V"), no_cache);
+    /// Write the `/V` attribute to indicate whether _not_ to cache the file.
+    pub fn volatile(&mut self, dont_cache: bool) -> &mut Self {
+        self.pair(Name(b"V"), dont_cache);
         self
     }
 

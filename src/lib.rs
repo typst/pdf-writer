@@ -118,7 +118,7 @@ pub mod writers {
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
-    pub use object::{NameTreeEntries, NumberTreeEntries};
+    pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
         MarkedRef, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages,
@@ -159,8 +159,8 @@ pub mod types {
 
 pub use content::Content;
 pub use object::{
-    Array, Date, Dict, Filter, Finish, Name, NameTree, Null, NumberTree, Obj, Primitive,
-    Rect, Ref, Rewrite, Str, Stream, TextStr, TypedArray, TypedDict, Writer,
+    Array, Date, Dict, Filter, Finish, Name, Null, Obj, Primitive, Rect, Ref, Rewrite,
+    Str, Stream, TextStr, TypedArray, TypedDict, Writer,
 };
 
 use std::fmt::{self, Debug, Formatter};
@@ -504,7 +504,7 @@ impl PdfWriter {
         id: Ref,
         content: &'a [u8],
     ) -> TilingPattern<'a> {
-        TilingPattern::start(self.stream(id, content))
+        TilingPattern::start_with_stream(self.stream(id, content))
     }
 
     /// Start writing a shading pattern.

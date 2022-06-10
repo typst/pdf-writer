@@ -27,7 +27,7 @@ impl<'a> Catalog<'a> {
         self
     }
 
-    /// Write the `/PageLabels` attribute to specify the page labels. PDF 1.3+.
+    /// Start writing the `/PageLabels` number tree. PDF 1.3+.
     pub fn page_labels(&mut self) -> NumberTree<'_, Ref> {
         self.insert(Name(b"PageLabels")).start()
     }
@@ -63,14 +63,14 @@ impl<'a> Catalog<'a> {
         self
     }
 
-    /// Write the `/StructTreeRoot` attribute to specify the root of the document's
-    /// structure tree. PDF 1.3+.
+    /// Start writing the `/StructTreeRoot` attribute to specify the root of the
+    /// document's structure tree. PDF 1.3+.
     pub fn struct_tree_root(&mut self) -> StructTreeRoot<'_> {
         self.insert(Name(b"StructTreeRoot")).start()
     }
 
-    /// Write the `/MarkInfo` dictionary to specify this document's conformance
-    /// to the tagged PDF specification. PDF 1.4+.
+    /// Start writing the `/MarkInfo` dictionary to specify this document's
+    /// conformance with the tagged PDF specification. PDF 1.4+.
     pub fn mark_info(&mut self) -> MarkInfo<'_> {
         self.insert(Name(b"MarkInfo")).start()
     }
@@ -92,10 +92,11 @@ impl<'a> Catalog<'a> {
         self
     }
 
-    /// Write the `/Extensions` dictionary to specify which PDF extensions are
-    /// in use in the document. The dictionary maps a vendor name to an
-    /// extension dictionary. The Adobe PDF extensions use the Name prefix
-    /// `ADBE`. PDF 1.5+.
+    /// Start writing the `/Extensions` dictionary to specify which PDF
+    /// extensions are in use in the document. PDF 1.5+.
+    ///
+    /// The dictionary maps a vendor name to an extension dictionary. The Adobe
+    /// PDF extensions use the Name prefix `ADBE`.
     pub fn extensions(&mut self) -> TypedDict<'_, DeveloperExtension> {
         self.insert(Name(b"Extensions")).dict().typed()
     }
@@ -278,22 +279,22 @@ impl<'a> StructTreeRoot<'a> {
         self
     }
 
-    /// Write the `/K` attribute to reference the immediate children of this
-    /// element.
+    /// Start writing the `/K` attribute to reference the immediate children of
+    /// this element.
     pub fn children(&mut self) -> TypedArray<'_, Ref> {
         self.dict.insert(Name(b"K")).array().typed()
     }
 
-    /// Write the `/IDTree` attribute to map element identifiers to their
-    /// corresponding structure element objects. Required if any elements have
-    /// element identifiers.
+    /// Start writing the `/IDTree` attribute to map element identifiers to
+    /// their corresponding structure element objects. Required if any elements
+    /// have element identifiers.
     pub fn id_tree(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"IDTree")).start()
     }
 
-    /// Write the `/ParentTree` attribute to maps structure elements to the
-    /// content items they belong to. Required if any structure elements contain
-    /// content items.
+    /// Start writing the `/ParentTree` attribute to maps structure elements to
+    /// the content items they belong to. Required if any structure elements
+    /// contain content items.
     pub fn parent_tree(&mut self) -> NumberTree<'_, Ref> {
         self.dict.insert(Name(b"ParentTree")).start()
     }
@@ -369,32 +370,32 @@ impl<'a> StructElement<'a> {
         self
     }
 
-    /// Write the `/K` attribute to reference the immediate marked content child of
-    /// this element.
+    /// Start writing the `/K` attribute to reference the immediate marked
+    /// content child of this element.
     pub fn marked_content_child(&mut self) -> MarkedRef<'_> {
         self.dict.insert(Name(b"K")).start()
     }
 
-    /// Write the `/K` attribute to reference the immediate object child of this
-    /// element.
+    /// Start writing the `/K` attribute to reference the immediate object child
+    /// of this element.
     pub fn object_child(&mut self) -> ObjectRef<'_> {
         self.dict.insert(Name(b"K")).start()
     }
 
-    /// Write the `/K` attribute to specify the children elements and associated
-    /// marked content sequences.
+    /// Start writing the `/K` attribute to specify the children elements and
+    /// associated marked content sequences.
     pub fn children(&mut self) -> StructChildren<'_> {
         self.dict.insert(Name(b"K")).start()
     }
 
-    /// Write the `/A` attribute to specify the attributes of this structure
-    /// element.
+    /// Start writing the `/A` attribute to specify the attributes of this
+    /// structure element.
     pub fn attributes(&mut self) -> TypedArray<'_, Attributes> {
         self.dict.insert(Name(b"A")).array().typed()
     }
 
-    /// Write the `/C` attribute to associate the structure element with an
-    /// attribute class.
+    /// Start writing the `/C` attribute to associate the structure element with
+    /// an attribute class.
     pub fn attribute_class(&mut self) -> TypedArray<'_, Name> {
         self.dict.insert(Name(b"C")).array().typed()
     }
@@ -463,12 +464,12 @@ impl<'a> StructChildren<'a> {
         self
     }
 
-    /// Write a marked content reference dictionary.
+    /// Start writing a marked content reference dictionary.
     pub fn marked_content_ref(&mut self) -> MarkedRef<'_> {
         self.arr.push().start()
     }
 
-    /// Write an object reference dictionary.
+    /// Start writing an object reference dictionary.
     pub fn object_ref(&mut self) -> ObjectRef<'_> {
         self.arr.push().start()
     }
@@ -596,9 +597,10 @@ impl<'a> ClassMap<'a> {
 
 deref!('a, ClassMap<'a> => Dict<'a>, dict);
 
-/// Role the structure element fulfills in the document. These are the
-/// predefined standard roles, the writer may, however, write their own and then
-/// provide a mapping. PDF 1.4+.
+/// Role the structure element fulfills in the document.
+///
+/// These are the predefined standard roles. The writer may write their own and
+/// then provide a mapping. PDF 1.4+.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum StructRole {
     /// The whole document.
@@ -949,8 +951,9 @@ impl<'a> DocumentInfo<'a> {
 
 deref!('a, DocumentInfo<'a> => Dict<'a>, dict);
 
-/// Whether a document has been adjusted with traps to account for colorant
-/// misregistration during the printing process.
+/// Whether a document has been adjusted with traps.
+///
+/// Those account for colorant misregistration during the printing process.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum TrappingStatus {
     /// The document is fully trapped.
@@ -1315,61 +1318,61 @@ pub struct Names<'a> {
 writer!(Names: |obj| Self { dict: obj.dict() });
 
 impl Names<'_> {
-    /// Write the `/Dests` attribute to provide associations for
+    /// Start writing the `/Dests` attribute to provide associations for
     /// [destinations](Destination).
     pub fn destinations(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Dests")).start()
     }
 
-    /// Write the `/AP` attribute to provide associations for appearance
+    /// Start writing the `/AP` attribute to provide associations for appearance
     /// streams. PDF 1.3+.
     pub fn appearances(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"AP")).start()
     }
 
-    /// Write the `/JavaScript` attribute to provide associations for
+    /// Start writing the `/JavaScript` attribute to provide associations for
     /// JavaScript actions. PDF 1.3+.
     pub fn javascript(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"JavaScript")).start()
     }
 
-    /// Write the `/Pages` attribute to name [pages](Page). PDF 1.3+.
+    /// Start writing the `/Pages` attribute to name [pages](Page). PDF 1.3+.
     pub fn pages(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Pages")).start()
     }
 
-    /// Write the `/Template` attribute to name [pages](Pages) outside of the
-    /// page tree as templates for interactive forms. PDF 1.3+.
+    /// Start writing the `/Template` attribute to name [pages](Pages) outside
+    /// of the page tree as templates for interactive forms. PDF 1.3+.
     pub fn templates(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Templates")).start()
     }
 
-    /// Write the `/IDS` attribute to map identifiers to Web Capture content
-    /// sets. PDF 1.3+.
+    /// Start writing the `/IDS` attribute to map identifiers to Web Capture
+    /// content sets. PDF 1.3+.
     pub fn capture_ids(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"IDS")).start()
     }
 
-    /// Write the `/URLS` attribute to map URLs to Web Capture content sets. PDF
-    /// 1.3+.
+    /// Start writing the `/URLS` attribute to map URLs to Web Capture content
+    /// sets. PDF 1.3+.
     pub fn capture_urls(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"URLS")).start()
     }
 
-    /// Write the `/EmbeddedFiles` attribute to name [embedded
+    /// Start writing the `/EmbeddedFiles` attribute to name [embedded
     /// files](EmbeddedFile). PDF 1.4+.
     pub fn embedded_files(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"EmbeddedFiles")).start()
     }
 
-    /// Write the `/AlternatePresentations` attribute to name alternate
+    /// Start writing the `/AlternatePresentations` attribute to name alternate
     /// presentations. PDF 1.4+.
     pub fn alternate_presentations(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"AlternatePresentations")).start()
     }
 
-    /// Write the `/Renditions` attribute to name renditions. The names must
-    /// conform to Unicode. PDF 1.5+.
+    /// Start writing the `/Renditions` attribute to name renditions. The names
+    /// must conform to Unicode. PDF 1.5+.
     pub fn renditions(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"Renditions")).start()
     }
