@@ -1,6 +1,6 @@
 [package]
 name = "pdf-writer"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Laurenz <laurmaedje@gmail.com>"]
 edition = "2021"
 description = "A step-by-step PDF writer."
@@ -17,7 +17,7 @@ ryu = "1"
 
 [dev-dependencies]
 iai = "0.1"
-miniz_oxide = "0.4"
+miniz_oxide = "0.5"
 image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
 
 [[bench]]
