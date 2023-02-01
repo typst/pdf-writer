@@ -87,7 +87,124 @@ impl ColorSpace<'_> {
         }
     }
 
-    /// Write a `CalRGB` color space for sRGB.
+    /// Write a `CalGray` color space.
+    pub fn cal_gray(
+        self,
+        white_point: [f32; 3],
+        black_point: Option<[f32; 3]>,
+        gamma: Option<f32>,
+    ) {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::CalGray.to_name());
+
+        let mut dict = array.push().dict();
+        dict.insert(Name(b"WhitePoint")).array().items(white_point);
+
+        if let Some(black_point) = black_point {
+            dict.insert(Name(b"BlackPoint")).array().items(black_point);
+        }
+
+        if let Some(gamma) = gamma {
+            dict.pair(Name(b"Gamma"), gamma);
+        }
+    }
+
+    /// Write a `Lab` color space.
+    pub fn lab(
+        self,
+        white_point: [f32; 3],
+        black_point: Option<[f32; 3]>,
+        range: Option<[f32; 4]>,
+    ) {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::Lab.to_name());
+
+        let mut dict = array.push().dict();
+        dict.insert(Name(b"WhitePoint")).array().items(white_point);
+
+        if let Some(black_point) = black_point {
+            dict.insert(Name(b"BlackPoint")).array().items(black_point);
+        }
+
+        if let Some(range) = range {
+            dict.insert(Name(b"Range")).array().items(range);
+        }
+    }
+
+    /// Write an `ICCBased` color space.
+    ///
+    /// The `stream` argument is an indirect reference to an ICC profile stream.
+    pub fn icc_based<'a>(self, steam: Ref) {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::IccBased.to_name());
+        array.item(steam);
+    }
+}
+
+/// Writer for an _ICC profile stream_.
+///
+/// This struct is created by [`PdfWriter::icc_profile`].
+pub struct IccProfile<'a> {
+    stream: Stream<'a>,
+}
+
+impl<'a> IccProfile<'a> {
+    /// Create a new ICC profile stream writer
+    pub(crate) fn start(stream: Stream<'a>) -> Self {
+        Self { stream }
+    }
+
+    /// Write the `/N` attribute. Required.
+    ///
+    /// The number of components in the color space.
+    /// Shall be 1, 3, or 4.
+    pub fn n(&mut self, n: i32) -> &mut Self {
+        assert!(n == 1 || n == 3 || n == 4, "n must be 1, 3, or 4");
+        self.pair(Name(b"N"), n);
+        self
+    }
+
+    /// Write the `/Alternate` attribute with a name. Optional.
+    ///
+    /// The alternate color space to use when the ICC profile is not
+    /// supported. Must be a color space with the same number of
+    /// components as the ICC profile. Pattern color spaces are not
+    /// allowed.
+    pub fn alternate_name(&mut self, name: Name<'_>) -> &mut Self {
+        self.pair(Name(b"Alternate"), name);
+        self
+    }
+
+    /// Write the `/Alternate` attribute with a color space. Optional.
+    ///
+    /// The alternate color space to use when the ICC profile is not
+    /// supported. Must be a color space with the same number of
+    /// components as the ICC profile. Pattern color spaces are not
+    /// allowed.
+    pub fn alternate(&mut self) -> ColorSpace<'_> {
+        ColorSpace::start(self.insert(Name(b"Alternate")))
+    }
+
+    /// Write the `/Range` attribute. Optional.
+    ///
+    /// Specifies the permissible range of values for each component.
+    /// The array shall contain 2 × `N` numbers, where `N` is the
+    /// number of components in the color space. The first number in
+    /// the pair shall be the minimum value and the second shall be
+    /// the maximum value.
+    pub fn range(&mut self, range: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.insert(Name(b"Range")).array().typed().items(range);
+        self
+    }
+
+    // TODO: Metadata.
+}
+
+deref!('a, IccProfile<'a> => Stream<'a>, stream);
+
+/// Common calibrated color spaces.
+impl ColorSpace<'_> {
+    /// Write a `CalRGB` color space approximating sRGB.
     pub fn srgb(self) {
         self.cal_rgb(
             CIE_D65,
@@ -177,28 +294,6 @@ impl ColorSpace<'_> {
         )
     }
 
-    /// Write a `CalGray` color space.
-    pub fn cal_gray(
-        self,
-        white_point: [f32; 3],
-        black_point: Option<[f32; 3]>,
-        gamma: Option<f32>,
-    ) {
-        let mut array = self.obj.array();
-        array.item(ColorSpaceType::CalGray.to_name());
-
-        let mut dict = array.push().dict();
-        dict.insert(Name(b"WhitePoint")).array().items(white_point);
-
-        if let Some(black_point) = black_point {
-            dict.insert(Name(b"BlackPoint")).array().items(black_point);
-        }
-
-        if let Some(gamma) = gamma {
-            dict.pair(Name(b"Gamma"), gamma);
-        }
-    }
-
     /// Write a `CalGray` color space for CIE D65 at a 2.2 gamma, equivalent to
     /// sRGB, Adobe RGB, Display P3, PAL, ...
     pub fn d65_gray(self) {
@@ -222,30 +317,6 @@ impl ColorSpace<'_> {
     pub fn e_gray(self, gamma: Option<f32>) {
         self.cal_gray(CIE_E, None, gamma)
     }
-
-    /// Write a `Lab` color space.
-    pub fn lab(
-        self,
-        white_point: [f32; 3],
-        black_point: Option<[f32; 3]>,
-        range: Option<[f32; 4]>,
-    ) {
-        let mut array = self.obj.array();
-        array.item(ColorSpaceType::Lab.to_name());
-
-        let mut dict = array.push().dict();
-        dict.insert(Name(b"WhitePoint")).array().items(white_point);
-
-        if let Some(black_point) = black_point {
-            dict.insert(Name(b"BlackPoint")).array().items(black_point);
-        }
-
-        if let Some(range) = range {
-            dict.insert(Name(b"Range")).array().items(range);
-        }
-    }
-
-    // TODO: ICC-based.
 }
 
 /// Device color spaces.
@@ -267,8 +338,13 @@ impl ColorSpace<'_> {
 }
 
 /// Special color spaces.
-impl ColorSpace<'_> {
+impl<'a> ColorSpace<'a> {
     /// Write a `Separation` color space. PDF 1.2+.
+    ///
+    /// The `base` argument describes an alternate color space to use if
+    /// the color name is unknown. The `tint` argument is an indirect
+    /// reference to a function that maps from a single value between 0
+    /// and 1 to a color in the alternate color space.
     pub fn separation(self, color_name: Name, base: Name, tint: Ref) {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::Separation.to_name());
@@ -278,6 +354,11 @@ impl ColorSpace<'_> {
     }
 
     /// Write a `DeviceN` color space. PDF 1.3+.
+    ///
+    /// The `base` argument describes an alternate color space to use if the
+    /// color names are unknown. The `tint` argument is an indirect reference to
+    /// a function that maps from an n-dimensional values with components
+    /// between 0 and 1 to a color in the alternate color space.
     pub fn device_n<'n>(
         self,
         names: impl IntoIterator<Item = Name<'n>>,
@@ -289,6 +370,27 @@ impl ColorSpace<'_> {
         array.push().array().items(names);
         array.item(alternate_space);
         array.item(tint);
+    }
+
+    /// Write a `DeviceN` color space with a attributes. PDF 1.6+.
+    ///
+    /// The `base` argument describes an alternate color space to use if the
+    /// color names are unknown. The `tint` argument is an indirect reference to
+    /// a function that maps from an n-dimensional values with components
+    /// between 0 and 1 to a color in the alternate color space.
+    pub fn device_n_with_attrs<'n>(
+        self,
+        names: impl IntoIterator<Item = Name<'n>>,
+        alternate_space: Name,
+        tint: Ref,
+    ) -> DeviceNWithAttrs<'a> {
+        let mut array = self.obj.array();
+        array.item(ColorSpaceType::DeviceN.to_name());
+        array.push().array().items(names);
+        array.item(alternate_space);
+        array.item(tint);
+
+        DeviceNWithAttrs::start(array)
     }
 
     /// Write an `Indexed` color space. PDF 1.2+.
@@ -329,6 +431,166 @@ impl PatternType {
             Self::Tiling => 1,
             Self::Shading => 2,
         }
+    }
+}
+
+/// Writer for a _DeviceN color space array with attributes_. PDF 1.6+.
+///
+/// This struct is created by [`ColorSpace::device_n_with_attrs`].
+pub struct DeviceNWithAttrs<'a> {
+    array: Array<'a>,
+}
+
+impl<'a> DeviceNWithAttrs<'a> {
+    /// Start the wrapper.
+    pub(crate) fn start(array: Array<'a>) -> Self {
+        Self { array }
+    }
+
+    /// Write the `attrs` entry. Optional.
+    pub fn attrs(&'a mut self) -> DeviceNAttrs<'a> {
+        DeviceNAttrs::start(self.array.push())
+    }
+}
+
+/// Writer for a _DeviceN attributes dictionary_. PDF 1.6+.
+///
+/// This struct is created by [`ColorSpace::device_n_with_attrs`].
+pub struct DeviceNAttrs<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(DeviceNAttrs: |obj| {
+    Self { dict: obj.dict() }
+});
+
+impl<'a> DeviceNAttrs<'a> {
+    /// Write the `/Subtype` attribute. Optional.
+    pub fn subtype(&mut self, subtype: DeviceNSubtype) -> &mut Self {
+        self.dict.pair(Name(b"Subtype"), subtype.to_name());
+        self
+    }
+
+    /// Start writing the `/Colorants` dictionary. Its keys are the colorant
+    /// names and its values are separation color space arrays.
+    ///
+    /// Required if the `/Subtype` attribute is `NChannel`.
+    pub fn colorants(&'a mut self) -> TypedDict<'a, Dict> {
+        self.dict.insert(Name(b"Colorants")).dict().typed()
+    }
+
+    /// Start writing the `/Process` dictionary.
+    ///
+    /// Required if the `/Subtype` attribute is `Separation`.
+    pub fn process(&'a mut self) -> DeviceNProcess<'a> {
+        DeviceNProcess::start(self.dict.insert(Name(b"Process")))
+    }
+
+    /// Start writing the `/MixingHints` dictionary. Optional.
+    pub fn mixing_hints(&'a mut self) -> DeviceNMixingHints<'a> {
+        DeviceNMixingHints::start(self.dict.insert(Name(b"MixingHints")))
+    }
+}
+
+/// Writer for a _DeviceN process dictionary_. PDF 1.6+.
+///
+/// This struct is created by [`DeviceNAttrs::process`].
+pub struct DeviceNProcess<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(DeviceNProcess: |obj| {
+    Self { dict: obj.dict() }
+});
+
+impl DeviceNProcess<'_> {
+    /// Write the `/ColorSpace` attribute with a name. Required.
+    pub fn color_space(&mut self, color_space: Name) -> &mut Self {
+        self.dict.pair(Name(b"ColorSpace"), color_space);
+        self
+    }
+
+    /// Write the `/ColorSpace` attribute with an array. Required.
+    pub fn color_space_array(&mut self) -> ColorSpace<'_> {
+        ColorSpace::start(self.dict.insert(Name(b"ColorSpace")))
+    }
+
+    /// Write the `/Components` attribute. Required.
+    ///
+    /// Contains the names of the colorants in the order in which they appear in
+    /// the color space array.
+    pub fn components<'n>(
+        &mut self,
+        components: impl IntoIterator<Item = Name<'n>>,
+    ) -> &mut Self {
+        self.dict
+            .insert(Name(b"Components"))
+            .array()
+            .typed()
+            .items(components);
+        self
+    }
+}
+
+/// Type of n-dimensional color space.
+pub enum DeviceNSubtype {
+    /// A subtractive color space.
+    DeviceN,
+    /// An additive color space.
+    NChannel,
+}
+
+impl DeviceNSubtype {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::DeviceN => Name(b"DeviceN"),
+            Self::NChannel => Name(b"NChannel"),
+        }
+    }
+}
+
+/// Writer for a _DeviceN mixing hints dictionary_. PDF 1.6+.
+///
+/// This struct is created by [`DeviceNAttrs::mixing_hints`].
+pub struct DeviceNMixingHints<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(DeviceNMixingHints: |obj| {
+    Self { dict: obj.dict() }
+});
+
+impl<'a> DeviceNMixingHints<'a> {
+    /// Start writing the `/Solidities` dictionary. Optional.
+    ///
+    /// Each key in the dictionary is a colorant name and each value is a number
+    /// between 0 and 1 indicating the relative solidity of the colorant.
+    pub fn solidities(&'a mut self) -> TypedDict<'a, f32> {
+        self.dict.insert(Name(b"Solidities")).dict().typed()
+    }
+
+    /// Write the `/PrintingOrder` attribute.
+    ///
+    /// Required if `/Solidities` is present. An array of colorant names in the
+    /// order in which they should be printed.
+    pub fn printing_order<'n>(
+        &mut self,
+        printing_order: impl IntoIterator<Item = Name<'n>>,
+    ) -> &mut Self {
+        self.dict
+            .insert(Name(b"PrintingOrder"))
+            .array()
+            .typed()
+            .items(printing_order);
+        self
+    }
+
+    /// Start writing the `/DotGain` dictionary. Optional.
+    ///
+    /// Each key in the dictionary is a colorant name and each value is a number
+    /// between 0 and 1 indicating the dot gain of the colorant.
+    pub fn dot_gain(&'a mut self) -> TypedDict<'a, f32> {
+        self.dict.insert(Name(b"DotGain")).dict().typed()
     }
 }
 

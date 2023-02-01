@@ -105,7 +105,10 @@ pub mod writers {
         Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
         UserProperty,
     };
-    pub use color::{ColorSpace, Shading, ShadingPattern, TilingPattern};
+    pub use color::{
+        ColorSpace, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess, DeviceNWithAttrs,
+        IccProfile, Shading, ShadingPattern, TilingPattern,
+    };
     pub use content::{
         Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems,
         PropertyList, Resources, ShowPositioned, SoftMask,
@@ -140,7 +143,7 @@ pub mod types {
         LayoutBorderStyle, ListNumbering, Placement, RubyAlign, RubyPosition,
         TableHeaderScope, TextAlign, TextDecorationType, WritingMode,
     };
-    pub use color::{PaintType, ShadingType, TilingType};
+    pub use color::{DeviceNSubtype, PaintType, ShadingType, TilingType};
     pub use content::{
         ArtifactAttachment, ArtifactSubtype, ArtifactType, ColorSpaceOperand,
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
@@ -243,11 +246,11 @@ impl PdfWriter {
             }
 
             // Fill in free list.
-            for free_id in written .. object_id.get() {
+            for free_id in written..object_id.get() {
                 let mut next = free_id + 1;
                 if next == object_id.get() {
                     // Find next free id.
-                    for (used_id, _) in &self.offsets[i ..] {
+                    for (used_id, _) in &self.offsets[i..] {
                         if next < used_id.get() {
                             break;
                         } else {
@@ -510,6 +513,11 @@ impl PdfWriter {
     /// Start writing a shading pattern.
     pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
         self.indirect(id).start()
+    }
+
+    /// Start writing a ICC profile stream.
+    pub fn icc_profile<'a>(&'a mut self, id: Ref, profile: &'a [u8]) -> IccProfile<'a> {
+        IccProfile::start(self.stream(id, profile))
     }
 }
 
