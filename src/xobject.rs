@@ -128,6 +128,16 @@ impl<'a> ImageXObject<'a> {
         self.insert(Name(b"Matte")).array().items(color);
         self
     }
+
+    /// Write the `/Metadata` attribute to specify the image's metadata. PDF
+    /// 1.4+.
+    ///
+    /// The reference shall point to a [metadata
+    /// stream](crate::writers::Metadata).
+    pub fn metadata(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Metadata"), id);
+        self
+    }
 }
 
 deref!('a, ImageXObject<'a> => Stream<'a>, stream);
@@ -220,9 +230,12 @@ impl<'a> FormXObject<'a> {
         self.insert(Name(b"Ref")).start()
     }
 
-    /// Write the `/Metadata` attribute. PDF 1.4+.
-    pub fn metadata(&mut self, meta: Ref) -> &mut Self {
-        self.pair(Name(b"Metadata"), meta);
+    /// Write the `/Metadata` attribute to specify the XObject's metadata. PDF
+    /// 1.4+.
+    ///
+    /// The reference shall point to a [metadata stream](Metadata).
+    pub fn metadata(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Metadata"), id);
         self
     }
 

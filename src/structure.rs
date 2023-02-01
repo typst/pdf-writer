@@ -1,3 +1,5 @@
+use crate::color::SeparationInfo;
+
 use super::*;
 
 /// Writer for a _document catalog dictionary_.
@@ -92,6 +94,15 @@ impl<'a> Catalog<'a> {
         self
     }
 
+    /// Write the `/Metadata` attribute to specify the document's metadata. PDF
+    /// 1.4+.
+    ///
+    /// The reference shall point to a [metadata stream](Metadata).
+    pub fn metadata(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Metadata"), id);
+        self
+    }
+
     /// Start writing the `/Extensions` dictionary to specify which PDF
     /// extensions are in use in the document. PDF 1.5+.
     ///
@@ -99,6 +110,22 @@ impl<'a> Catalog<'a> {
     /// PDF extensions use the Name prefix `ADBE`.
     pub fn extensions(&mut self) -> TypedDict<'_, DeveloperExtension> {
         self.insert(Name(b"Extensions")).dict().typed()
+    }
+
+    /// Start writing the `/SeparationInfo` dictionary to specify which
+    /// separation colors are in use on the page and how it relates to other
+    /// pages in the document. PDF 1.3+.
+    pub fn separation_info(&mut self) -> SeparationInfo<'_> {
+        self.insert(Name(b"SeparationInfo")).start()
+    }
+
+    /// Start writing the `/OutputIntents` array to specify the output
+    /// destinations for the document. PDF 1.4+.
+    ///
+    /// Each entry in the array is an [output intent
+    /// dictionary.](writers::OutputIntent)
+    pub fn output_intents(&mut self) -> Array<'_> {
+        self.insert(Name(b"OutputIntents")).array()
     }
 }
 
@@ -1165,6 +1192,15 @@ impl<'a> Page<'a> {
         self.pair(Name(b"UserUnit"), value);
         self
     }
+
+    /// Write the `/Metadata` attribute to specify the page's metadata. PDF
+    /// 1.4+.
+    ///
+    /// The reference shall point to a [metadata stream](Metadata).
+    pub fn metadata(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Metadata"), id);
+        self
+    }
 }
 
 deref!('a, Page<'a> => Dict<'a>, dict);
@@ -1474,5 +1510,21 @@ impl TabOrder {
             Self::ColumnOrder => Name(b"C"),
             Self::StructureOrder => Name(b"S"),
         }
+    }
+}
+
+/// Writer for a _metadata stream_. PDF 1.4+.
+///
+/// This struct is created by [`PdfWriter::metadata`].
+pub struct Metadata<'a> {
+    stream: Stream<'a>,
+}
+
+impl<'a> Metadata<'a> {
+    /// Create a new metadata stream writer.
+    pub(crate) fn start(mut stream: Stream<'a>) -> Self {
+        stream.pair(Name(b"Type"), Name(b"Metadata"));
+        stream.pair(Name(b"Subtype"), Name(b"XML"));
+        Self { stream }
     }
 }

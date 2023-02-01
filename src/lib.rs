@@ -107,7 +107,7 @@ pub mod writers {
     };
     pub use color::{
         ColorSpace, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess, DeviceNWithAttrs,
-        IccProfile, Shading, ShadingPattern, TilingPattern,
+        IccProfile, OutputIntent, SeparationInfo, Shading, ShadingPattern, TilingPattern,
     };
     pub use content::{
         Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems,
@@ -124,8 +124,8 @@ pub mod writers {
     pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
-        MarkedRef, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel, Pages,
-        RoleMap, StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
+        MarkedRef, Metadata, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel,
+        Pages, RoleMap, StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};
@@ -143,7 +143,9 @@ pub mod types {
         LayoutBorderStyle, ListNumbering, Placement, RubyAlign, RubyPosition,
         TableHeaderScope, TextAlign, TextDecorationType, WritingMode,
     };
-    pub use color::{DeviceNSubtype, PaintType, ShadingType, TilingType};
+    pub use color::{
+        DeviceNSubtype, OutputIntentSubtype, PaintType, ShadingType, TilingType,
+    };
     pub use content::{
         ArtifactAttachment, ArtifactSubtype, ArtifactType, ColorSpaceOperand,
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
@@ -415,6 +417,11 @@ impl PdfWriter {
     /// Start writing a structure tree element.
     pub fn struct_element(&mut self, id: Ref) -> StructElement<'_> {
         self.indirect(id).start()
+    }
+
+    /// Start writing a metadata stream.
+    pub fn metadata<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> Metadata<'a> {
+        Metadata::start(self.stream(id, bytes))
     }
 }
 

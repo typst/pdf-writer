@@ -197,7 +197,14 @@ impl<'a> IccProfile<'a> {
         self
     }
 
-    // TODO: Metadata.
+    /// Write the `/Metadata` attribute. Optional.
+    ///
+    /// A reference to a [stream containing metadata](crate::writers::Metadata)
+    /// for the ICC profile.
+    pub fn metadata(&mut self, metadata: Ref) -> &mut Self {
+        self.pair(Name(b"Metadata"), metadata);
+        self
+    }
 }
 
 deref!('a, IccProfile<'a> => Stream<'a>, stream);
@@ -871,6 +878,137 @@ impl ShadingType {
             Self::Function => 1,
             Self::Axial => 2,
             Self::Radial => 3,
+        }
+    }
+}
+
+/// Writer for the _separation information dictionary_. PDF 1.3+.
+///
+/// This struct is created by [`Catalog::separation_info`].
+pub struct SeparationInfo<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SeparationInfo: |obj| Self { dict: obj.dict() });
+
+impl SeparationInfo<'_> {
+    /// Write the `/Pages` attribute. Required.
+    ///
+    /// This indicates all page dictionaries in the document represent
+    /// separations of the same page.
+    pub fn pages(&mut self, pages: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.dict.insert(Name(b"Pages")).array().typed().items(pages);
+        self
+    }
+
+    /// Write the `/DeviceColorant` attribute as a name. Required.
+    ///
+    /// The name of the device colorant that corresponds to the separation.
+    pub fn device_colorant(&mut self, device_colorant: Name) -> &mut Self {
+        self.dict.pair(Name(b"DeviceColorant"), device_colorant);
+        self
+    }
+
+    /// Write the `/DeviceColorant` attribute as a string. Required.
+    ///
+    /// The name of the device colorant that corresponds to the separation.
+    pub fn device_colorant_str(&mut self, device_colorant: &str) -> &mut Self {
+        self.dict.pair(Name(b"DeviceColorant"), TextStr(device_colorant));
+        self
+    }
+
+    /// Start writing the `/ColorSpace` array. Optional.
+    ///
+    /// This shall be an Separation or DeviceN color space that further defines
+    /// the separation color space.
+    pub fn color_space(&mut self) -> ColorSpace<'_> {
+        self.dict.insert(Name(b"ColorSpace")).start()
+    }
+}
+
+/// Writer for an _output intent dictionary_. PDF 1.4+.
+///
+/// This describes the output conditions under which the document may be
+/// rendered.
+pub struct OutputIntent<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(OutputIntent: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"OutputIntent"));
+    Self { dict }
+});
+
+impl OutputIntent<'_> {
+    /// Write the `/S` attribute. Required.
+    pub fn subtype(&mut self, subtype: OutputIntentSubtype) -> &mut Self {
+        self.dict.pair(Name(b"S"), subtype.to_name());
+        self
+    }
+
+    /// Write the `/OutputCondition` attribute. Optional.
+    ///
+    /// A human-readable description of the output condition.
+    pub fn output_condition(&mut self, condition: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"OutputCondition"), condition);
+        self
+    }
+
+    /// Write the `/OutputConditionIdentifier` attribute. Optional.
+    ///
+    /// A well-known identifier for the output condition.
+    pub fn output_condition_identifier(&mut self, identifier: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"OutputConditionIdentifier"), identifier);
+        self
+    }
+
+    /// Write the `/RegistryName` attribute. Optional.
+    ///
+    /// The URI of the registry that contains the output condition.
+    pub fn registry_name(&mut self, name: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"RegistryName"), name);
+        self
+    }
+
+    /// Write the `/Info` attribute. Optional.
+    ///
+    /// A human-readable string with additional info about the intended output device.
+    pub fn info(&mut self, info: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"Info"), info);
+        self
+    }
+
+    /// Write the `/DestOutputProfile` attribute.
+    ///
+    /// Required if `/OutputConditionIdentifier` does not contain a well-known
+    /// identifier for the output condition.
+    /// Must reference an [ICC profile](IccProfile) stream.
+    pub fn dest_output_profile(&mut self, profile: Ref) -> &mut Self {
+        self.dict.pair(Name(b"DestOutputProfile"), profile);
+        self
+    }
+}
+
+/// The output intent subtype.
+pub enum OutputIntentSubtype<'a> {
+    /// `GTS_PDFX`
+    PDFX,
+    /// `GTS_PDFA1`
+    PDFA,
+    /// `ISO_PDFE1`
+    PDFE,
+    /// Custom name defined in a ISO 32000 extension.
+    Custom(Name<'a>),
+}
+
+impl<'a> OutputIntentSubtype<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::PDFX => Name(b"GTS_PDFX"),
+            Self::PDFA => Name(b"GTS_PDFA1"),
+            Self::PDFE => Name(b"ISO_PDFE1"),
+            Self::Custom(name) => name,
         }
     }
 }
