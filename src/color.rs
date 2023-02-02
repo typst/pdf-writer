@@ -133,11 +133,12 @@ impl ColorSpace<'_> {
 
     /// Write an `ICCBased` color space.
     ///
-    /// The `stream` argument is an indirect reference to an ICC profile stream.
-    pub fn icc_based<'a>(self, steam: Ref) {
+    /// The `stream` argument is an indirect reference to an [ICC
+    /// profile](IccProfile) stream.
+    pub fn icc_based(self, stream: Ref) {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::IccBased.to_name());
-        array.item(steam);
+        array.item(stream);
     }
 }
 
@@ -159,23 +160,16 @@ impl<'a> IccProfile<'a> {
     /// The number of components in the color space.
     /// Shall be 1, 3, or 4.
     pub fn n(&mut self, n: i32) -> &mut Self {
-        assert!(n == 1 || n == 3 || n == 4, "n must be 1, 3, or 4");
+        assert!(
+            n == 1 || n == 3 || n == 4,
+            "n must be 1, 3, or 4, but is {}",
+            n
+        );
         self.pair(Name(b"N"), n);
         self
     }
 
-    /// Write the `/Alternate` attribute with a name. Optional.
-    ///
-    /// The alternate color space to use when the ICC profile is not
-    /// supported. Must be a color space with the same number of
-    /// components as the ICC profile. Pattern color spaces are not
-    /// allowed.
-    pub fn alternate_name(&mut self, name: Name<'_>) -> &mut Self {
-        self.pair(Name(b"Alternate"), name);
-        self
-    }
-
-    /// Write the `/Alternate` attribute with a color space. Optional.
+    /// Write the `/Alternate` attribute with a color space.
     ///
     /// The alternate color space to use when the ICC profile is not
     /// supported. Must be a color space with the same number of
@@ -185,19 +179,28 @@ impl<'a> IccProfile<'a> {
         ColorSpace::start(self.insert(Name(b"Alternate")))
     }
 
-    /// Write the `/Range` attribute. Optional.
+    /// Write the `/Alternate` attribute with a name.
     ///
-    /// Specifies the permissible range of values for each component.
-    /// The array shall contain 2 × `N` numbers, where `N` is the
-    /// number of components in the color space. The first number in
-    /// the pair shall be the minimum value and the second shall be
-    /// the maximum value.
+    /// The alternate color space referenced by name must be registered in the
+    /// current [resource dictionary.](crate::writers::Resources)
+    pub fn alternate_name(&mut self, name: Name<'_>) -> &mut Self {
+        self.pair(Name(b"Alternate"), name);
+        self
+    }
+
+    /// Write the `/Range` attribute.
+    ///
+    /// Specifies the permissible range of values for each component. The array
+    /// shall contain 2 × `N` numbers, where [`N`](Self::n) is the number of
+    /// components in the color space. The array is organized in pairs, where
+    /// the first value shall be the minimum value and the second shall be the
+    /// maximum value.
     pub fn range(&mut self, range: impl IntoIterator<Item = f32>) -> &mut Self {
         self.insert(Name(b"Range")).array().typed().items(range);
         self
     }
 
-    /// Write the `/Metadata` attribute. Optional.
+    /// Write the `/Metadata` attribute.
     ///
     /// A reference to a [stream containing metadata](crate::writers::Metadata)
     /// for the ICC profile.
@@ -348,10 +351,10 @@ impl ColorSpace<'_> {
 impl<'a> ColorSpace<'a> {
     /// Write a `Separation` color space. PDF 1.2+.
     ///
-    /// The `base` argument describes an alternate color space to use if
-    /// the color name is unknown. The `tint` argument is an indirect
-    /// reference to a function that maps from a single value between 0
-    /// and 1 to a color in the alternate color space.
+    /// The `base` argument describes an alternate color space to use if the
+    /// color name is unknown. The `tint` argument is an indirect reference to a
+    /// [function](writers::SampledFunction) that maps from a single value
+    /// between 0 and 1 to a color in the alternate color space.
     pub fn separation(self, color_name: Name, base: Name, tint: Ref) {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::Separation.to_name());
@@ -362,42 +365,24 @@ impl<'a> ColorSpace<'a> {
 
     /// Write a `DeviceN` color space. PDF 1.3+.
     ///
-    /// The `base` argument describes an alternate color space to use if the
-    /// color names are unknown. The `tint` argument is an indirect reference to
-    /// a function that maps from an n-dimensional values with components
-    /// between 0 and 1 to a color in the alternate color space.
+    /// The `names` argument contains the N names of the color components and
+    /// the respective colorants. The `alternate_space` argument describes an
+    /// alternate color space to use if the color names are unknown. The `tint`
+    /// argument is an indirect reference to a function that maps from an n-
+    /// dimensional values with components between 0 and 1 to a color in the
+    /// alternate color space.
     pub fn device_n<'n>(
         self,
         names: impl IntoIterator<Item = Name<'n>>,
         alternate_space: Name,
         tint: Ref,
-    ) {
+    ) -> DeviceN<'a> {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::DeviceN.to_name());
         array.push().array().items(names);
         array.item(alternate_space);
         array.item(tint);
-    }
-
-    /// Write a `DeviceN` color space with a attributes. PDF 1.6+.
-    ///
-    /// The `base` argument describes an alternate color space to use if the
-    /// color names are unknown. The `tint` argument is an indirect reference to
-    /// a function that maps from an n-dimensional values with components
-    /// between 0 and 1 to a color in the alternate color space.
-    pub fn device_n_with_attrs<'n>(
-        self,
-        names: impl IntoIterator<Item = Name<'n>>,
-        alternate_space: Name,
-        tint: Ref,
-    ) -> DeviceNWithAttrs<'a> {
-        let mut array = self.obj.array();
-        array.item(ColorSpaceType::DeviceN.to_name());
-        array.push().array().items(names);
-        array.item(alternate_space);
-        array.item(tint);
-
-        DeviceNWithAttrs::start(array)
+        DeviceN::start(array)
     }
 
     /// Write an `Indexed` color space. PDF 1.2+.
@@ -443,19 +428,19 @@ impl PatternType {
 
 /// Writer for a _DeviceN color space array with attributes_. PDF 1.6+.
 ///
-/// This struct is created by [`ColorSpace::device_n_with_attrs`].
-pub struct DeviceNWithAttrs<'a> {
+/// This struct is created by [`ColorSpace::device_n`].
+pub struct DeviceN<'a> {
     array: Array<'a>,
 }
 
-impl<'a> DeviceNWithAttrs<'a> {
+impl<'a> DeviceN<'a> {
     /// Start the wrapper.
     pub(crate) fn start(array: Array<'a>) -> Self {
         Self { array }
     }
 
-    /// Write the `attrs` entry. Optional.
-    pub fn attrs(&'a mut self) -> DeviceNAttrs<'a> {
+    /// Start writing the `attrs` dictionary. PDF 1.6+.
+    pub fn attrs(&mut self) -> DeviceNAttrs<'_> {
         DeviceNAttrs::start(self.array.push())
     }
 }
@@ -467,12 +452,10 @@ pub struct DeviceNAttrs<'a> {
     dict: Dict<'a>,
 }
 
-writer!(DeviceNAttrs: |obj| {
-    Self { dict: obj.dict() }
-});
+writer!(DeviceNAttrs: |obj| Self { dict: obj.dict() });
 
-impl<'a> DeviceNAttrs<'a> {
-    /// Write the `/Subtype` attribute. Optional.
+impl DeviceNAttrs<'_> {
+    /// Write the `/Subtype` attribute.
     pub fn subtype(&mut self, subtype: DeviceNSubtype) -> &mut Self {
         self.dict.pair(Name(b"Subtype"), subtype.to_name());
         self
@@ -482,19 +465,19 @@ impl<'a> DeviceNAttrs<'a> {
     /// names and its values are separation color space arrays.
     ///
     /// Required if the `/Subtype` attribute is `NChannel`.
-    pub fn colorants(&'a mut self) -> TypedDict<'a, Dict> {
-        self.dict.insert(Name(b"Colorants")).dict().typed()
+    pub fn colorants(&mut self) -> Dict<'_> {
+        self.dict.insert(Name(b"Colorants")).dict()
     }
 
     /// Start writing the `/Process` dictionary.
     ///
     /// Required if the `/Subtype` attribute is `Separation`.
-    pub fn process(&'a mut self) -> DeviceNProcess<'a> {
+    pub fn process(&mut self) -> DeviceNProcess<'_> {
         DeviceNProcess::start(self.dict.insert(Name(b"Process")))
     }
 
-    /// Start writing the `/MixingHints` dictionary. Optional.
-    pub fn mixing_hints(&'a mut self) -> DeviceNMixingHints<'a> {
+    /// Start writing the `/MixingHints` dictionary.
+    pub fn mixing_hints(&mut self) -> DeviceNMixingHints<'_> {
         DeviceNMixingHints::start(self.dict.insert(Name(b"MixingHints")))
     }
 }
@@ -506,9 +489,7 @@ pub struct DeviceNProcess<'a> {
     dict: Dict<'a>,
 }
 
-writer!(DeviceNProcess: |obj| {
-    Self { dict: obj.dict() }
-});
+writer!(DeviceNProcess: |obj| Self { dict: obj.dict() });
 
 impl DeviceNProcess<'_> {
     /// Write the `/ColorSpace` attribute with a name. Required.
@@ -563,16 +544,14 @@ pub struct DeviceNMixingHints<'a> {
     dict: Dict<'a>,
 }
 
-writer!(DeviceNMixingHints: |obj| {
-    Self { dict: obj.dict() }
-});
+writer!(DeviceNMixingHints: |obj| Self { dict: obj.dict() });
 
-impl<'a> DeviceNMixingHints<'a> {
-    /// Start writing the `/Solidities` dictionary. Optional.
+impl DeviceNMixingHints<'_> {
+    /// Start writing the `/Solidities` dictionary.
     ///
     /// Each key in the dictionary is a colorant name and each value is a number
     /// between 0 and 1 indicating the relative solidity of the colorant.
-    pub fn solidities(&'a mut self) -> TypedDict<'a, f32> {
+    pub fn solidities(&mut self) -> TypedDict<'_, f32> {
         self.dict.insert(Name(b"Solidities")).dict().typed()
     }
 
@@ -582,21 +561,17 @@ impl<'a> DeviceNMixingHints<'a> {
     /// order in which they should be printed.
     pub fn printing_order<'n>(
         &mut self,
-        printing_order: impl IntoIterator<Item = Name<'n>>,
+        order: impl IntoIterator<Item = Name<'n>>,
     ) -> &mut Self {
-        self.dict
-            .insert(Name(b"PrintingOrder"))
-            .array()
-            .typed()
-            .items(printing_order);
+        self.dict.insert(Name(b"PrintingOrder")).array().typed().items(order);
         self
     }
 
-    /// Start writing the `/DotGain` dictionary. Optional.
+    /// Start writing the `/DotGain` dictionary.
     ///
     /// Each key in the dictionary is a colorant name and each value is a number
     /// between 0 and 1 indicating the dot gain of the colorant.
-    pub fn dot_gain(&'a mut self) -> TypedDict<'a, f32> {
+    pub fn dot_gain(&mut self) -> TypedDict<'_, f32> {
         self.dict.insert(Name(b"DotGain")).dict().typed()
     }
 }
@@ -771,8 +746,8 @@ impl<'a> Shading<'a> {
     ///
     /// Sets the type of shading. The available and required attributes change
     /// depending on this. Required.
-    pub fn shading_type(&mut self, shading_type: ShadingType) -> &mut Self {
-        self.dict.pair(Name(b"ShadingType"), shading_type.to_int());
+    pub fn shading_type(&mut self, kind: ShadingType) -> &mut Self {
+        self.dict.pair(Name(b"ShadingType"), kind.to_int());
         self
     }
 
@@ -894,8 +869,8 @@ writer!(SeparationInfo: |obj| Self { dict: obj.dict() });
 impl SeparationInfo<'_> {
     /// Write the `/Pages` attribute. Required.
     ///
-    /// This indicates all page dictionaries in the document represent
-    /// separations of the same page.
+    /// This indicates all page dictionaries in the document that represent
+    /// separations of the same page and shall be rendered together.
     pub fn pages(&mut self, pages: impl IntoIterator<Item = Ref>) -> &mut Self {
         self.dict.insert(Name(b"Pages")).array().typed().items(pages);
         self
@@ -904,20 +879,20 @@ impl SeparationInfo<'_> {
     /// Write the `/DeviceColorant` attribute as a name. Required.
     ///
     /// The name of the device colorant that corresponds to the separation.
-    pub fn device_colorant(&mut self, device_colorant: Name) -> &mut Self {
-        self.dict.pair(Name(b"DeviceColorant"), device_colorant);
+    pub fn device_colorant(&mut self, colorant: Name) -> &mut Self {
+        self.dict.pair(Name(b"DeviceColorant"), colorant);
         self
     }
 
     /// Write the `/DeviceColorant` attribute as a string. Required.
     ///
     /// The name of the device colorant that corresponds to the separation.
-    pub fn device_colorant_str(&mut self, device_colorant: &str) -> &mut Self {
-        self.dict.pair(Name(b"DeviceColorant"), TextStr(device_colorant));
+    pub fn device_colorant_str(&mut self, colorant: &str) -> &mut Self {
+        self.dict.pair(Name(b"DeviceColorant"), TextStr(colorant));
         self
     }
 
-    /// Start writing the `/ColorSpace` array. Optional.
+    /// Start writing the `/ColorSpace` array.
     ///
     /// This shall be an Separation or DeviceN color space that further defines
     /// the separation color space.
@@ -947,7 +922,7 @@ impl OutputIntent<'_> {
         self
     }
 
-    /// Write the `/OutputCondition` attribute. Optional.
+    /// Write the `/OutputCondition` attribute.
     ///
     /// A human-readable description of the output condition.
     pub fn output_condition(&mut self, condition: TextStr) -> &mut Self {
@@ -955,7 +930,7 @@ impl OutputIntent<'_> {
         self
     }
 
-    /// Write the `/OutputConditionIdentifier` attribute. Optional.
+    /// Write the `/OutputConditionIdentifier` attribute.
     ///
     /// A well-known identifier for the output condition.
     pub fn output_condition_identifier(&mut self, identifier: TextStr) -> &mut Self {
@@ -963,7 +938,7 @@ impl OutputIntent<'_> {
         self
     }
 
-    /// Write the `/RegistryName` attribute. Optional.
+    /// Write the `/RegistryName` attribute.
     ///
     /// The URI of the registry that contains the output condition.
     pub fn registry_name(&mut self, name: TextStr) -> &mut Self {
@@ -971,7 +946,7 @@ impl OutputIntent<'_> {
         self
     }
 
-    /// Write the `/Info` attribute. Optional.
+    /// Write the `/Info` attribute.
     ///
     /// A human-readable string with additional info about the intended output device.
     pub fn info(&mut self, info: TextStr) -> &mut Self {
@@ -998,7 +973,7 @@ pub enum OutputIntentSubtype<'a> {
     PDFA,
     /// `ISO_PDFE1`
     PDFE,
-    /// Custom name defined in a ISO 32000 extension.
+    /// Custom name defined in an ISO 32000 extension.
     Custom(Name<'a>),
 }
 

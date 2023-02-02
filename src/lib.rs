@@ -106,7 +106,7 @@ pub mod writers {
         UserProperty,
     };
     pub use color::{
-        ColorSpace, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess, DeviceNWithAttrs,
+        ColorSpace, DeviceN, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess,
         IccProfile, OutputIntent, SeparationInfo, Shading, ShadingPattern, TilingPattern,
     };
     pub use content::{
@@ -522,7 +522,7 @@ impl PdfWriter {
         self.indirect(id).start()
     }
 
-    /// Start writing a ICC profile stream.
+    /// Start writing an ICC profile stream.
     pub fn icc_profile<'a>(&'a mut self, id: Ref, profile: &'a [u8]) -> IccProfile<'a> {
         IccProfile::start(self.stream(id, profile))
     }

@@ -328,7 +328,7 @@ impl<'a> Action<'a> {
 
     /// Start writing the `/D` attribute to set the destination of this
     /// GoTo-type action.
-    pub fn destination_direct(&mut self) -> Destination<'_> {
+    pub fn destination(&mut self) -> Destination<'_> {
         self.insert(Name(b"D")).start()
     }
 
