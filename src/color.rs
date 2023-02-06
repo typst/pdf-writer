@@ -15,7 +15,8 @@ const CIE_C: [f32; 3] = [0.9807, 1.0000, 1.1822];
 /// The type of a color space.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(unused)]
-enum ColorSpaceType {
+#[allow(missing_docs)]
+pub enum ColorSpaceType {
     CalGray,
     CalRgb,
     Lab,
@@ -45,13 +46,21 @@ impl ColorSpaceType {
             Self::Pattern => Name(b"Pattern"),
         }
     }
+
+    pub fn is_device(self) -> bool {
+        match self {
+            Self::CalRgb | Self::CalGray | Self::Lab | Self::IccBased => false,
+            Self::DeviceRgb | Self::DeviceCmyk | Self::DeviceGray | Self::Indexed => true,
+            Self::Separation | Self::DeviceN | Self::Pattern => false,
+        }
+    }
 }
 
 /// Writer for a _color space_.
 ///
 /// This struct is created by [`PdfWriter::color_space`],
-/// [`Shading::color_space`], [`ImageXObject::color_space`] and
-/// [`Group::color_space`].
+/// [`Shading::color_space`], [`ImageXObject::color_space`],
+/// [`Separation::alternate_color_space`] and [`Group::color_space`].
 pub struct ColorSpace<'a> {
     obj: Obj<'a>,
 }
@@ -215,6 +224,8 @@ deref!('a, IccProfile<'a> => Stream<'a>, stream);
 /// Common calibrated color spaces.
 impl ColorSpace<'_> {
     /// Write a `CalRGB` color space approximating sRGB.
+    ///
+    /// Use an ICC profile for more accurate results.
     pub fn srgb(self) {
         self.cal_rgb(
             CIE_D65,
@@ -226,7 +237,9 @@ impl ColorSpace<'_> {
         )
     }
 
-    /// Write a `CalRGB` color space for Adobe RGB.
+    /// Write a `CalRGB` color space approximating Adobe RGB.
+    ///
+    /// Use an ICC profile for more accurate results.
     pub fn adobe_rgb(self) {
         self.cal_rgb(
             CIE_D65,
@@ -239,7 +252,9 @@ impl ColorSpace<'_> {
         )
     }
 
-    /// Write a `CalRGB` color space for Display P3.
+    /// Write a `CalRGB` color space approximating Display P3.
+    ///
+    /// Use an ICC profile for more accurate results.
     pub fn display_p3(self) {
         self.cal_rgb(
             CIE_D65,
@@ -252,7 +267,9 @@ impl ColorSpace<'_> {
         )
     }
 
-    /// Write a `CalRGB` color space for ProPhoto.
+    /// Write a `CalRGB` color space approximating ProPhoto.
+    ///
+    /// Use an ICC profile for more accurate results.
     pub fn pro_photo(self) {
         self.cal_rgb(
             CIE_D50,
@@ -349,18 +366,15 @@ impl ColorSpace<'_> {
 
 /// Special color spaces.
 impl<'a> ColorSpace<'a> {
-    /// Write a `Separation` color space. PDF 1.2+.
+    /// Start writing a `Separation` color space. PDF 1.2+.
     ///
-    /// The `base` argument describes an alternate color space to use if the
-    /// color name is unknown. The `tint` argument is an indirect reference to a
-    /// [function](writers::SampledFunction) that maps from a single value
-    /// between 0 and 1 to a color in the alternate color space.
-    pub fn separation(self, color_name: Name, base: Name, tint: Ref) {
+    /// The `color_name` argument is the name of the colorant that will be
+    /// used by the printer.
+    pub fn separation(self, color_name: Name) -> Separation<'a> {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::Separation.to_name());
         array.item(color_name);
-        array.item(base);
-        array.item(tint);
+        Separation::start(array)
     }
 
     /// Write a `DeviceN` color space. PDF 1.3+.
@@ -426,6 +440,93 @@ impl PatternType {
     }
 }
 
+/// Writer for a _separation dictionary_. PDF 1.2+.
+///
+/// First, one of the `alternate_...` methods must be called to specify the
+/// alternate color space. Then, one of the `tint_...` methods must be called
+/// to specify the tint transform function. If the tint transform function is
+/// called before the alternate color space, the function panics. If multiple
+/// alternate color space functions are called, the function panics.
+/// This struct is created by [`ColorSpace::separation`].
+pub struct Separation<'a> {
+    array: Array<'a>,
+    has_alternate: bool,
+}
+
+impl<'a> Separation<'a> {
+    /// Start the wrapper.
+    pub(crate) fn start(array: Array<'a>) -> Self {
+        Self { array, has_alternate: false }
+    }
+
+    /// Write the `alternateSpace` element as a name. The argument must be a
+    /// Device color space or else the function panics.
+    pub fn alternate_device(&mut self, device_space: ColorSpaceType) -> &mut Self {
+        if self.has_alternate {
+            panic!("alternateSpace already specified");
+        }
+        if !device_space.is_device() {
+            panic!("alternateSpace must be a Device color space");
+        }
+        self.array.item(device_space.to_name());
+        self.has_alternate = true;
+        self
+    }
+
+    /// Start writing the `alternateSpace` element as a color space array. The
+    /// color space must not be another `Pattern`, `Separation`, or `DeviceN`
+    /// color space.
+    pub fn alternate_color_space(&mut self) -> ColorSpace<'_> {
+        if self.has_alternate {
+            panic!("alternateSpace already specified");
+        }
+        self.has_alternate = true;
+        ColorSpace::start(self.array.push())
+    }
+
+    /// Write the `alternateSpace` element as an indirect reference. The color
+    /// space must not be another `Pattern`, `Separation`, or `DeviceN` color
+    /// space.
+    pub fn alternate_color_space_ref(&mut self, id: Ref) -> &mut Self {
+        if self.has_alternate {
+            panic!("alternateSpace already specified");
+        }
+        self.array.item(id);
+        self.has_alternate = true;
+        self
+    }
+
+    /// Write the `tintTransform` element as an indirect reference to a
+    /// function. The function must take a single number as input and produce a
+    /// color in the alternate color space as output. This must be used if a
+    /// stream function like [`SampledFunction`] or [`PostScriptFunction`] is
+    /// used.
+    pub fn tint_ref(&mut self, id: Ref) -> &mut Self {
+        if !self.has_alternate {
+            panic!("alternateSpace must be specified before tintTransform");
+        }
+        self.array.item(id);
+        self
+    }
+
+    /// Start writing the `tintTransform` element as an exponential
+    /// interpolation function.
+    pub fn tint_exponential(&mut self) -> ExponentialFunction<'_> {
+        if !self.has_alternate {
+            panic!("alternateSpace must be specified before tintTransform");
+        }
+        ExponentialFunction::start(self.array.push())
+    }
+
+    /// Start writing the `tintTransform` element as a stitching function.
+    pub fn tint_stitching(&mut self) -> StitchingFunction<'_> {
+        if !self.has_alternate {
+            panic!("alternateSpace must be specified before tintTransform");
+        }
+        StitchingFunction::start(self.array.push())
+    }
+}
+
 /// Writer for a _DeviceN color space array with attributes_. PDF 1.6+.
 ///
 /// This struct is created by [`ColorSpace::device_n`].
@@ -447,7 +548,7 @@ impl<'a> DeviceN<'a> {
 
 /// Writer for a _DeviceN attributes dictionary_. PDF 1.6+.
 ///
-/// This struct is created by [`ColorSpace::device_n_with_attrs`].
+/// This struct is created by [`DeviceN::attrs`].
 pub struct DeviceNAttrs<'a> {
     dict: Dict<'a>,
 }

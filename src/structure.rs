@@ -1420,7 +1420,7 @@ deref!('a, Names<'a> => Dict<'a>, dict);
 ///
 /// A dictionary mapping to this struct is created by
 /// [`PdfWriter::destinations`]. This struct is also created by
-/// [`Action::destination_direct`].
+/// [`Action::destination`].
 pub struct Destination<'a> {
     array: Array<'a>,
 }
@@ -1528,3 +1528,5 @@ impl<'a> Metadata<'a> {
         Self { stream }
     }
 }
+
+deref!('a, Metadata<'a> => Stream<'a>, stream);

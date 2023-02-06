@@ -43,7 +43,7 @@ macro_rules! common_func_methods {
     };
 }
 
-/// Writer for a _sampled function stream_.
+/// Writer for a _sampled function stream_. PDF 1.2+.
 ///
 /// This struct is created by [`PdfWriter::sampled_function`].
 pub struct SampledFunction<'a> {
@@ -121,12 +121,13 @@ impl InterpolationOrder {
     }
 }
 
-/// Writer for an _exponential function dictionary_.
+/// Writer for an _exponential function dictionary_. PDF 1.3+.
 ///
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
 ///
-/// This struct is created by [`PdfWriter::exponential_function`].
+/// This struct is created by [`PdfWriter::exponential_function`] and
+/// [`writers::Separation::tint_exponential`].
 pub struct ExponentialFunction<'a> {
     dict: Dict<'a>,
 }
@@ -167,12 +168,13 @@ impl<'a> ExponentialFunction<'a> {
 
 deref!('a, ExponentialFunction<'a> => Dict<'a>, dict);
 
-/// Writer for a _stitching function dictionary_.
+/// Writer for a _stitching function dictionary_. PDF 1.3+.
 ///
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
 ///
-/// This struct is created by [`PdfWriter::stitching_function`].
+/// This struct is created by [`PdfWriter::stitching_function`] and
+/// [`writers::Separation::tint_stitching`].
 pub struct StitchingFunction<'a> {
     dict: Dict<'a>,
 }
@@ -215,7 +217,7 @@ impl<'a> StitchingFunction<'a> {
 
 deref!('a, StitchingFunction<'a> => Dict<'a>, dict);
 
-/// Writer for a _PostScript function stream_.
+/// Writer for a _PostScript function stream_. PDF 1.3+.
 ///
 /// This struct is created by [`PdfWriter::post_script_function`].
 pub struct PostScriptFunction<'a> {

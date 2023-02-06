@@ -107,7 +107,8 @@ pub mod writers {
     };
     pub use color::{
         ColorSpace, DeviceN, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess,
-        IccProfile, OutputIntent, SeparationInfo, Shading, ShadingPattern, TilingPattern,
+        IccProfile, OutputIntent, Separation, SeparationInfo, Shading, ShadingPattern,
+        TilingPattern,
     };
     pub use content::{
         Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems,
