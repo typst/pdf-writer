@@ -27,7 +27,9 @@ fn main() -> std::io::Result<()> {
     let mut page = writer.page(page_id);
 
     // Create an A4 page.
-    page.media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
+    let width = 595.0;
+    let height = 842.0;
+    page.media_box(Rect::new(0.0, 0.0, width, height));
     page.parent(page_tree_id);
     page.contents(content_id);
 
@@ -64,7 +66,8 @@ fn main() -> std::io::Result<()> {
     // The exponent is 1.0, so the interpolation is linear.
     metallic_func.n(1.0);
     metallic_func.domain([0.0, 1.0]);
-    // This is a L*a*b* value, so the value with maximum luminance / white is [100.0, 0.0, 0.0].
+    // This is a L*a*b* value, so the value with maximum luminance / white is
+    // [100.0, 0.0, 0.0].
     metallic_func.c0([100.0, 0.0, 0.0]);
     metallic_func.c1([60.3922, -6.0, 12.0]);
     metallic_func.range([0.0, 100.0, -128.0, 127.0, -128.0, 127.0]);
@@ -103,37 +106,70 @@ fn main() -> std::io::Result<()> {
     resources.finish();
     page.finish();
 
-    // Write the content stream with a green rectangle and a crescent with a red
-    // stroke.
+    // Write the content stream with five stars in different colors, alternating
+    // between metallic green and hot pink colors.
     let mut content = Content::new();
-    // We first need to set the color space for the `set_fill_color` / `scn`
-    // operator. We'll use the name that we registered in the resource
-    // dictionary above.
-    content.set_fill_color_space(metallic_name);
-    // Set the fill color in the current color space. Note that only the
-    // `set_fill_color` and `set_stroke_color` operators will use custom color
-    // spaces. Note that the `set_fill_rgb` and `set_fill_cmyk` and `set_fill_gray`
-    // operators will always use the non-calibrated Device color spaces, the
-    // same applies to the stroke color operators.
-    content.set_fill_color([1.0]);
-    // Draw a green rectangle at the top of the page.
-    content.rect(108.0, 734.0, 140.0, 100.0);
-    // The `re` operator already closed the rectangle path, so we can just fill
-    // it.
-    content.fill_even_odd();
+    // We want a total of five stars.
+    let stars = 5;
+    // We want to leave a margin of 50 points around the edge of the page.
+    let margin = 50.0;
 
-    // Fill and stroke color spaces must be set independently.
-    content.set_stroke_color_space(hot_pink_name);
-    content.set_stroke_color([1.0]);
+    for i in 0..stars {
+        // Each star will be offset by 20 points to the bottom right from the
+        // previous star.
+        let offset = i as f32 * 20.0;
 
-    // Draw a crescent.
-    // Move to the starting point of the path.
-    content.move_to(208.0, 734.0);
-    // Two symmetric cubic Bézier curves.
-    content.cubic_to(208.0, 734.0, 208.0, 834.0, 308.0, 834.0);
-    content.cubic_to(308.0, 834.0, 308.0, 734.0, 208.0, 734.0);
-    // Close the path and stroke it.
-    content.close_and_stroke();
+        // Save the graphics state that was in effect before we started
+        // drawing the star and push it onto the graphics state stack.
+        // This includes color spaces, colors, and transformations.
+        content.save_state();
+
+        // We'll use a transformation matrix to move the star to the correct
+        // position. The star is defined in a coordinate system where the origin
+        // is in the top left corner of the star. Because the PDF coordinates
+        // start in the bottom left, we need to flip the y-axis. We also need
+        // to move the star to the correct position.
+        content.transform([
+            1.0,
+            0.0,
+            0.0,
+            -1.0,
+            margin + offset,
+            height - margin - offset,
+        ]);
+
+        // We'll set the fill color to the metallic green or hot pink color
+        // space, depending on whether the number is even. Now, the
+        // `set_fill_color` method will expect a single value between 0 and 1.
+        if i % 2 == 0 {
+            content.set_fill_color_space(metallic_name);
+        } else {
+            content.set_fill_color_space(hot_pink_name);
+        }
+
+        // We'll slowly ramp up the color value from 0 to 1. This example also
+        // shows that separation colors will not blend ('overprint'). Instead,
+        // colors will be completely replaced by the color of the top-most
+        // object.
+        content.set_fill_color([(i + 1) as f32 / stars as f32]);
+        content.move_to(50.0, 10.0);
+        content.line_to(58.8, 38.0);
+        content.line_to(88.0, 37.5);
+        content.line_to(64.3, 54.5);
+        content.line_to(73.5, 82.5);
+        content.line_to(50.0, 65.0);
+        content.line_to(26.5, 82.5);
+        content.line_to(35.7, 54.5);
+        content.line_to(12.0, 37.5);
+        content.line_to(41.2, 38.0);
+        content.close_path();
+        content.fill_even_odd();
+
+        // Recover the graphics state that was in effect before we started. If
+        // we did not do this, the next star's transformation would be composed
+        // with the previous star's transformation, again flipping the y-axis.
+        content.restore_state();
+    }
 
     // Write the content stream.
     writer.stream(content_id, &content.finish());

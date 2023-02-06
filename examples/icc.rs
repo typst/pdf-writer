@@ -83,7 +83,9 @@ fn main() -> std::io::Result<()> {
 
     // Read the ICC profile from a file.
     let icc_data = std::fs::read("examples/sRGB_v4.icc")?;
-    // Start writing the ICC profile stream.
+    // Start writing the ICC profile stream. In production use, you would
+    // compress the data stream with the `FlateDecode` filter. Check the
+    // `image.rs` example for details.
     let mut icc_profile = writer.icc_profile(icc_id, &icc_data);
 
     // PDF requires metadata about the ICC profile. We provide it as entries in
