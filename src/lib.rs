@@ -524,6 +524,11 @@ impl PdfWriter {
     }
 
     /// Start writing an ICC profile stream.
+    ///
+    /// The `profile` argument shall contain the ICC profile data conforming to
+    /// ICC.1:2004-10 (PDF 1.7), ICC.1:2003-09 (PDF 1.6), ICC.1:2001-12 (PDF 1.5),
+    /// ICC.1:1999-04 (PDF 1.4), or ICC 3.3 (PDF 1.3). Profile data is commonly
+    /// compressed using the `FlateDecode` filter.
     pub fn icc_profile<'a>(&'a mut self, id: Ref, profile: &'a [u8]) -> IccProfile<'a> {
         IccProfile::start(self.stream(id, profile))
     }

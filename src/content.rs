@@ -150,7 +150,7 @@ impl Content {
     #[inline]
     pub fn set_flatness(&mut self, tolerance: i32) -> &mut Self {
         assert!(
-            matches!(tolerance, 0 ..= 100),
+            matches!(tolerance, 0..=100),
             "flatness tolerance must be between 0 and 100",
         );
         self.op("i").operand(tolerance);
@@ -691,8 +691,11 @@ impl Content {
     /// The parameter must be the name of a parameter-less color space or of a
     /// color space dictionary within the current resource dictionary.
     #[inline]
-    pub fn set_stroke_color_space(&mut self, space: ColorSpaceOperand) -> &mut Self {
-        self.op("CS").operand(space.to_name());
+    pub fn set_stroke_color_space<'a>(
+        &mut self,
+        space: impl Into<ColorSpaceOperand<'a>>,
+    ) -> &mut Self {
+        self.op("CS").operand(space.into().to_name());
         self
     }
 
@@ -701,8 +704,11 @@ impl Content {
     /// The parameter must be the name of a parameter-less color space or of a
     /// color space dictionary within the current resource dictionary.
     #[inline]
-    pub fn set_fill_color_space(&mut self, space: ColorSpaceOperand) -> &mut Self {
-        self.op("cs").operand(space.to_name());
+    pub fn set_fill_color_space<'a>(
+        &mut self,
+        space: impl Into<ColorSpaceOperand<'a>>,
+    ) -> &mut Self {
+        self.op("cs").operand(space.into().to_name());
         self
     }
 
@@ -850,6 +856,12 @@ impl<'a> ColorSpaceOperand<'a> {
             Self::Pattern => Name(b"Pattern"),
             Self::Named(name) => name,
         }
+    }
+}
+
+impl<'a> From<Name<'a>> for ColorSpaceOperand<'a> {
+    fn from(name: Name<'a>) -> Self {
+        Self::Named(name)
     }
 }
 

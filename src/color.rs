@@ -15,8 +15,7 @@ const CIE_C: [f32; 3] = [0.9807, 1.0000, 1.1822];
 /// The type of a color space.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[allow(unused)]
-#[allow(missing_docs)]
-pub enum ColorSpaceType {
+enum ColorSpaceType {
     CalGray,
     CalRgb,
     Lab,
@@ -46,12 +45,25 @@ impl ColorSpaceType {
             Self::Pattern => Name(b"Pattern"),
         }
     }
+}
 
-    pub fn is_device(self) -> bool {
+/// The type of a device color space.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum DeviceColorSpace {
+    /// Red, green and blue.
+    Rgb,
+    /// Cyan, magenta, yellow and black.
+    Cmyk,
+    /// Gray.
+    Gray,
+}
+
+impl DeviceColorSpace {
+    pub(crate) fn to_name(self) -> Name<'static> {
         match self {
-            Self::CalRgb | Self::CalGray | Self::Lab | Self::IccBased => false,
-            Self::DeviceRgb | Self::DeviceCmyk | Self::DeviceGray | Self::Indexed => true,
-            Self::Separation | Self::DeviceN | Self::Pattern => false,
+            Self::Rgb => Name(b"DeviceRGB"),
+            Self::Cmyk => Name(b"DeviceCMYK"),
+            Self::Gray => Name(b"DeviceGray"),
         }
     }
 }
@@ -142,7 +154,7 @@ impl ColorSpace<'_> {
 
     /// Write an `ICCBased` color space.
     ///
-    /// The `stream` argument is an indirect reference to an [ICC
+    /// The `stream` argument should be an indirect reference to an [ICC
     /// profile](IccProfile) stream.
     pub fn icc_based(self, stream: Ref) {
         let mut array = self.obj.array();
@@ -379,23 +391,12 @@ impl<'a> ColorSpace<'a> {
 
     /// Write a `DeviceN` color space. PDF 1.3+.
     ///
-    /// The `names` argument contains the N names of the color components and
-    /// the respective colorants. The `alternate_space` argument describes an
-    /// alternate color space to use if the color names are unknown. The `tint`
-    /// argument is an indirect reference to a function that maps from an n-
-    /// dimensional values with components between 0 and 1 to a color in the
-    /// alternate color space.
-    pub fn device_n<'n>(
-        self,
-        names: impl IntoIterator<Item = Name<'n>>,
-        alternate_space: Name,
-        tint: Ref,
-    ) -> DeviceN<'a> {
+    /// The `names` argument contains the N names of the colorants for the
+    /// respective components.
+    pub fn device_n<'n>(self, names: impl IntoIterator<Item = Name<'n>>) -> DeviceN<'a> {
         let mut array = self.obj.array();
         array.item(ColorSpaceType::DeviceN.to_name());
         array.push().array().items(names);
-        array.item(alternate_space);
-        array.item(tint);
         DeviceN::start(array)
     }
 
@@ -444,9 +445,10 @@ impl PatternType {
 ///
 /// First, one of the `alternate_...` methods must be called to specify the
 /// alternate color space. Then, one of the `tint_...` methods must be called
-/// to specify the tint transform function. If the tint transform function is
+/// to specify the tint transform method. If the tint transform method is
 /// called before the alternate color space, the function panics. If multiple
 /// alternate color space functions are called, the function panics.
+///
 /// This struct is created by [`ColorSpace::separation`].
 pub struct Separation<'a> {
     array: Array<'a>,
@@ -459,14 +461,10 @@ impl<'a> Separation<'a> {
         Self { array, has_alternate: false }
     }
 
-    /// Write the `alternateSpace` element as a name. The argument must be a
-    /// Device color space or else the function panics.
-    pub fn alternate_device(&mut self, device_space: ColorSpaceType) -> &mut Self {
+    /// Write the `alternateSpace` element as a device color space.
+    pub fn alternate_device(&mut self, device_space: DeviceColorSpace) -> &mut Self {
         if self.has_alternate {
-            panic!("alternateSpace already specified");
-        }
-        if !device_space.is_device() {
-            panic!("alternateSpace must be a Device color space");
+            panic!("alternate space already specified");
         }
         self.array.item(device_space.to_name());
         self.has_alternate = true;
@@ -478,7 +476,7 @@ impl<'a> Separation<'a> {
     /// color space.
     pub fn alternate_color_space(&mut self) -> ColorSpace<'_> {
         if self.has_alternate {
-            panic!("alternateSpace already specified");
+            panic!("alternate space already specified");
         }
         self.has_alternate = true;
         ColorSpace::start(self.array.push())
@@ -489,11 +487,28 @@ impl<'a> Separation<'a> {
     /// space.
     pub fn alternate_color_space_ref(&mut self, id: Ref) -> &mut Self {
         if self.has_alternate {
-            panic!("alternateSpace already specified");
+            panic!("alternate space already specified");
         }
         self.array.item(id);
         self.has_alternate = true;
         self
+    }
+
+    /// Start writing the `tintTransform` element as an exponential
+    /// interpolation function.
+    pub fn tint_exponential(&mut self) -> ExponentialFunction<'_> {
+        if !self.has_alternate {
+            panic!("alternate space must be specified before tint transform");
+        }
+        ExponentialFunction::start(self.array.push())
+    }
+
+    /// Start writing the `tintTransform` element as a stitching function.
+    pub fn tint_stitching(&mut self) -> StitchingFunction<'_> {
+        if !self.has_alternate {
+            panic!("alternate space must be specified before tint transform");
+        }
+        StitchingFunction::start(self.array.push())
     }
 
     /// Write the `tintTransform` element as an indirect reference to a
@@ -503,9 +518,68 @@ impl<'a> Separation<'a> {
     /// used.
     pub fn tint_ref(&mut self, id: Ref) -> &mut Self {
         if !self.has_alternate {
-            panic!("alternateSpace must be specified before tintTransform");
+            panic!("alternate space must be specified before tint transform");
         }
         self.array.item(id);
+        self
+    }
+}
+
+/// Writer for a _DeviceN color space array with attributes_. PDF 1.6+.
+///
+/// First, one of the `alternate_...` methods must be called to specify the
+/// alternate color space. Then, one of the `tint_...` methods must be called to
+/// specify the tint transform method. Finally, the `attrs` function may
+/// optionally be called. If any function is called out of order, the function
+/// panics.
+///
+/// This struct is created by [`ColorSpace::device_n`].
+pub struct DeviceN<'a> {
+    array: Array<'a>,
+    has_alternate: bool,
+    has_tint: bool,
+}
+
+impl<'a> DeviceN<'a> {
+    /// Start the wrapper.
+    pub(crate) fn start(array: Array<'a>) -> Self {
+        Self {
+            array,
+            has_alternate: false,
+            has_tint: false,
+        }
+    }
+
+    /// Write the `alternateSpace` element as a device color space.
+    pub fn alternate_device(&mut self, device_space: DeviceColorSpace) -> &mut Self {
+        if self.has_alternate {
+            panic!("alternate space already specified");
+        }
+        self.array.item(device_space.to_name());
+        self.has_alternate = true;
+        self
+    }
+
+    /// Start writing the `alternateSpace` element as a color space array. The
+    /// color space must not be another `Pattern`, `Separation`, or `DeviceN`
+    /// color space.
+    pub fn alternate_color_space(&mut self) -> ColorSpace<'_> {
+        if self.has_alternate {
+            panic!("alternate space already specified");
+        }
+        self.has_alternate = true;
+        ColorSpace::start(self.array.push())
+    }
+
+    /// Write the `alternateSpace` element as an indirect reference. The color
+    /// space must not be another `Pattern`, `Separation`, or `DeviceN` color
+    /// space.
+    pub fn alternate_color_space_ref(&mut self, id: Ref) -> &mut Self {
+        if self.has_alternate {
+            panic!("alternate space already specified");
+        }
+        self.array.item(id);
+        self.has_alternate = true;
         self
     }
 
@@ -513,35 +587,53 @@ impl<'a> Separation<'a> {
     /// interpolation function.
     pub fn tint_exponential(&mut self) -> ExponentialFunction<'_> {
         if !self.has_alternate {
-            panic!("alternateSpace must be specified before tintTransform");
+            panic!("alternate space must be specified before tint transform");
+        } else if self.has_tint {
+            panic!("tint transform already specified");
         }
+
+        self.has_tint = true;
         ExponentialFunction::start(self.array.push())
     }
 
     /// Start writing the `tintTransform` element as a stitching function.
     pub fn tint_stitching(&mut self) -> StitchingFunction<'_> {
         if !self.has_alternate {
-            panic!("alternateSpace must be specified before tintTransform");
+            panic!("alternate space must be specified before tint transform");
+        } else if self.has_tint {
+            panic!("tint transform already specified");
         }
+
+        self.has_tint = true;
         StitchingFunction::start(self.array.push())
     }
-}
 
-/// Writer for a _DeviceN color space array with attributes_. PDF 1.6+.
-///
-/// This struct is created by [`ColorSpace::device_n`].
-pub struct DeviceN<'a> {
-    array: Array<'a>,
-}
+    /// Write the `tintTransform` element as an indirect reference to a
+    /// function. The function must take n numbers as input and produce a color
+    /// in the alternate color space as output. This must be used if a stream
+    /// function like [`SampledFunction`] or [`PostScriptFunction`] is used.
+    pub fn tint_ref(&mut self, id: Ref) -> &mut Self {
+        if !self.has_alternate {
+            panic!("alternate space must be specified before tint transform");
+        } else if self.has_tint {
+            panic!("tint transform already specified");
+        }
 
-impl<'a> DeviceN<'a> {
-    /// Start the wrapper.
-    pub(crate) fn start(array: Array<'a>) -> Self {
-        Self { array }
+        self.array.item(id);
+        self.has_tint = true;
+        self
     }
 
     /// Start writing the `attrs` dictionary. PDF 1.6+.
     pub fn attrs(&mut self) -> DeviceNAttrs<'_> {
+        if !self.has_alternate {
+            panic!(
+                "alternate space and tint transform must be specified before attributes"
+            );
+        } else if !self.has_tint {
+            panic!("tint transform must be specified before attributes");
+        }
+
         DeviceNAttrs::start(self.array.push())
     }
 }
@@ -566,8 +658,8 @@ impl DeviceNAttrs<'_> {
     /// names and its values are separation color space arrays.
     ///
     /// Required if the `/Subtype` attribute is `NChannel`.
-    pub fn colorants(&mut self) -> Dict<'_> {
-        self.dict.insert(Name(b"Colorants")).dict()
+    pub fn colorants(&mut self) -> TypedDict<'_, Dict> {
+        self.dict.insert(Name(b"Colorants")).dict().typed()
     }
 
     /// Start writing the `/Process` dictionary.

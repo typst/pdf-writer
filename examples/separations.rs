@@ -1,9 +1,7 @@
 //! This example shows how to use Separation color spaces.
 
-use pdf_writer::{
-    types::ColorSpaceOperand, writers::ColorSpace, Content, Finish, Name, PdfWriter,
-    Rect, Ref,
-};
+use pdf_writer::writers::ColorSpace;
+use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref};
 
 fn main() -> std::io::Result<()> {
     // Start writing.
@@ -58,9 +56,12 @@ fn main() -> std::io::Result<()> {
         Some([-128.0, 127.0, -128.0, 127.0]),
     );
 
-    // We interpolate between two values in the Lab color space for a single
-    // separation input dimension. The exponent is 1.0, so the interpolation is linear.
+    // In order to apply the alternate color space, we need to map from a
+    // single-dimensional separation color value between `0` and `1` to a color
+    // value in the alternate space. We interpolate between two values in the
+    // Lab color space defined above: A neutral white and a greenish color.
     let mut metallic_func = metallic.tint_exponential();
+    // The exponent is 1.0, so the interpolation is linear.
     metallic_func.n(1.0);
     metallic_func.domain([0.0, 1.0]);
     // This is a L*a*b* value, so the value with maximum luminance / white is [100.0, 0.0, 0.0].
@@ -73,18 +74,20 @@ fn main() -> std::io::Result<()> {
 
     // Sometimes, the separation color is specific to a customer. In this case,
     // we can use a non-standard name for the separation color space.
-    // An approximation of the sRGB color space without using an ICC profile.
-    // Refer to `examples/icc_based.rs` for an example of how to use ICC
-    // profiles.
     let mut pink = color_spaces
         .insert(hot_pink_name)
         .start::<ColorSpace>()
         .separation(Name(b"Acme Pink"));
+
+    // We set an approximation of the sRGB color space as the alternate color
+    // space here. Refer to `examples/icc_based.rs` for an example of how to use
+    // ICC profiles to get an accurate sRGB color space.
     pink.alternate_color_space().srgb();
 
-    // We interpolate between two values in the sRGB color space for a single
-    // separation input dimension.
+    // We use a function that interpolates between two three-dimensional RGB
+    // color values: A neutral white and a hot pink.
     let mut pink_func = pink.tint_exponential();
+    // The exponent is 1.0, so the interpolation is linear.
     pink_func.n(1.0);
     pink_func.domain([0.0, 1.0]);
     // In this sRGB color space, we start with full components for all colors to
@@ -106,7 +109,7 @@ fn main() -> std::io::Result<()> {
     // We first need to set the color space for the `set_fill_color` / `scn`
     // operator. We'll use the name that we registered in the resource
     // dictionary above.
-    content.set_fill_color_space(ColorSpaceOperand::Named(metallic_name));
+    content.set_fill_color_space(metallic_name);
     // Set the fill color in the current color space. Note that only the
     // `set_fill_color` and `set_stroke_color` operators will use custom color
     // spaces. Note that the `set_fill_rgb` and `set_fill_cmyk` and `set_fill_gray`
@@ -120,7 +123,7 @@ fn main() -> std::io::Result<()> {
     content.fill_even_odd();
 
     // Fill and stroke color spaces must be set independently.
-    content.set_stroke_color_space(ColorSpaceOperand::Named(hot_pink_name));
+    content.set_stroke_color_space(hot_pink_name);
     content.set_stroke_color([1.0]);
 
     // Draw a crescent.

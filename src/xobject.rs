@@ -132,8 +132,7 @@ impl<'a> ImageXObject<'a> {
     /// Write the `/Metadata` attribute to specify the image's metadata. PDF
     /// 1.4+.
     ///
-    /// The reference shall point to a [metadata
-    /// stream](crate::writers::Metadata).
+    /// The reference shall point to a [metadata stream](Metadata).
     pub fn metadata(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Metadata"), id);
         self

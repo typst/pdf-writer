@@ -1,9 +1,7 @@
 //! This example shows how to use ICC-based color spaces.
 
-use pdf_writer::{
-    types::ColorSpaceOperand, writers::ColorSpace, Content, Finish, Name, PdfWriter,
-    Rect, Ref,
-};
+use pdf_writer::writers::ColorSpace;
+use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref};
 
 fn main() -> std::io::Result<()> {
     // Start writing.
@@ -15,13 +13,13 @@ fn main() -> std::io::Result<()> {
     let page_id = Ref::new(3);
     let content_id = Ref::new(4);
 
-    // This will be the reference to the stream containing the ICC profile. the
-    // ICC profile. It can be used with multiple `Resource` dictionaries.
-    let srgb_ref = Ref::new(5);
+    // This will reference the stream containing the ICC profile. It can be used
+    // with multiple `Resource` dictionaries.
+    let icc_id = Ref::new(5);
 
-    // The name with which we can reference the color space in the content
+    // The name with which we can reference the color space array in the content
     // stream. This can be any name and will be assigned to the color space
-    // stream in the resource dictionary associated with the content stream.
+    // array in the resource dictionary associated with the content stream.
     let color_space_name = Name(b"sRGB");
 
     // Set up the page tree. For more details see `hello.rs`.
@@ -45,7 +43,7 @@ fn main() -> std::io::Result<()> {
         .color_spaces()
         .insert(color_space_name)
         .start::<ColorSpace>()
-        .icc_based(srgb_ref);
+        .icc_based(icc_id);
     page.finish();
 
     // Write the content stream with a green rectangle and a crescent with a red
@@ -54,12 +52,12 @@ fn main() -> std::io::Result<()> {
     // We first need to set the color space for the `set_fill_color` / `scn`
     // operator. We'll use the name that we registered in the resource
     // dictionary above.
-    content.set_fill_color_space(ColorSpaceOperand::Named(color_space_name));
+    content.set_fill_color_space(color_space_name);
     // Set the fill color in the current color space. Note that only the
     // `set_fill_color` and `set_stroke_color` operators will use custom color
-    // spaces. Note that the `set_fill_rgb` and `set_fill_cmyk` and `set_fill_gray`
-    // operators will always use the non-calibrated Device color spaces, the
-    // same applies to the stroke color operators.
+    // spaces. The `set_fill_rgb`, `set_fill_cmyk` and `set_fill_gray` operators
+    // will always use the non-calibrated Device color spaces, the same applies
+    // to the stroke color operators.
     content.set_fill_color([0.0, 1.0, 0.0]);
     // Draw a green rectangle at the top of the page.
     content.rect(108.0, 734.0, 100.0, 100.0);
@@ -68,7 +66,7 @@ fn main() -> std::io::Result<()> {
     content.fill_even_odd();
 
     // Fill and stroke color spaces must be set independently.
-    content.set_stroke_color_space(ColorSpaceOperand::Named(color_space_name));
+    content.set_stroke_color_space(color_space_name);
     content.set_stroke_color([1.0, 0.0, 0.0]);
 
     // Draw a crescent.
@@ -84,10 +82,9 @@ fn main() -> std::io::Result<()> {
     writer.stream(content_id, &content.finish());
 
     // Read the ICC profile from a file.
-    let icc_data = std::fs::read("examples/sRGB_v4.icc").unwrap();
-
+    let icc_data = std::fs::read("examples/sRGB_v4.icc")?;
     // Start writing the ICC profile stream.
-    let mut icc_profile = writer.icc_profile(srgb_ref, &icc_data);
+    let mut icc_profile = writer.icc_profile(icc_id, &icc_data);
 
     // PDF requires metadata about the ICC profile. We provide it as entries in
     // the stream dictionary. The `n` entry is required and specifies the number
@@ -105,5 +102,5 @@ fn main() -> std::io::Result<()> {
     icc_profile.finish();
 
     // Write the thing to a file.
-    std::fs::write("target/icc_based.pdf", writer.finish())
+    std::fs::write("target/icc.pdf", writer.finish())
 }
