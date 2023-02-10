@@ -37,6 +37,16 @@ impl<'a> ImageXObject<'a> {
         self.insert(Name(b"ColorSpace")).start()
     }
 
+    /// Write the `/ColorSpace` attribute as a name from the resource dictionary.
+    ///
+    /// Required for all images except if using the `JPXDecode` filter.
+    /// If this is an image soft mask, the color space must be `DeviceGray`.
+    /// Must not be `Pattern`.
+    pub fn color_space_name(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"ColorSpace"), name);
+        self
+    }
+
     /// Write the `/BitsPerComponent` attribute. Required.
     ///
     /// Required for all images except if using the `JPXDecode` filter.
