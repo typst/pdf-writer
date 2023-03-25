@@ -136,12 +136,12 @@ deref!('a, Catalog<'a> => Dict<'a>, dict);
 pub enum PageLayout {
     /// Only a single page at a time.
     SinglePage,
-    /// A single, continously scrolling column of pages.
+    /// A single, continuously scrolling column of pages.
     OneColumn,
-    /// Two continously scrolling columns of pages, laid out with odd-numbered
+    /// Two continuously scrolling columns of pages, laid out with odd-numbered
     /// pages on the left.
     TwoColumnLeft,
-    /// Two continously scrolling columns of pages, laid out with odd-numbered
+    /// Two continuously scrolling columns of pages, laid out with odd-numbered
     /// pages on the right (like in a left-bound book).
     TwoColumnRight,
     /// Only two pages are visible at a time, laid out with odd-numbered pages
@@ -820,7 +820,7 @@ deref!('a, MarkInfo<'a> => Dict<'a>, dict);
 
 /// Predominant reading order of text.
 ///
-/// Used to aid the viewer with the spacial ordering in which to display pages.
+/// Used to aid the viewer with the special ordering in which to display pages.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Direction {
     /// Left-to-right.
@@ -1180,7 +1180,7 @@ impl<'a> Page<'a> {
     }
 
     /// Write the `/Tabs` attribute. This specifies the order in which the
-    /// annotations should be focussed by hitting tab. PDF 1.5+.
+    /// annotations should be focused by hitting tab. PDF 1.5+.
     pub fn tab_order(&mut self, order: TabOrder) -> &mut Self {
         self.pair(Name(b"Tabs"), order.to_name());
         self

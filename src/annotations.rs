@@ -35,7 +35,7 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Write the `/NM` attribute. This uniquely identifies the anotation on the
+    /// Write the `/NM` attribute. This uniquely identifies the annotation on the
     /// page. PDF 1.3+.
     pub fn name(&mut self, text: TextStr) -> &mut Self {
         self.pair(Name(b"NM"), text);
@@ -276,7 +276,7 @@ bitflags::bitflags! {
     /// Bitflags describing various characteristics of annotations.
     pub struct AnnotationFlags: u32 {
         /// This will hide the annotation if the viewer does not recognize its
-        /// subtype. Otherwise, it will be rendered as specified in its apprearance
+        /// subtype. Otherwise, it will be rendered as specified in its appearance
         /// stream.
         const INVISIBLE = 1 << 0;
         /// This hides the annotation from view and disallows interaction. PDF 1.2+.
@@ -445,7 +445,7 @@ impl<'a> BorderStyle<'a> {
     }
 
     /// Write the `/D` attribute to set the repeating lengths of dashes and gaps
-    /// inbetween.
+    /// in between.
     pub fn dashes(&mut self, dash_pattern: impl IntoIterator<Item = f32>) -> &mut Self {
         self.insert(Name(b"D")).array().items(dash_pattern);
         self
