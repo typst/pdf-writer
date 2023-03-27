@@ -297,14 +297,14 @@ impl LayoutAttributes<'_> {
     }
 
     /// Write the `/Width` attribute for table row groups and illustrative
-    /// elements. No instrinsic height will be assumed if left empty.
+    /// elements. No intrinsic height will be assumed if left empty.
     pub fn width(&mut self, width: f32) -> &mut Self {
         self.dict.pair(Name(b"Width"), width);
         self
     }
 
     /// Write the `/Height` attribute for table row groups and illustrative
-    /// elements. No instrinsic height will be assumed if left empty.
+    /// elements. No intrinsic height will be assumed if left empty.
     pub fn height(&mut self, height: f32) -> &mut Self {
         self.dict.pair(Name(b"Height"), height);
         self

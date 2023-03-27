@@ -547,7 +547,7 @@ impl Content {
         self
     }
 
-    /// `T*`: Move to the start of the next line, determing the vertical offset
+    /// `T*`: Move to the start of the next line, determining the vertical offset
     /// through the text state's leading parameter.
     #[inline]
     pub fn next_line_using_leading(&mut self) -> &mut Self {
@@ -629,7 +629,7 @@ impl<'a> PositionedItems<'a> {
         Self { array: obj.array() }
     }
 
-    /// Show a continous string without adjustments.
+    /// Show a continuous string without adjustments.
     ///
     /// The encoding of the text depends on the font.
     #[inline]
@@ -1119,14 +1119,14 @@ impl ArtifactAttachment {
 
 /// Compatibility.
 impl Content {
-    /// `BX`: Begin a compatability section.
+    /// `BX`: Begin a compatibility section.
     #[inline]
     pub fn begin_compat(&mut self) -> &mut Self {
         self.op("BX");
         self
     }
 
-    /// `EX`: End a compatability section.
+    /// `EX`: End a compatibility section.
     #[inline]
     pub fn end_compat(&mut self) -> &mut Self {
         self.op("EX");
@@ -1227,7 +1227,7 @@ impl<'a> Resources<'a> {
     /// Start writing the `/Properties` attribute.
     ///
     /// This allows to write property lists with indirect objects for
-    /// marked-content sequences. These propeties can be used by property lists
+    /// marked-content sequences. These properties can be used by property lists
     /// using the [`MarkContent::properties_named`] method. PDF 1.2+.
     pub fn properties(&mut self) -> TypedDict<'_, PropertyList> {
         self.insert(Name(b"Properties")).dict().typed()
@@ -1238,7 +1238,7 @@ deref!('a, Resources<'a> => Dict<'a>, dict);
 
 /// What procedure sets to send to a PostScript printer or other output device.
 ///
-/// This enumeration provides compatibilty for printing PDFs of versions 1.3 and
+/// This enumeration provides compatibility for printing PDFs of versions 1.3 and
 /// below.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ProcSet {

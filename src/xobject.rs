@@ -205,7 +205,7 @@ impl<'a> FormXObject<'a> {
     }
 
     /// Start writing the `/Resources` dictionary to specify the resources used
-    /// by the XObject. This makes it independant of the parent content stream
+    /// by the XObject. This makes it independent of the parent content stream
     /// it is eventually invoked in. PDF 1.2+.
     pub fn resources(&mut self) -> Resources<'_> {
         self.insert(Name(b"Resources")).start()
@@ -300,7 +300,7 @@ impl<'a> Group<'a> {
     /// group.
     ///
     /// Within a knockout group, the group children are all composited
-    /// seperately against the backdrop instead of on top of each other.
+    /// separately against the backdrop instead of on top of each other.
     pub fn knockout(&mut self, knockout: bool) -> &mut Self {
         self.pair(Name(b"K"), knockout);
         self
