@@ -1642,9 +1642,6 @@ mod tests {
             .show(Str(b"CD"));
         content.end_text();
 
-        assert_eq!(
-            content.finish(),
-            b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
-        );
+        assert_eq!(content.finish(), b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
     }
 }

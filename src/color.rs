@@ -181,11 +181,7 @@ impl<'a> IccProfile<'a> {
     /// The number of components in the color space.
     /// Shall be 1, 3, or 4.
     pub fn n(&mut self, n: i32) -> &mut Self {
-        assert!(
-            n == 1 || n == 3 || n == 4,
-            "n must be 1, 3, or 4, but is {}",
-            n
-        );
+        assert!(n == 1 || n == 3 || n == 4, "n must be 1, 3, or 4, but is {}", n);
         self.pair(Name(b"N"), n);
         self
     }
@@ -243,9 +239,7 @@ impl ColorSpace<'_> {
             CIE_D65,
             None,
             Some([2.2, 2.2, 2.2]),
-            Some([
-                0.4124, 0.2126, 0.0193, 0.3576, 0.715, 0.1192, 0.1805, 0.0722, 0.9505,
-            ]),
+            Some([0.4124, 0.2126, 0.0193, 0.3576, 0.715, 0.1192, 0.1805, 0.0722, 0.9505]),
         )
     }
 
@@ -543,11 +537,7 @@ pub struct DeviceN<'a> {
 impl<'a> DeviceN<'a> {
     /// Start the wrapper.
     pub(crate) fn start(array: Array<'a>) -> Self {
-        Self {
-            array,
-            has_alternate: false,
-            has_tint: false,
-        }
+        Self { array, has_alternate: false, has_tint: false }
     }
 
     /// Write the `alternateSpace` element as a device color space.

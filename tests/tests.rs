@@ -43,7 +43,7 @@ where
     f(&mut w);
     let end = w.len();
     let buf = w.finish();
-    buf[start .. end].to_vec()
+    buf[start..end].to_vec()
 }
 
 /// Return the slice of bytes written for an object.
@@ -52,7 +52,7 @@ where
     F: FnOnce(Obj<'_>),
 {
     let buf = slice(|w| f(w.indirect(Ref::new(1))));
-    buf[8 .. buf.len() - 9].to_vec()
+    buf[8..buf.len() - 9].to_vec()
 }
 
 #[test]

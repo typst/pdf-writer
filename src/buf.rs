@@ -51,7 +51,11 @@ impl BufExt for Vec<u8> {
     #[inline]
     fn push_hex(&mut self, value: u8) {
         fn hex(b: u8) -> u8 {
-            if b < 10 { b'0' + b } else { b'A' + (b - 10) }
+            if b < 10 {
+                b'0' + b
+            } else {
+                b'A' + (b - 10)
+            }
         }
 
         self.push(hex(value >> 4));

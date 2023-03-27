@@ -102,7 +102,7 @@ pub struct TextStr<'a>(pub &'a str);
 impl Primitive for TextStr<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         // ASCII and PDFDocEncoding match for 32 up to 126.
-        if self.0.bytes().all(|b| matches!(b, 32 ..= 126)) {
+        if self.0.bytes().all(|b| matches!(b, 32..=126)) {
             Str(self.0.as_bytes()).write(buf);
         } else {
             let mut bytes = vec![254, 255];
@@ -202,9 +202,7 @@ impl Rect {
     /// rectangle in counterclockwise order.
     #[inline]
     pub fn to_quad_points(self) -> [f32; 8] {
-        [
-            self.x1, self.y1, self.x2, self.y1, self.x2, self.y2, self.x1, self.y2,
-        ]
+        [self.x1, self.y1, self.x2, self.y1, self.x2, self.y2, self.x1, self.y2]
     }
 }
 
@@ -608,7 +606,7 @@ impl<'a> Dict<'a> {
         self.len += 1;
         self.buf.push(b'\n');
 
-        for _ in 0 .. self.indent {
+        for _ in 0..self.indent {
             self.buf.push(b' ');
         }
 
@@ -650,7 +648,7 @@ impl Drop for Dict<'_> {
     fn drop(&mut self) {
         if self.len != 0 {
             self.buf.push(b'\n');
-            for _ in 0 .. self.indent - 2 {
+            for _ in 0..self.indent - 2 {
                 self.buf.push(b' ');
             }
         }
