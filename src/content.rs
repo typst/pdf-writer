@@ -939,15 +939,15 @@ impl<'a> MarkContent<'a> {
     }
 
     /// Start writing this marked content's property list. Mutually exclusive
-    /// with [`direct`](Self::properties_named).
+    /// with [`properties_named`](Self::properties_named).
     #[inline]
-    pub fn properties_direct(&mut self) -> PropertyList<'_> {
+    pub fn properties(&mut self) -> PropertyList<'_> {
         self.op.obj().start()
     }
 
     /// Reference a property list from the Resource dictionary. These property
     /// lists can be written using the [`Resources::properties`] method.
-    /// Mutually exclusive with [`direct`](Self::properties_direct).
+    /// Mutually exclusive with [`properties`](Self::properties).
     #[inline]
     pub fn properties_named(mut self, name: Name) {
         self.op.operand(name);
