@@ -1300,7 +1300,7 @@ impl<'a> OutlineItem<'a> {
 
     /// Start writing the `/Dest` attribute to set the destination of this
     /// outline item.
-    pub fn dest_direct(&mut self) -> Destination<'_> {
+    pub fn dest(&mut self) -> Destination<'_> {
         self.insert(Name(b"Dest")).start()
     }
 
