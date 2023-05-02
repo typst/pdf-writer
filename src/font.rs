@@ -716,15 +716,25 @@ impl UnicodeCmap {
         Self { buf, mappings: vec![], count: 0 }
     }
 
-    /// Add a mapping from a glyph ID to a unicode codepoint.
+    /// Add a mapping from a glyph ID to a codepoint.
     pub fn pair(&mut self, glyph: u16, codepoint: char) {
+        self.pair_with_multiple(glyph, [codepoint]);
+    }
+
+    /// Add a mapping from a glyph ID to multiple codepoints.
+    pub fn pair_with_multiple(
+        &mut self,
+        glyph: u16,
+        codepoints: impl IntoIterator<Item = char>,
+    ) {
         self.mappings.push(b'<');
         self.mappings.push_hex_u16(glyph);
         self.mappings.extend(b"> <");
 
-        let mut utf16 = [0u16; 2];
-        for &mut part in codepoint.encode_utf16(&mut utf16) {
-            self.mappings.push_hex_u16(part);
+        for c in codepoints {
+            for &mut part in c.encode_utf16(&mut [0; 2]) {
+                self.mappings.push_hex_u16(part);
+            }
         }
 
         self.mappings.extend(b">\n");
