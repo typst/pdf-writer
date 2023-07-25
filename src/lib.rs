@@ -148,7 +148,7 @@ pub mod types {
         DeviceNSubtype, OutputIntentSubtype, PaintType, ShadingType, TilingType,
     };
     pub use content::{
-        ArtifactAttachment, ArtifactSubtype, ArtifactType, ColorSpaceOperand,
+        ArtifactAttachment, ArtifactSubtype, ArtifactType, BlendMode, ColorSpaceOperand,
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
         TextRenderingMode,
     };
