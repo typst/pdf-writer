@@ -107,8 +107,8 @@ pub mod writers {
     };
     pub use color::{
         ColorSpace, DeviceN, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess,
-        IccProfile, OutputIntent, Separation, SeparationInfo, Shading, ShadingPattern,
-        TilingPattern,
+        FunctionShading, IccProfile, OutputIntent, Separation, SeparationInfo,
+        ShadingPattern, StreamShading, StreamShadingType, TilingPattern,
     };
     pub use content::{
         Artifact, ExtGraphicsState, MarkContent, Operation, PositionedItems,
@@ -145,7 +145,7 @@ pub mod types {
         TableHeaderScope, TextAlign, TextDecorationType, WritingMode,
     };
     pub use color::{
-        DeviceNSubtype, OutputIntentSubtype, PaintType, ShadingType, TilingType,
+        DeviceNSubtype, FunctionShadingType, OutputIntentSubtype, PaintType, TilingType,
     };
     pub use content::{
         ArtifactAttachment, ArtifactSubtype, ArtifactType, BlendMode, ColorSpaceOperand,
@@ -502,9 +502,18 @@ impl PdfWriter {
         self.indirect(id).start()
     }
 
-    /// Start writing a shading.
-    pub fn shading(&mut self, id: Ref) -> Shading<'_> {
+    /// Start writing a function-based shading (type 1-3).
+    pub fn function_shading(&mut self, id: Ref) -> FunctionShading<'_> {
         self.indirect(id).start()
+    }
+
+    /// Start writing a stream-based shading (type 4-7).
+    pub fn stream_shading<'a>(
+        &'a mut self,
+        id: Ref,
+        content: &'a [u8],
+    ) -> StreamShading<'a> {
+        StreamShading::start(self.stream(id, content))
     }
 
     /// Start writing a tiling pattern stream.

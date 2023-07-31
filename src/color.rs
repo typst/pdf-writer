@@ -893,9 +893,15 @@ writer!(ShadingPattern: |obj| {
 });
 
 impl<'a> ShadingPattern<'a> {
-    /// Start writing the `/Shading` dictionary.
-    pub fn shading(&mut self) -> Shading<'_> {
+    /// Start writing the `/Shading` dictionary for a type 1, 2, or 3 shading.
+    pub fn function_shading(&mut self) -> FunctionShading<'_> {
         self.dict.insert(Name(b"Shading")).start()
+    }
+
+    /// Add an indirect reference to a `/Shading` dictionary or a shading stream.
+    pub fn shading_ref(&mut self, id: Ref) -> &mut Self {
+        self.dict.pair(Name(b"Shading"), id);
+        self
     }
 
     /// Write the `/Matrix` attribute.
@@ -918,18 +924,18 @@ deref!('a, ShadingPattern<'a> => Dict< 'a>, dict);
 ///
 /// This struct is created by [`PdfWriter::shading`] and
 /// [`ShadingPattern::shading`].
-pub struct Shading<'a> {
+pub struct FunctionShading<'a> {
     dict: Dict<'a>,
 }
 
-writer!(Shading: |obj| Self { dict: obj.dict() });
+writer!(FunctionShading: |obj| Self { dict: obj.dict() });
 
-impl<'a> Shading<'a> {
+impl<'a> FunctionShading<'a> {
     /// Write the `/ShadingType` attribute.
     ///
     /// Sets the type of shading. The available and required attributes change
     /// depending on this. Required.
-    pub fn shading_type(&mut self, kind: ShadingType) -> &mut Self {
+    pub fn shading_type(&mut self, kind: FunctionShadingType) -> &mut Self {
         self.dict.pair(Name(b"ShadingType"), kind.to_int());
         self
     }
@@ -990,7 +996,8 @@ impl<'a> Shading<'a> {
 
     /// Write the `/Function` attribute.
     ///
-    /// Sets the 2-in function to use for shading. Required.
+    /// Sets the function to use for shading. Number of in- and outputs depends
+    /// on shading type. Required for type 1, 2, and 3, optional otherwise.
     pub fn function(&mut self, function: Ref) -> &mut Self {
         self.dict.pair(Name(b"Function"), function);
         self
@@ -1016,26 +1023,166 @@ impl<'a> Shading<'a> {
     }
 }
 
-deref!('a, Shading<'a> => Dict<'a>, dict);
+deref!('a, FunctionShading<'a> => Dict<'a>, dict);
 
-/// What kind of shading to use.
+/// Writer for a _embedded file stream_.
+///
+/// This struct is created by [`PdfWriter::stream_shading`].
+pub struct StreamShading<'a> {
+    stream: Stream<'a>,
+}
+
+impl<'a> StreamShading<'a> {
+    /// Create a new character map writer.
+    pub(crate) fn start(stream: Stream<'a>) -> Self {
+        Self { stream }
+    }
+
+    /// Write the `/ShadingType` attribute.
+    ///
+    /// Sets the type of shading. The available and required attributes change
+    /// depending on this. Required.
+    pub fn shading_type(&mut self, kind: StreamShadingType) -> &mut Self {
+        self.stream.pair(Name(b"ShadingType"), kind.to_int());
+        self
+    }
+
+    /// Start writing the `/ColorSpace` attribute.
+    ///
+    /// Sets the color space of the shading function. May not be a `Pattern`
+    /// space. Required.
+    pub fn color_space(&mut self) -> ColorSpace<'_> {
+        self.stream.insert(Name(b"ColorSpace")).start()
+    }
+
+    /// Write the `/Background` attribute.
+    ///
+    /// Sets the background color of the area to be shaded. The `background`
+    /// iterator must contain exactly as many elements as the current
+    /// color space has dimensions.
+    pub fn background(&mut self, background: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.stream.insert(Name(b"Background")).array().items(background);
+        self
+    }
+
+    /// Write the `/BBox` attribute.
+    ///
+    /// Sets the bounding box of the shading in the target coordinate system.
+    pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
+        self.stream.pair(Name(b"BBox"), bbox);
+        self
+    }
+
+    /// Write the `/AntiAlias` attribute.
+    ///
+    /// Sets whether to anti-alias the shading.
+    pub fn anti_alias(&mut self, anti_alias: bool) -> &mut Self {
+        self.stream.pair(Name(b"AntiAlias"), anti_alias);
+        self
+    }
+
+    /// Write the `/Function` attribute.
+    ///
+    /// Sets the function to use for shading. Number of in- and outputs depends
+    /// on shading type. Optional.
+    pub fn function(&mut self, function: Ref) -> &mut Self {
+        self.stream.pair(Name(b"Function"), function);
+        self
+    }
+
+    /// Write the `/BitsPerCoordinate` attribute.
+    ///
+    /// Sets how many bits are used to represent each vertex coordinate. Can be
+    /// any power of 2 between 1 and 32. Required.
+    pub fn bits_per_coordinate(&mut self, bits: i32) -> &mut Self {
+        self.stream.pair(Name(b"BitsPerCoordinate"), bits);
+        self
+    }
+
+    /// Write the `/BitsPerComponent` attribute.
+    ///
+    /// Sets how many bits are used to represent each color component. Can be
+    /// any power of 2 between 1 and 16. Required.
+    pub fn bits_per_component(&mut self, bits: i32) -> &mut Self {
+        self.stream.pair(Name(b"BitsPerComponent"), bits);
+        self
+    }
+
+    /// Write the `/BitsPerFlag` attribute.
+    ///
+    /// Sets how many bits are used to represent the vertices' edge flags. Can
+    /// be 0, 1, or 2. Required for type 4, 6, and 7.
+    pub fn bits_per_flag(&mut self, bits: i32) -> &mut Self {
+        self.stream.pair(Name(b"BitsPerFlag"), bits);
+        self
+    }
+
+    /// Write the `/Decode` attribute.
+    ///
+    /// Sets the ranges of the vertices' coordinates. Required.
+    pub fn decode(&mut self, decode: impl IntoIterator<Item = f32>) -> &mut Self {
+        self.stream.insert(Name(b"Decode")).array().items(decode);
+        self
+    }
+
+    /// Write the `/VerticesPerRow` attribute.
+    ///
+    /// Sets how many vertices are in each row of the lattice. Must be greater
+    /// than 2. Required for type 5.
+    pub fn vertices_per_row(&mut self, vertices: i32) -> &mut Self {
+        self.stream.pair(Name(b"VerticesPerRow"), vertices);
+        self
+    }
+}
+
+deref!('a, StreamShading<'a> => Stream<'a>, stream);
+
+/// What kind of shading to use for a function-based shading.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[non_exhaustive]
-pub enum ShadingType {
+pub enum FunctionShadingType {
     /// The function specifies the color for each point in the domain.
     Function,
     /// The function specifies the color for each point on a line.
     Axial,
-    /// The function specifies the color for each circle between two nested circles.
+    /// The function specifies the color for each circle between two nested
+    /// circles.
     Radial,
 }
 
-impl ShadingType {
+impl FunctionShadingType {
     pub(crate) fn to_int(self) -> i32 {
         match self {
             Self::Function => 1,
             Self::Axial => 2,
             Self::Radial => 3,
+        }
+    }
+}
+
+/// What kind of shading to use.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum StreamShadingType {
+    /// The function specifies which vertex has which color. The function is
+    /// optional.
+    FreeformGouraud,
+    /// The function specifies which vertex has which color. The function is
+    /// optional.
+    LatticeGouraud,
+    /// The function specifies which corner of the cell has which color. The
+    /// function is optional.
+    CoonsPatch,
+    /// The function specifies which corner of the cell has which color. The
+    /// function is optional.
+    TensorProductPatch,
+}
+
+impl StreamShadingType {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::FreeformGouraud => 4,
+            Self::LatticeGouraud => 5,
+            Self::CoonsPatch => 6,
+            Self::TensorProductPatch => 7,
         }
     }
 }
