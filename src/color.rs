@@ -4,7 +4,7 @@ use super::*;
 const CIE_D65: [f32; 3] = [0.9505, 1.0, 1.0888];
 
 /// CIE XYZ coordinates of the D50 horizon light white.
-const CIE_D50: [f32; 3] = [0.9642, 1.0, 0.8251];
+const CIE_D50: [f32; 3] = [0.9642, 1.0, 0.82489];
 
 /// CIE XYZ coordinates of the E equal radiator white.
 const CIE_E: [f32; 3] = [1.000, 1.000, 1.000];
@@ -250,7 +250,7 @@ impl ColorSpace<'_> {
         self.cal_rgb(
             CIE_D65,
             None,
-            Some([2.2, 2.2, 2.2]),
+            Some([2.1992188, 2.1992188, 2.1992188]),
             Some([
                 0.57667, 0.29734, 0.02703, 0.18556, 0.62736, 0.07069, 0.18823, 0.07529,
                 0.99134,
@@ -265,7 +265,7 @@ impl ColorSpace<'_> {
         self.cal_rgb(
             CIE_D65,
             None,
-            Some([2.2, 2.2, 2.2]),
+            Some([2.6, 2.6, 2.6]),
             Some([
                 0.48657, 0.2297, 0.0, 0.26567, 0.69174, 0.04511, 0.19822, 0.07929,
                 1.04394,
