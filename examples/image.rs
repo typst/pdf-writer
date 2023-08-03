@@ -87,7 +87,7 @@ fn main() -> std::io::Result<()> {
 
     // Add SMask if the image has transparency.
     if let Some(encoded) = &mask {
-        let mut s_mask = writer.image_xobject(s_mask_id, &encoded);
+        let mut s_mask = writer.image_xobject(s_mask_id, encoded);
         s_mask.filter(filter);
         s_mask.width(dynamic.width() as i32);
         s_mask.height(dynamic.height() as i32);

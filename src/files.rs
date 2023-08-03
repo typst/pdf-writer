@@ -63,7 +63,7 @@ impl<'a> FileSpec<'a> {
 
 deref!('a, FileSpec<'a> => Dict<'a>, dict);
 
-/// Writer for a _embedded file stream_.
+/// Writer for an _embedded file stream_.
 ///
 /// This struct is created by [`PdfWriter::embedded_file`].
 pub struct EmbeddedFile<'a> {
@@ -96,7 +96,7 @@ impl<'a> EmbeddedFile<'a> {
 
 deref!('a, EmbeddedFile<'a> => Stream<'a>, stream);
 
-/// Writer for a _embedded file parameter dictionary_.
+/// Writer for an _embedded file parameter dictionary_.
 ///
 /// This struct is created by [`EmbeddedFile::params`].
 pub struct EmbeddingParams<'a> {

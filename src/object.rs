@@ -321,37 +321,24 @@ impl Date {
 
 impl Primitive for Date {
     fn write(self, buf: &mut Vec<u8>) {
-        write!(buf, "(D:{:04}", self.year).unwrap();
+        buf.extend(b"(D:");
 
-        self.month
-            .and_then(|month| {
-                write!(buf, "{:02}", month).unwrap();
-                self.day
-            })
-            .and_then(|day| {
-                write!(buf, "{:02}", day).unwrap();
-                self.hour
-            })
-            .and_then(|hour| {
-                write!(buf, "{:02}", hour).unwrap();
-                self.minute
-            })
-            .and_then(|minute| {
-                write!(buf, "{:02}", minute).unwrap();
-                self.second
-            })
-            .and_then(|second| {
-                write!(buf, "{:02}", second).unwrap();
-                self.utc_offset_hour
-            })
-            .map(|utc_offset_hour| {
-                if utc_offset_hour == 0 && self.utc_offset_minute == 0 {
-                    buf.push(b'Z');
-                } else {
-                    write!(buf, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
-                        .unwrap();
-                }
-            });
+        (|| {
+            write!(buf, "{:04}", self.year).unwrap();
+            write!(buf, "{:02}", self.month?).unwrap();
+            write!(buf, "{:02}", self.day?).unwrap();
+            write!(buf, "{:02}", self.hour?).unwrap();
+            write!(buf, "{:02}", self.minute?).unwrap();
+            write!(buf, "{:02}", self.second?).unwrap();
+            let utc_offset_hour = self.utc_offset_hour?;
+            if utc_offset_hour == 0 && self.utc_offset_minute == 0 {
+                buf.push(b'Z');
+            } else {
+                write!(buf, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
+                    .unwrap();
+            }
+            Some(())
+        })();
 
         buf.push(b')');
     }
@@ -463,6 +450,12 @@ impl<'a> Array<'a> {
         self.len
     }
 
+    /// Whether no items have been written so far.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Start writing an arbitrary item.
     #[inline]
     pub fn push(&mut self) -> Obj<'_> {
@@ -543,6 +536,12 @@ where
         self.array.len()
     }
 
+    /// Whether no items have been written so far.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Write an item.
     #[inline]
     pub fn item(&mut self, value: T) -> &mut Self
@@ -598,6 +597,12 @@ impl<'a> Dict<'a> {
     #[inline]
     pub fn len(&self) -> i32 {
         self.len
+    }
+
+    /// Whether no pairs have been written so far.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     /// Start writing a pair with an arbitrary value.
@@ -689,6 +694,12 @@ where
     #[inline]
     pub fn len(&self) -> i32 {
         self.dict.len()
+    }
+
+    /// Whether no pairs have been written so far.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Write a key-value pair.

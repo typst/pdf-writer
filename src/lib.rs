@@ -81,6 +81,7 @@ to the [PDF specification] to make sure you create valid PDFs.
 
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
+#![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
 mod macros;
@@ -187,6 +188,7 @@ pub struct PdfWriter {
 impl PdfWriter {
     /// Create a new PDF writer with the default buffer capacity
     /// (currently 8 KB).
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_capacity(8 * 1024)
     }
@@ -220,6 +222,7 @@ impl PdfWriter {
 
     /// The number of bytes that were written so far.
     #[inline]
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.buf.len()
     }
@@ -249,7 +252,8 @@ impl PdfWriter {
             }
 
             // Fill in free list.
-            for free_id in written..object_id.get() {
+            let start = written;
+            for free_id in start..object_id.get() {
                 let mut next = free_id + 1;
                 if next == object_id.get() {
                     // Find next free id.

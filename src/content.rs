@@ -9,6 +9,7 @@ pub struct Content {
 impl Content {
     /// Create a new content stream with the default buffer capacity
     /// (currently 1 KB).
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_capacity(1024)
     }
