@@ -124,9 +124,10 @@ impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
         buf.push(b'/');
         for &byte in self.0 {
-            // Quite a few characters must be escaped in names, so we take the
-            // safe route and allow only ASCII letters and numbers.
-            if byte.is_ascii_alphanumeric() {
+            // - Number sign shall use hexadecimal escape
+            // - Regular characters within the range exlacamation mark .. tilde
+            //   can be written directly
+            if byte != b'#' && matches!(byte, b'!'..=b'~') && is_regular_character(byte) {
                 buf.push(byte);
             } else {
                 buf.push(b'#');
@@ -134,6 +135,15 @@ impl Primitive for Name<'_> {
             }
         }
     }
+}
+
+/// Regular characters are a PDF concept.
+fn is_regular_character(byte: u8) -> bool {
+    ![
+        b'\0', b'\t', b'\n', b'\x0C', b'\r', b' ', b'(', b')', b'<', b'>', b'[', b']',
+        b'{', b'}', b'/', b'%',
+    ]
+    .contains(&byte)
 }
 
 /// The null object.
