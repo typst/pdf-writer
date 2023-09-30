@@ -182,6 +182,7 @@ pub struct PdfWriter {
     offsets: Vec<(Ref, usize)>,
     catalog_id: Option<Ref>,
     info_id: Option<Ref>,
+    file_id: Option<(Vec<u8>, Vec<u8>)>,
 }
 
 /// Core methods.
@@ -202,6 +203,7 @@ impl PdfWriter {
             offsets: vec![],
             catalog_id: None,
             info_id: None,
+            file_id: None,
         }
     }
 
@@ -287,6 +289,12 @@ impl PdfWriter {
 
         if let Some(info_id) = self.info_id {
             trailer.pair(Name(b"Info"), info_id);
+        }
+
+        if let Some(file_id) = self.file_id {
+            let mut ids = trailer.insert(Name(b"ID")).array();
+            ids.item(Str(&file_id.0));
+            ids.item(Str(&file_id.1));
         }
 
         trailer.finish();
@@ -382,6 +390,16 @@ impl PdfWriter {
     pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
         self.info_id = Some(id);
         self.indirect(id).start()
+    }
+
+    /// Set the file identifier for the document.
+    ///
+    /// The file identifier is a pair of two byte strings that shall be used to
+    /// uniquely identify a particular file. The first string should always stay
+    /// the same for a document, the second should change for each revision. It
+    /// is optional, but recommended. PDF 1.1+.
+    pub fn file_id(&mut self, id: (Vec<u8>, Vec<u8>)) {
+        self.file_id = Some(id);
     }
 
     /// Start writing a page tree.
