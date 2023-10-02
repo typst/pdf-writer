@@ -97,6 +97,7 @@ impl Chunk {
     where
         F: FnMut(Ref) -> Ref,
     {
+        target.buf.reserve(self.len());
         crate::renumber::renumber(self, target, &mut mapping);
     }
 }
