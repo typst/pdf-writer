@@ -1,11 +1,11 @@
 //! This example shows how to use ICC-based color spaces.
 
 use pdf_writer::writers::ColorSpace;
-use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref};
+use pdf_writer::{Content, Finish, Name, Pdf, Rect, Ref};
 
 fn main() -> std::io::Result<()> {
     // Start writing.
-    let mut writer = PdfWriter::new();
+    let mut pdf = Pdf::new();
 
     // Define some indirect reference ids we'll use.
     let catalog_id = Ref::new(1);
@@ -23,11 +23,11 @@ fn main() -> std::io::Result<()> {
     let color_space_name = Name(b"sRGB");
 
     // Set up the page tree. For more details see `hello.rs`.
-    writer.catalog(catalog_id).pages(page_tree_id);
-    writer.pages(page_tree_id).kids([page_id]).count(1);
+    pdf.catalog(catalog_id).pages(page_tree_id);
+    pdf.pages(page_tree_id).kids([page_id]).count(1);
 
     // Write a page.
-    let mut page = writer.page(page_id);
+    let mut page = pdf.page(page_id);
 
     // Create an A4 page.
     page.media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
@@ -79,14 +79,14 @@ fn main() -> std::io::Result<()> {
     content.close_and_stroke();
 
     // Write the content stream.
-    writer.stream(content_id, &content.finish());
+    pdf.stream(content_id, &content.finish());
 
     // Read the ICC profile from a file.
     let icc_data = std::fs::read("examples/sRGB_v4.icc")?;
     // Start writing the ICC profile stream. In production use, you would
     // compress the data stream with the `FlateDecode` filter. Check the
     // `image.rs` example for details.
-    let mut icc_profile = writer.icc_profile(icc_id, &icc_data);
+    let mut icc_profile = pdf.icc_profile(icc_id, &icc_data);
 
     // PDF requires metadata about the ICC profile. We provide it as entries in
     // the stream dictionary. The `n` entry is required and specifies the number
@@ -104,5 +104,5 @@ fn main() -> std::io::Result<()> {
     icc_profile.finish();
 
     // Write the thing to a file.
-    std::fs::write("target/icc.pdf", writer.finish())
+    std::fs::write("target/icc.pdf", pdf.finish())
 }

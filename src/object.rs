@@ -5,22 +5,6 @@ use std::num::NonZeroI32;
 
 use super::*;
 
-/// A primitive type or a strongly typed writer.
-pub trait Type {}
-
-impl Type for bool {}
-impl Type for i32 {}
-impl Type for f32 {}
-impl Type for Str<'_> {}
-impl Type for TextStr<'_> {}
-impl Type for Name<'_> {}
-impl Type for Null {}
-impl Type for Ref {}
-impl Type for Rect {}
-impl Type for Date {}
-
-impl<'a, T: Writer<'a>> Type for T {}
-
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
@@ -64,38 +48,80 @@ impl Primitive for f32 {
 
 /// A string object (any byte sequence).
 ///
-/// This is usually written as `(Thing)`. However, it falls back to hexadecimal
-/// form (e.g. `<2829>` for the string `"()"`) if the byte sequence contains any
-/// of the three ASCII characters `\`, `(` or `)`.
+/// This is written as `(Thing)`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Str<'a>(pub &'a [u8]);
 
+impl Str<'_> {
+    /// Whether the parentheses in the byte string are balanced.
+    fn is_balanced(self) -> bool {
+        let mut depth = 0;
+        for &byte in self.0 {
+            match byte {
+                b'(' => depth += 1,
+                b')' if depth > 0 => depth -= 1,
+                b')' => return false,
+                _ => {}
+            }
+        }
+        depth == 0
+    }
+}
+
 impl Primitive for Str<'_> {
     fn write(self, buf: &mut Vec<u8>) {
-        // Fall back to hex formatting if the string contains a:
-        // - backslash because it is used for escaping,
-        // - parenthesis because they are the delimiters,
-        // - carriage return (0x0D) because it would be silently
-        //   transformed into a newline (0x0A).
-        if self.0.iter().any(|b| matches!(b, b'\\' | b'(' | b')' | b'\r')) {
+        // We use:
+        // - Literal strings for ASCII with nice escape sequences to make it
+        //   also be represented fully in visible ASCII. We also escape
+        //   parentheses because they are delimiters.
+        // - Hex strings for anything non-ASCII.
+        if self.0.iter().all(|b| b.is_ascii()) {
+            buf.reserve(self.0.len());
+            buf.push(b'(');
+
+            let mut balanced = None;
+            for &byte in self.0 {
+                match byte {
+                    b'(' | b')' => {
+                        if !*balanced
+                            .get_or_insert_with(|| byte != b')' && self.is_balanced())
+                        {
+                            buf.push(b'\\');
+                        }
+                        buf.push(byte);
+                    }
+                    b'\\' => buf.extend(br"\\"),
+                    b' '..=b'~' => buf.push(byte),
+                    b'\n' => buf.extend(br"\n"),
+                    b'\r' => buf.extend(br"\r"),
+                    b'\t' => buf.extend(br"\t"),
+                    b'\x08' => buf.extend(br"\b"),
+                    b'\x0c' => buf.extend(br"\f"),
+                    _ => {
+                        buf.push(b'\\');
+                        buf.push_octal(byte);
+                    }
+                }
+            }
+
+            buf.push(b')');
+        } else {
             buf.reserve(2 + 2 * self.0.len());
             buf.push(b'<');
+
             for &byte in self.0 {
                 buf.push_hex(byte);
             }
+
             buf.push(b'>');
-        } else {
-            buf.push(b'(');
-            buf.extend(self.0);
-            buf.push(b')');
         }
     }
 }
 
 /// A unicode text string object.
 ///
-/// This is written as a [`Str`] containing a byte order mark followed by
-/// UTF-16-BE bytes.
+/// This is written as a [`Str`] containing either bare ASCII (if possible) or a
+/// byte order mark followed by UTF-16-BE bytes.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TextStr<'a>(pub &'a str);
 
@@ -105,11 +131,14 @@ impl Primitive for TextStr<'_> {
         if self.0.bytes().all(|b| matches!(b, 32..=126)) {
             Str(self.0.as_bytes()).write(buf);
         } else {
-            let mut bytes = vec![254, 255];
-            for v in self.0.encode_utf16() {
-                bytes.extend(v.to_be_bytes());
+            buf.reserve(6 + 4 * self.0.len());
+            buf.push(b'<');
+            buf.push_hex(254);
+            buf.push_hex(255);
+            for value in self.0.encode_utf16() {
+                buf.push_hex_u16(value);
             }
-            Str(&bytes).write(buf);
+            buf.push(b'>');
         }
     }
 }
@@ -122,6 +151,7 @@ pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
+        buf.reserve(1 + self.0.len());
         buf.push(b'/');
         for &byte in self.0 {
             // - Number sign shall use hexadecimal escape
@@ -139,11 +169,25 @@ impl Primitive for Name<'_> {
 
 /// Regular characters are a PDF concept.
 fn is_regular_character(byte: u8) -> bool {
-    ![
-        b'\0', b'\t', b'\n', b'\x0C', b'\r', b' ', b'(', b')', b'<', b'>', b'[', b']',
-        b'{', b'}', b'/', b'%',
-    ]
-    .contains(&byte)
+    !matches!(
+        byte,
+        b'\0'
+            | b'\t'
+            | b'\n'
+            | b'\x0C'
+            | b'\r'
+            | b' '
+            | b'('
+            | b')'
+            | b'<'
+            | b'>'
+            | b'['
+            | b']'
+            | b'{'
+            | b'}'
+            | b'/'
+            | b'%'
+    )
 }
 
 /// The null object.
@@ -168,15 +212,34 @@ impl Ref {
     ///
     /// Panics if `id` is out of the valid range.
     #[inline]
-    pub fn new(id: i32) -> Ref {
-        let val = if id > 0 { NonZeroI32::new(id) } else { None };
-        Self(val.expect("indirect reference out of valid range"))
+    #[track_caller]
+    pub const fn new(id: i32) -> Ref {
+        let option = if id > 0 { NonZeroI32::new(id) } else { None };
+        match option {
+            Some(val) => Self(val),
+            None => panic!("indirect reference out of valid range"),
+        }
     }
 
     /// Return the underlying number as a primitive type.
     #[inline]
-    pub fn get(self) -> i32 {
+    pub const fn get(self) -> i32 {
         self.0.get()
+    }
+
+    /// The next consecutive ID.
+    #[inline]
+    pub const fn next(self) -> Self {
+        Self::new(self.get() + 1)
+    }
+
+    /// Increase this ID by one and return the old one. Useful to turn this ID
+    /// into a bump allocator of sorts.
+    #[inline]
+    pub fn bump(&mut self) -> Self {
+        let prev = *self;
+        *self = self.next();
+        prev
     }
 }
 
@@ -403,10 +466,10 @@ impl<'a> Obj<'a> {
     /// For example, using this, you could write a Type 1 font directly into
     /// a page's resource directionary.
     /// ```
-    /// use pdf_writer::{PdfWriter, Ref, Name, writers::Type1Font};
+    /// use pdf_writer::{Pdf, Ref, Name, writers::Type1Font};
     ///
-    /// let mut w = PdfWriter::new();
-    /// w.page(Ref::new(1))
+    /// let mut pdf = Pdf::new();
+    /// pdf.page(Ref::new(1))
     ///     .resources()
     ///     .fonts()
     ///     .insert(Name(b"F1"))
@@ -499,7 +562,7 @@ impl<'a> Array<'a> {
 
     /// Convert into a typed version.
     #[inline]
-    pub fn typed<T: Type>(self) -> TypedArray<'a, T> {
+    pub fn typed<T>(self) -> TypedArray<'a, T> {
         TypedArray::wrap(self)
     }
 }
@@ -530,10 +593,7 @@ impl<'a, 'any, T> Rewrite<'a> for TypedArray<'any, T> {
     type Output = TypedArray<'a, T>;
 }
 
-impl<'a, T> TypedArray<'a, T>
-where
-    T: Type,
-{
+impl<'a, T> TypedArray<'a, T> {
     /// Wrap an array to make it type-safe.
     #[inline]
     pub fn wrap(array: Array<'a>) -> Self {
@@ -653,7 +713,7 @@ impl<'a> Dict<'a> {
 
     /// Convert into a typed version.
     #[inline]
-    pub fn typed<T: Type>(self) -> TypedDict<'a, T> {
+    pub fn typed<T>(self) -> TypedDict<'a, T> {
         TypedDict::wrap(self)
     }
 }
@@ -690,10 +750,7 @@ impl<'a, 'any, T> Rewrite<'a> for TypedDict<'any, T> {
     type Output = TypedDict<'a, T>;
 }
 
-impl<'a, T> TypedDict<'a, T>
-where
-    T: Type,
-{
+impl<'a, T> TypedDict<'a, T> {
     /// Wrap a dictionary to make it type-safe.
     #[inline]
     pub fn wrap(dict: Dict<'a>) -> Self {
@@ -981,20 +1038,20 @@ where
 /// In many cases you can use writers in builder-pattern style so that they are
 /// automatically dropped at the appropriate time. Sometimes though you need to
 /// bind a writer to a variable and still want to regain access to the
-/// [`PdfWriter`] in the same scope. In that case, you need to manually invoke
+/// [`Pdf`] in the same scope. In that case, you need to manually invoke
 /// the writer's `Drop` implementation. You can of course, just write
 /// `drop(array)` to finish your array, but you might find it more aesthetically
 /// pleasing to write `array.finish()`. That's what this trait is for.
 ///
 /// ```
-/// # use pdf_writer::{PdfWriter, Ref, Finish, Name, Str};
-/// # let mut writer = PdfWriter::new();
-/// let mut array = writer.indirect(Ref::new(1)).array();
+/// # use pdf_writer::{Pdf, Ref, Finish, Name, Str};
+/// # let mut pdf = Pdf::new();
+/// let mut array = pdf.indirect(Ref::new(1)).array();
 /// array.push().dict().pair(Name(b"Key"), Str(b"Value"));
 /// array.item(2);
 /// array.finish(); // instead of drop(array)
 ///
-/// // Do more stuff with the writer ...
+/// // Do more stuff with `pdf` ...
 /// ```
 pub trait Finish: Sized {
     /// Does nothing but move `self`, equivalent to [`drop`].
@@ -1003,3 +1060,114 @@ pub trait Finish: Sized {
 }
 
 impl<T> Finish for T {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_primitive_objects() {
+        // Test really simple objects.
+        test_primitive!(true, b"true");
+        test_primitive!(false, b"false");
+        test_primitive!(78, b"78");
+        test_primitive!(4.22, b"4.22");
+        test_primitive!(1.184e-7, b"0.0000001184");
+        test_primitive!(4.2e13, b"42000000000000");
+        test_primitive!(Ref::new(7), b"7 0 R");
+        test_primitive!(Null, b"null");
+
+        // Test strings.
+        test_primitive!(Str(b"Hello, World!"), b"(Hello, World!)");
+        test_primitive!(Str(b"()"), br"(())");
+        test_primitive!(Str(b")()"), br"(\)\(\))");
+        test_primitive!(Str(b"()(())"), br"(()(()))");
+        test_primitive!(Str(b"(()))"), br"(\(\(\)\)\))");
+        test_primitive!(Str(b"\\"), br"(\\)");
+        test_primitive!(Str(b"\n\ta"), br"(\n\ta)");
+        test_primitive!(Str(br"\n"), br"(\\n)");
+        test_primitive!(Str(b"a\x14b"), br"(a\024b)");
+        test_primitive!(Str(b"\xFF\xAA"), b"<FFAA>");
+
+        // Test text strings.
+        test_primitive!(TextStr("Hallo"), b"(Hallo)");
+        test_primitive!(TextStr("😀!"), b"<FEFFD83DDE000021>");
+
+        // Test names.
+        test_primitive!(Name(b"Filter"), b"/Filter");
+        test_primitive!(Name(b"A B"), br"/A#20B");
+        test_primitive!(Name(b"~+c"), br"/~+c");
+        test_primitive!(Name(b"/A-B"), br"/#2FA-B");
+        test_primitive!(Name(b"<A>"), br"/#3CA#3E");
+        test_primitive!(Name(b"#"), br"/#23");
+        test_primitive!(Name(b"\n"), br"/#0A");
+    }
+
+    #[test]
+    fn test_dates() {
+        test_primitive!(Date::new(2021), b"(D:2021)");
+        test_primitive!(Date::new(2021).month(30), b"(D:202112)");
+
+        let date = Date::new(2020).month(3).day(17).hour(1).minute(2).second(3);
+        test_primitive!(date, b"(D:20200317010203)");
+        test_primitive!(date.utc_offset_hour(0), b"(D:20200317010203Z)");
+        test_primitive!(date.utc_offset_hour(4), b"(D:20200317010203+04'00)");
+        test_primitive!(
+            date.utc_offset_hour(-17).utc_offset_minute(10),
+            b"(D:20200317010203-17'10)"
+        );
+    }
+
+    #[test]
+    fn test_arrays() {
+        test_obj!(|obj| obj.array(), b"[]");
+        test_obj!(|obj| obj.array().item(12).item(Null), b"[12 null]");
+        test_obj!(|obj| obj.array().typed().items(vec![1, 2, 3]), b"[1 2 3]");
+        test_obj!(
+            |obj| {
+                let mut array = obj.array();
+                array.push().array().typed().items(vec![1, 2]);
+                array.item(3);
+            },
+            b"[[1 2] 3]",
+        );
+    }
+
+    #[test]
+    fn test_dicts() {
+        test_obj!(|obj| obj.dict(), b"<<>>");
+        test_obj!(
+            |obj| obj.dict().pair(Name(b"Quality"), Name(b"Good")),
+            b"<<\n  /Quality /Good\n>>",
+        );
+        test_obj!(
+            |obj| {
+                obj.dict().pair(Name(b"A"), 1).pair(Name(b"B"), 2);
+            },
+            b"<<\n  /A 1\n  /B 2\n>>",
+        );
+    }
+
+    #[test]
+    fn test_streams() {
+        let mut w = Pdf::new();
+        w.stream(Ref::new(1), &b"Hi there!"[..]).filter(Filter::Crypt);
+        test!(
+            w.finish(),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"1 0 obj",
+            b"<<\n  /Length 9\n  /Filter /Crypt\n>>",
+            b"stream",
+            b"Hi there!",
+            b"endstream",
+            b"endobj\n",
+            b"xref",
+            b"0 2",
+            b"0000000000 65535 f\r",
+            b"0000000016 00000 n\r",
+            b"trailer",
+            b"<<\n  /Size 2\n>>",
+            b"startxref\n94\n%%EOF",
+        )
+    }
+}

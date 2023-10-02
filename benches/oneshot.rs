@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use pdf_writer::{Content, PdfWriter, Rect, Ref};
+use pdf_writer::{Content, Pdf, Rect, Ref};
 
 fn bench_alloc() -> Vec<u8> {
     Vec::with_capacity(16)
@@ -50,12 +50,12 @@ fn bench_content() -> Vec<u8> {
     c.finish()
 }
 
-fn bench_new() -> PdfWriter {
-    PdfWriter::new()
+fn bench_new() -> Pdf {
+    Pdf::new()
 }
 
 fn bench_full() -> Vec<u8> {
-    let mut w = PdfWriter::new();
+    let mut w = Pdf::new();
     w.catalog(Ref::new(1));
     w.page(Ref::new(2)).media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
     w.stream(Ref::new(3), &b"ABCDEFG"[..]);

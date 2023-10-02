@@ -1,11 +1,11 @@
 //! This example shows how to use Separation color spaces.
 
 use pdf_writer::writers::ColorSpace;
-use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref};
+use pdf_writer::{Content, Finish, Name, Pdf, Rect, Ref};
 
 fn main() -> std::io::Result<()> {
     // Start writing.
-    let mut writer = PdfWriter::new();
+    let mut pdf = Pdf::new();
 
     // Define some indirect reference ids we'll use.
     let catalog_id = Ref::new(1);
@@ -20,11 +20,11 @@ fn main() -> std::io::Result<()> {
     let hot_pink_name = Name(b"AcmePink");
 
     // Set up the page tree. For more details see `hello.rs`.
-    writer.catalog(catalog_id).pages(page_tree_id);
-    writer.pages(page_tree_id).kids([page_id]).count(1);
+    pdf.catalog(catalog_id).pages(page_tree_id);
+    pdf.pages(page_tree_id).kids([page_id]).count(1);
 
     // Write a page.
-    let mut page = writer.page(page_id);
+    let mut page = pdf.page(page_id);
 
     // Create an A4 page.
     let width = 595.0;
@@ -172,8 +172,8 @@ fn main() -> std::io::Result<()> {
     }
 
     // Write the content stream.
-    writer.stream(content_id, &content.finish());
+    pdf.stream(content_id, &content.finish());
 
     // Write the thing to a file.
-    std::fs::write("target/separations.pdf", writer.finish())
+    std::fs::write("target/separations.pdf", pdf.finish())
 }

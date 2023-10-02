@@ -65,7 +65,7 @@ deref!('a, FileSpec<'a> => Dict<'a>, dict);
 
 /// Writer for an _embedded file stream_.
 ///
-/// This struct is created by [`PdfWriter::embedded_file`].
+/// This struct is created by [`Chunk::embedded_file`].
 pub struct EmbeddedFile<'a> {
     stream: Stream<'a>,
 }
