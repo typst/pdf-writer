@@ -32,7 +32,7 @@ fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
         head += 1;
     }
 
-    let mut tail = memchr::memmem::find(slice, b"endobj")?;
+    let mut tail = memchr::memmem::rfind(slice, b"endobj")?;
     while tail > 0 && slice.get(tail - 1).copied().map_or(false, is_whitespace) {
         tail -= 1;
     }
