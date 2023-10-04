@@ -43,11 +43,7 @@ fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
 
 /// Processes the interior of an indirect object and patches all indirect
 /// references.
-fn patch_object(
-    mut slice: &[u8],
-    buf: &mut Vec<u8>,
-    mapping: &mut dyn FnMut(Ref) -> Ref,
-) {
+fn patch_object(slice: &[u8], buf: &mut Vec<u8>, mapping: &mut dyn FnMut(Ref) -> Ref) {
     // Find the next point of interest:
     // - 'R' is interesting because it could be an indirect reference
     // - Anything that could contain indirect-reference-like things that are not
@@ -57,66 +53,75 @@ fn patch_object(
     //   - Names are not a problem because they can't contain literal whitespace
     //   - Hexadecimal strings are not a problem because they can't contain R
     //   - There are no other collection of arbitrary bytes
-    while let Some(mut index) = memchr::memchr3(b'R', b's', b'(', slice) {
-        match slice[index] {
+    let mut written = 0;
+    let mut seen = 0;
+    while seen < slice.len() {
+        match slice[seen] {
             // Validate whether this is an indirect reference and if it is,
             // patch it!
             b'R' => {
-                if let Some((head, id, gen)) = validate_ref(&slice[..index]) {
+                if let Some((head, id, gen)) = validate_ref(&slice[..seen]) {
                     let new = mapping(id);
-                    buf.extend(head);
+                    buf.extend(&slice[written..head]);
                     buf.push_int(new.get());
                     buf.push(b' ');
                     buf.push_int(gen);
                     buf.push(b' ');
                     buf.push(b'R');
-                    slice = &slice[index + 1..];
-                    continue;
+                    written = seen + 1;
+                }
+            }
+
+            // Skip comments.
+            b'%' => {
+                while seen < slice.len() {
+                    match slice[seen] {
+                        b'\n' | b'\r' => break,
+                        _ => {}
+                    }
+                    seen += 1;
+                }
+            }
+
+            // Skip strings.
+            b'(' => {
+                let mut depth = 0;
+                while seen < slice.len() {
+                    match slice[seen] {
+                        b'(' => depth += 1,
+                        b')' if depth == 1 => break,
+                        b')' => depth -= 1,
+                        b'\\' => seen += 1,
+                        _ => {}
+                    }
+                    seen += 1;
                 }
             }
 
             // Check whether this is the start of a stream. If yes, we can bail
             // and copy the rest verbatim.
-            b's' if slice[index..].starts_with(b"stream")
-                && validate_stream(&slice[..index]) =>
+            b's' if slice[seen..].starts_with(b"stream")
+                && validate_stream(&slice[..seen]) =>
             {
                 break;
-            }
-
-            // This is a string. Let's skip to the end of it, to not
-            // accidentally patch indirect references in it.
-            b'(' => {
-                let mut depth = 0;
-                while index < slice.len() {
-                    match slice[index] {
-                        b'(' => depth += 1,
-                        b')' if depth == 1 => break,
-                        b')' => depth -= 1,
-                        b'\\' => index += 1,
-                        _ => {}
-                    }
-                    index += 1;
-                }
             }
 
             _ => {}
         }
 
-        let (head, tail) = slice.split_at(index + 1);
-        buf.extend(head);
-        slice = tail
+        seen += 1;
     }
 
-    buf.extend(slice);
+    buf.extend(&slice[written..]);
 }
 
 /// Validate a match for an indirect reference.
-fn validate_ref(mut prefix: &[u8]) -> Option<(&[u8], Ref, i32)> {
+fn validate_ref(mut prefix: &[u8]) -> Option<(usize, Ref, i32)> {
     require_whitespace_rev(&mut prefix)?;
     let gen = eat_number_rev(&mut prefix)?;
     require_whitespace_rev(&mut prefix)?;
     let id = eat_number_rev(&mut prefix)?;
-    (id > 0).then(|| (prefix, Ref::new(id), gen))
+    (id > 0).then(|| (prefix.len(), Ref::new(id), gen))
 }
 
 /// Validate a match for a stream.
@@ -179,7 +184,8 @@ mod tests {
         // Manually write an untidy object.
         c.offsets.push((Ref::new(8), c.buf.len()));
         c.buf.extend(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
-        c.buf.extend(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>\n\nendobj");
+        c.buf.extend(b"/beginobj/endobj%4 0 R\n");
+        c.buf.extend(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>%\n\nendobj");
 
         c.stream(Ref::new(17), b"1 0 R 2 0 R 3 0 R 4 0 R")
             .pair(Name(b"Ok"), TextStr(")4 0 R"))
@@ -213,7 +219,8 @@ mod tests {
             b"",
             b"2 3 obj",
             b"<</Fmt false/Niceness(4 0",
-            b"R-)/Me 2 3 R/Unknown 11 0 R/R[1 0 R]>>",
+            b"R-)/beginobj/endobj%4 0 R",
+            b"/Me 2 3 R/Unknown 11 0 R/R[1 0 R]>>%",
             b"endobj",
             b"",
             b"3 0 obj",
