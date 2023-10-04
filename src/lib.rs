@@ -230,13 +230,23 @@ impl Pdf {
         }
     }
 
+    /// Set the file identifier for the document.
+    ///
+    /// The file identifier is a pair of two byte strings that shall be used to
+    /// uniquely identify a particular file. The first string should always stay
+    /// the same for a document, the second should change for each revision. It
+    /// is optional, but recommended. PDF 1.1+.
+    pub fn set_file_id(&mut self, id: (Vec<u8>, Vec<u8>)) {
+        self.file_id = Some(id);
+    }
+
     /// Start writing the document catalog. Required.
     ///
     /// This will also register the document catalog with the file trailer,
     /// meaning that you don't need to provide the given `id` anywhere else.
     pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
         self.catalog_id = Some(id);
-        self.chunk.indirect(id).start()
+        self.indirect(id).start()
     }
 
     /// Start writing the document information.
@@ -246,17 +256,7 @@ impl Pdf {
     /// anywhere else.
     pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
         self.info_id = Some(id);
-        self.chunk.indirect(id).start()
-    }
-
-    /// Set the file identifier for the document.
-    ///
-    /// The file identifier is a pair of two byte strings that shall be used to
-    /// uniquely identify a particular file. The first string should always stay
-    /// the same for a document, the second should change for each revision. It
-    /// is optional, but recommended. PDF 1.1+.
-    pub fn file_id(&mut self, id: (Vec<u8>, Vec<u8>)) {
-        self.file_id = Some(id);
+        self.indirect(id).start()
     }
 
     /// Write the cross-reference table and file trailer and return the
