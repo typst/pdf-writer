@@ -1,11 +1,11 @@
 //! This example gives you a first introduction on how to use pdf-writer.
 
 use pdf_writer::types::{ActionType, AnnotationType, BorderType};
-use pdf_writer::{Content, Finish, Name, PdfWriter, Rect, Ref, Str, TextStr};
+use pdf_writer::{Content, Finish, Name, Pdf, Rect, Ref, Str, TextStr};
 
 fn main() -> std::io::Result<()> {
     // Start writing.
-    let mut writer = PdfWriter::new();
+    let mut pdf = Pdf::new();
 
     // Define some indirect reference ids we'll use.
     let catalog_id = Ref::new(1);
@@ -16,13 +16,13 @@ fn main() -> std::io::Result<()> {
     let font_name = Name(b"F1");
 
     // Write the document catalog with a reference to the page tree.
-    writer.catalog(catalog_id).pages(page_tree_id);
+    pdf.catalog(catalog_id).pages(page_tree_id);
 
     // Write the page tree with a single child page.
-    writer.pages(page_tree_id).kids([page_id]).count(1);
+    pdf.pages(page_tree_id).kids([page_id]).count(1);
 
     // Write a page.
-    let mut page = writer.page(page_id);
+    let mut page = pdf.page(page_id);
 
     // Set the size to A4 (measured in points) using `media_box` and set the
     // text object we'll write later as the page's contents.
@@ -68,7 +68,7 @@ fn main() -> std::io::Result<()> {
     // Specify the font we want to use. Because Helvetica is one of the 14 base
     // fonts shipped with every PDF reader, we don't have to embed any font
     // data.
-    writer.type1_font(font_id).base_font(Name(b"Helvetica"));
+    pdf.type1_font(font_id).base_font(Name(b"Helvetica"));
 
     // Write a line of text, with the font specified in the resource list
     // before, at a font size of 14.0, starting at coordinates (108.0, 734.0)
@@ -83,11 +83,11 @@ fn main() -> std::io::Result<()> {
     content.next_line(108.0, 734.0);
     content.show(Str(b"Hello World from Rust!"));
     content.end_text();
-    writer.stream(content_id, &content.finish());
+    pdf.stream(content_id, &content.finish());
 
     // Finish writing (this automatically creates the cross-reference table and
     // file trailer) and retrieve the resulting byte buffer.
-    let buf: Vec<u8> = writer.finish();
+    let buf: Vec<u8> = pdf.finish();
 
     // Write the thing to a file.
     std::fs::write("target/hello.pdf", buf)

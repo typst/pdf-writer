@@ -4,7 +4,7 @@ use super::*;
 
 /// Writer for a _document catalog dictionary_.
 ///
-/// This struct is created by [`PdfWriter::catalog`].
+/// This struct is created by [`Pdf::catalog`].
 pub struct Catalog<'a> {
     dict: Dict<'a>,
 }
@@ -52,7 +52,7 @@ impl<'a> Catalog<'a> {
     }
 
     /// Write the `/Dests` attribute pointing to a
-    /// [named destinations dictionary](PdfWriter::destinations). PDF 1.1+.
+    /// [named destinations dictionary](Chunk::destinations). PDF 1.1+.
     pub fn destinations(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Dests"), id);
         self
@@ -899,7 +899,7 @@ impl NumberingStyle {
 
 /// Writer for a _document information dictionary_.
 ///
-/// This struct is created by [`PdfWriter::document_info`].
+/// This struct is created by [`Pdf::document_info`].
 pub struct DocumentInfo<'a> {
     dict: Dict<'a>,
 }
@@ -997,7 +997,7 @@ impl TrappingStatus {
 
 /// Writer for a _page tree dictionary_.
 ///
-/// This struct is created by [`PdfWriter::pages`].
+/// This struct is created by [`Chunk::pages`].
 pub struct Pages<'a> {
     dict: Dict<'a>,
 }
@@ -1046,7 +1046,7 @@ deref!('a, Pages<'a> => Dict<'a>, dict);
 
 /// Writer for a _page dictionary_.
 ///
-/// This struct is created by [`PdfWriter::page`].
+/// This struct is created by [`Chunk::page`].
 pub struct Page<'a> {
     dict: Dict<'a>,
 }
@@ -1114,7 +1114,7 @@ impl<'a> Page<'a> {
     /// Write the `/Contents` attribute as reference to a single content stream.
     ///
     /// Such a content stream can be created using the [`Content`] builder and
-    /// written to the file using [`PdfWriter::stream`].
+    /// written to the file using [`Chunk::stream`].
     pub fn contents(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Contents"), id);
         self
@@ -1201,7 +1201,7 @@ deref!('a, Page<'a> => Dict<'a>, dict);
 
 /// Writer for an _outline dictionary_.
 ///
-/// This struct is created by [`PdfWriter::outline`].
+/// This struct is created by [`Chunk::outline`].
 pub struct Outline<'a> {
     dict: Dict<'a>,
 }
@@ -1242,7 +1242,7 @@ deref!('a, Outline<'a> => Dict<'a>, dict);
 
 /// Writer for an _outline item dictionary_.
 ///
-/// This struct is created by [`PdfWriter::outline_item`].
+/// This struct is created by [`Chunk::outline_item`].
 pub struct OutlineItem<'a> {
     dict: Dict<'a>,
 }
@@ -1413,7 +1413,7 @@ deref!('a, Names<'a> => Dict<'a>, dict);
 /// Writer for a _destination array_.
 ///
 /// A dictionary mapping to this struct is created by
-/// [`PdfWriter::destinations`]. This struct is also created by
+/// [`Chunk::destinations`]. This struct is also created by
 /// [`Action::destination`].
 pub struct Destination<'a> {
     array: Array<'a>,
@@ -1509,7 +1509,7 @@ impl TabOrder {
 
 /// Writer for a _metadata stream_. PDF 1.4+.
 ///
-/// This struct is created by [`PdfWriter::metadata`].
+/// This struct is created by [`Chunk::metadata`].
 pub struct Metadata<'a> {
     stream: Stream<'a>,
 }

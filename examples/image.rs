@@ -2,11 +2,11 @@
 
 use image::{ColorType, GenericImageView, ImageFormat};
 use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
-use pdf_writer::{Content, Filter, Finish, Name, PdfWriter, Rect, Ref};
+use pdf_writer::{Content, Filter, Finish, Name, Pdf, Rect, Ref};
 
 fn main() -> std::io::Result<()> {
     // Start writing.
-    let mut writer = PdfWriter::new();
+    let mut pdf = Pdf::new();
 
     // Define some indirect reference ids we'll use.
     let catalog_id = Ref::new(1);
@@ -18,12 +18,12 @@ fn main() -> std::io::Result<()> {
     let image_name = Name(b"Im1");
 
     // Set up the page tree. For more details see `hello.rs`.
-    writer.catalog(catalog_id).pages(page_tree_id);
-    writer.pages(page_tree_id).kids([page_id]).count(1);
+    pdf.catalog(catalog_id).pages(page_tree_id);
+    pdf.pages(page_tree_id).kids([page_id]).count(1);
 
     // Specify one A4 page and map the image name "Im1" to the id of the
     // embedded image stream.
-    let mut page = writer.page(page_id);
+    let mut page = pdf.page(page_id);
     let a4 = Rect::new(0.0, 0.0, 595.0, 842.0);
     page.media_box(a4);
     page.parent(page_tree_id);
@@ -74,7 +74,7 @@ fn main() -> std::io::Result<()> {
     };
 
     // Write the stream for the image we want to embed.
-    let mut image = writer.image_xobject(image_id, &encoded);
+    let mut image = pdf.image_xobject(image_id, &encoded);
     image.filter(filter);
     image.width(dynamic.width() as i32);
     image.height(dynamic.height() as i32);
@@ -87,7 +87,7 @@ fn main() -> std::io::Result<()> {
 
     // Add SMask if the image has transparency.
     if let Some(encoded) = &mask {
-        let mut s_mask = writer.image_xobject(s_mask_id, encoded);
+        let mut s_mask = pdf.image_xobject(s_mask_id, encoded);
         s_mask.filter(filter);
         s_mask.width(dynamic.width() as i32);
         s_mask.height(dynamic.height() as i32);
@@ -117,8 +117,8 @@ fn main() -> std::io::Result<()> {
     content.transform([w, 0.0, 0.0, h, x, y]);
     content.x_object(image_name);
     content.restore_state();
-    writer.stream(content_id, &content.finish());
+    pdf.stream(content_id, &content.finish());
 
     // Write the thing to a file.
-    std::fs::write("target/image.pdf", writer.finish())
+    std::fs::write("target/image.pdf", pdf.finish())
 }

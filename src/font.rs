@@ -2,7 +2,7 @@ use super::*;
 
 /// Writer for a _Type-1 font dictionary_.
 ///
-/// This struct is created by [`PdfWriter::type1_font`].
+/// This struct is created by [`Chunk::type1_font`].
 pub struct Type1Font<'a> {
     dict: Dict<'a>,
 }
@@ -86,7 +86,7 @@ deref!('a, Type1Font<'a> => Dict<'a>, dict);
 
 /// Writer for a _Type-3 font dictionary_.
 ///
-/// This struct is created by [`PdfWriter::type3_font`].
+/// This struct is created by [`Chunk::type3_font`].
 pub struct Type3Font<'a> {
     dict: Dict<'a>,
 }
@@ -245,7 +245,7 @@ deref!('a, Differences<'a> => Array<'a>, array);
 
 /// Writer for a _Type-0 (composite) font dictionary_. PDF 1.2+.
 ///
-/// This struct is created by [`PdfWriter::type0_font`].
+/// This struct is created by [`Chunk::type0_font`].
 pub struct Type0Font<'a> {
     dict: Dict<'a>,
 }
@@ -300,7 +300,7 @@ deref!('a, Type0Font<'a> => Dict<'a>, dict);
 
 /// Writer for a _CID font dictionary_. PDF 1.2+.
 ///
-/// This struct is created by [`PdfWriter::cid_font`].
+/// This struct is created by [`Chunk::cid_font`].
 pub struct CidFont<'a> {
     dict: Dict<'a>,
 }
@@ -416,7 +416,7 @@ deref!('a, Widths<'a> => Array<'a>, array);
 
 /// Writer for a _font descriptor dictionary_.
 ///
-/// This struct is created by [`PdfWriter::font_descriptor`].
+/// This struct is created by [`Chunk::font_descriptor`].
 pub struct FontDescriptor<'a> {
     dict: Dict<'a>,
 }
@@ -625,7 +625,7 @@ bitflags::bitflags! {
 
 /// Writer for a _character map stream_.
 ///
-/// This struct is created by [`PdfWriter::cmap`].
+/// This struct is created by [`Chunk::cmap`].
 pub struct Cmap<'a> {
     stream: Stream<'a>,
 }

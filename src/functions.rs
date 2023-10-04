@@ -45,7 +45,7 @@ macro_rules! common_func_methods {
 
 /// Writer for a _sampled function stream_. PDF 1.2+.
 ///
-/// This struct is created by [`PdfWriter::sampled_function`].
+/// This struct is created by [`Chunk::sampled_function`].
 pub struct SampledFunction<'a> {
     stream: Stream<'a>,
 }
@@ -126,7 +126,7 @@ impl InterpolationOrder {
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
 ///
-/// This struct is created by [`PdfWriter::exponential_function`] and
+/// This struct is created by [`Chunk::exponential_function`] and
 /// [`writers::Separation::tint_exponential`].
 pub struct ExponentialFunction<'a> {
     dict: Dict<'a>,
@@ -173,7 +173,7 @@ deref!('a, ExponentialFunction<'a> => Dict<'a>, dict);
 /// The function result is `y_i = C0_i + x^N * (C1_i - C0_i)` where `i` is the
 /// current dimension.
 ///
-/// This struct is created by [`PdfWriter::stitching_function`] and
+/// This struct is created by [`Chunk::stitching_function`] and
 /// [`writers::Separation::tint_stitching`].
 pub struct StitchingFunction<'a> {
     dict: Dict<'a>,
@@ -219,7 +219,7 @@ deref!('a, StitchingFunction<'a> => Dict<'a>, dict);
 
 /// Writer for a _PostScript function stream_. PDF 1.3+.
 ///
-/// This struct is created by [`PdfWriter::post_script_function`].
+/// This struct is created by [`Chunk::post_script_function`].
 pub struct PostScriptFunction<'a> {
     stream: Stream<'a>,
 }

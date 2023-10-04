@@ -70,8 +70,8 @@ impl DeviceColorSpace {
 
 /// Writer for a _color space_.
 ///
-/// This struct is created by [`PdfWriter::color_space`],
-/// [`Shading::color_space`], [`ImageXObject::color_space`],
+/// This struct is created by [`Chunk::color_space`],
+/// [`Chunk::color_space`], [`ImageXObject::color_space`],
 /// [`Separation::alternate_color_space`] and [`Group::color_space`].
 pub struct ColorSpace<'a> {
     obj: Obj<'a>,
@@ -165,7 +165,7 @@ impl ColorSpace<'_> {
 
 /// Writer for an _ICC profile stream_.
 ///
-/// This struct is created by [`PdfWriter::icc_profile`].
+/// This struct is created by [`Chunk::icc_profile`].
 pub struct IccProfile<'a> {
     stream: Stream<'a>,
 }
@@ -761,7 +761,7 @@ impl DeviceNMixingHints<'_> {
 
 /// Writer for a _tiling pattern stream_.
 ///
-/// This struct is created by [`PdfWriter::tiling_pattern`].
+/// This struct is created by [`Chunk::tiling_pattern`].
 pub struct TilingPattern<'a> {
     stream: Stream<'a>,
 }
@@ -880,7 +880,7 @@ impl TilingType {
 
 /// Writer for a _shading pattern dictionary_. PDF 1.3+.
 ///
-/// This struct is created by [`PdfWriter::shading_pattern`].
+/// This struct is created by [`Chunk::shading_pattern`].
 pub struct ShadingPattern<'a> {
     dict: Dict<'a>,
 }
@@ -922,8 +922,8 @@ deref!('a, ShadingPattern<'a> => Dict< 'a>, dict);
 
 /// Writer for a _shading dictionary_. PDF 1.3+.
 ///
-/// This struct is created by [`PdfWriter::shading`] and
-/// [`ShadingPattern::shading`].
+/// This struct is created by [`Chunk::function_shading`] and
+/// [`ShadingPattern::function_shading`].
 pub struct FunctionShading<'a> {
     dict: Dict<'a>,
 }
@@ -1027,7 +1027,7 @@ deref!('a, FunctionShading<'a> => Dict<'a>, dict);
 
 /// Writer for a _embedded file stream_.
 ///
-/// This struct is created by [`PdfWriter::stream_shading`].
+/// This struct is created by [`Chunk::stream_shading`].
 pub struct StreamShading<'a> {
     stream: Stream<'a>,
 }

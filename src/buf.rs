@@ -8,6 +8,7 @@ pub trait BufExt {
     fn push_decimal(&mut self, value: f32);
     fn push_hex(&mut self, value: u8);
     fn push_hex_u16(&mut self, value: u16);
+    fn push_octal(&mut self, value: u8);
 }
 
 impl BufExt for Vec<u8> {
@@ -66,5 +67,16 @@ impl BufExt for Vec<u8> {
     fn push_hex_u16(&mut self, value: u16) {
         self.push_hex((value >> 8) as u8);
         self.push_hex(value as u8);
+    }
+
+    #[inline]
+    fn push_octal(&mut self, value: u8) {
+        fn octal(b: u8) -> u8 {
+            b'0' + b
+        }
+
+        self.push(octal(value >> 6));
+        self.push(octal((value >> 3) & 63));
+        self.push(octal(value & 7));
     }
 }

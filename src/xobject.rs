@@ -3,7 +3,7 @@ use crate::types::RenderingIntent;
 
 /// Writer for an _image XObject stream_.
 ///
-/// This struct is created by [`PdfWriter::image_xobject`].
+/// This struct is created by [`Chunk::image_xobject`].
 pub struct ImageXObject<'a> {
     stream: Stream<'a>,
 }
@@ -174,7 +174,7 @@ impl SMaskInData {
 
 /// Writer for an _form XObject stream_. PDF 1.1+.
 ///
-/// This struct is created by [`PdfWriter::form_xobject`].
+/// This struct is created by [`Chunk::form_xobject`].
 ///
 /// Note that these have nothing to do with forms that have fields to fill out.
 /// Rather, they are a way to encapsulate and reuse content across the file.

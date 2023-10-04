@@ -9,12 +9,12 @@ A step-by-step PDF writer.
 pdf-writer = "0.8"
 ```
 
-The entry point into the API is the main `PdfWriter`, which constructs the
-document into one big internal buffer. The top-level writer has many methods to
-create specialized writers for specific PDF objects. These all follow the same
-general pattern: They borrow the main buffer mutably, expose a builder pattern
-for writing individual fields in a strongly typed fashion and finish up the
-object when dropped.
+The entry point into the API is the main `Pdf`, which constructs the document
+into one big internal buffer. The top-level writer has many methods to create
+specialized writers for specific PDF objects. These all follow the same general
+pattern: They borrow the main buffer mutably, expose a builder pattern for
+writing individual fields in a strongly typed fashion and finish up the object
+when dropped.
 
 There are a few more top-level structs with internal buffers, like the builder
 for `Content` streams, but wherever possible buffers are borrowed from parent
@@ -24,7 +24,7 @@ writers to minimize allocations.
 The following example creates a PDF with a single, empty A4 page.
 
 ```rust
-use pdf_writer::{PdfWriter, Rect, Ref};
+use pdf_writer::{Pdf, Rect, Ref};
 
 // Define some indirect reference ids we'll use.
 let catalog_id = Ref::new(1);
@@ -32,16 +32,16 @@ let page_tree_id = Ref::new(2);
 let page_id = Ref::new(3);
 
 // Write a document catalog and a page tree with one A4 page that uses no resources.
-let mut writer = PdfWriter::new();
-writer.catalog(catalog_id).pages(page_tree_id);
-writer.pages(page_tree_id).kids([page_id]).count(1);
-writer.page(page_id)
+let mut pdf = Pdf::new();
+pdf.catalog(catalog_id).pages(page_tree_id);
+pdf.pages(page_tree_id).kids([page_id]).count(1);
+pdf.page(page_id)
     .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/empty.pdf", writer.finish())?;
+std::fs::write("target/empty.pdf", pdf.finish())?;
 ```
 
 For more examples, check out the [examples folder] in the repository.

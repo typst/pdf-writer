@@ -1,16 +1,16 @@
 /*!
 A step-by-step PDF writer.
 
-The entry point into the API is the main [`PdfWriter`], which constructs the
+The entry point into the API is the [`Pdf`] struct, which constructs the
 document into one big internal buffer. The top-level writer has many methods to
 create specialized writers for specific PDF objects. These all follow the same
 general pattern: They borrow the main buffer mutably, expose a builder pattern
 for writing individual fields in a strongly typed fashion and finish up the
 object when dropped.
 
-There are a few more top-level structs with internal buffers, like the builder
-for [`Content`] streams, but wherever possible buffers are borrowed from parent
-writers to minimize allocations.
+There are a few more top-level structs with internal buffers, like the
+[`Content`] stream builder and the [`Chunk`], but wherever possible buffers
+are borrowed from parent writers to minimize allocations.
 
 # Writers
 The writers contained is this crate fall roughly into two categories.
@@ -19,10 +19,10 @@ The writers contained is this crate fall roughly into two categories.
 
 - The [`Obj`] writer allows to write most fundamental PDF objects (numbers,
   strings, arrays, dictionaries, ...). It is exposed through
-  [`PdfWriter::indirect`] to write top-level indirect objects and through
+  [`Chunk::indirect`] to write top-level indirect objects and through
   [`Array::push`] and [`Dict::insert`] to compose objects.
-- Streams are exposed through a separate [`PdfWriter::stream`] method since they
-  _must_ be indirect objects.
+- Streams are exposed through a separate [`Chunk::stream`] method since
+  they _must_ be indirect objects.
 
 **Specialized writers** for things like a _[page]_ or an _[image]_ expose the
 core writer's capabilities in a strongly typed fashion.
@@ -42,7 +42,7 @@ pattern, you may need to manually drop it before starting a new object using
 The following example creates a PDF with a single, empty A4 page.
 
 ```
-use pdf_writer::{PdfWriter, Rect, Ref};
+use pdf_writer::{Pdf, Rect, Ref};
 
 # fn main() -> std::io::Result<()> {
 // Define some indirect reference ids we'll use.
@@ -51,16 +51,16 @@ let page_tree_id = Ref::new(2);
 let page_id = Ref::new(3);
 
 // Write a document catalog and a page tree with one A4 page that uses no resources.
-let mut writer = PdfWriter::new();
-writer.catalog(catalog_id).pages(page_tree_id);
-writer.pages(page_tree_id).kids([page_id]).count(1);
-writer.page(page_id)
+let mut pdf = Pdf::new();
+pdf.catalog(catalog_id).pages(page_tree_id);
+pdf.pages(page_tree_id).kids([page_id]).count(1);
+pdf.page(page_id)
     .parent(page_tree_id)
     .media_box(Rect::new(0.0, 0.0, 595.0, 842.0))
     .resources();
 
 // Finish with cross-reference table and trailer and write to file.
-std::fs::write("target/empty.pdf", writer.finish())?;
+std::fs::write("target/empty.pdf", pdf.finish())?;
 # Ok(())
 # }
 ```
@@ -68,9 +68,10 @@ std::fs::write("target/empty.pdf", writer.finish())?;
 For more examples, check out the [examples folder] in the repository.
 
 # Note
-This crate is rather low-level. It does not allocate or validate indirect reference
-ids for you and it does not check you write all required fields for an object. Refer
-to the [PDF specification] to make sure you create valid PDFs.
+This crate is rather low-level. It does not allocate or validate indirect
+reference IDs for you and it does not check whether you write all required
+fields for an object. Refer to the [PDF specification] to make sure you create
+valid PDFs.
 
 [page]: writers::Page
 [image]: writers::ImageXObject
@@ -88,12 +89,14 @@ mod macros;
 mod annotations;
 mod attributes;
 mod buf;
+mod chunk;
 mod color;
 mod content;
 mod files;
 mod font;
 mod functions;
 mod object;
+mod renumber;
 mod structure;
 mod transitions;
 mod xobject;
@@ -164,43 +167,48 @@ pub mod types {
     pub use xobject::SMaskInData;
 }
 
-pub use content::Content;
-pub use object::{
+pub use self::chunk::Chunk;
+pub use self::content::Content;
+pub use self::object::{
     Array, Date, Dict, Filter, Finish, Name, Null, Obj, Primitive, Rect, Ref, Rewrite,
     Str, Stream, TextStr, TypedArray, TypedDict, Writer,
 };
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
+use std::ops::{Deref, DerefMut};
 
-use buf::BufExt;
-use writers::*;
+use self::buf::BufExt;
+use self::writers::*;
 
-/// The root writer.
-pub struct PdfWriter {
-    buf: Vec<u8>,
-    offsets: Vec<(Ref, usize)>,
+/// A builder for a PDF file.
+///
+/// This type constructs a PDF file in-memory. Aside from a few specific
+/// structures, a PDF file mostly consists of indirect objects. For more
+/// flexibility, you can write these objects either directly into a [`Pdf`] or
+/// into a [`Chunk`], which you can add to the [`Pdf`] (or another chunk) later.
+/// Therefore, most writing methods are exposed on the chunk type, which this
+/// type dereferences to.
+pub struct Pdf {
+    chunk: Chunk,
     catalog_id: Option<Ref>,
     info_id: Option<Ref>,
     file_id: Option<(Vec<u8>, Vec<u8>)>,
 }
 
-/// Core methods.
-impl PdfWriter {
-    /// Create a new PDF writer with the default buffer capacity
-    /// (currently 8 KB).
+impl Pdf {
+    /// Create a new PDF with the default buffer capacity (currently 8 KB).
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_capacity(8 * 1024)
     }
 
-    /// Create a new PDF writer with the specified initial buffer capacity.
+    /// Create a new PDF with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        let mut buf = Vec::with_capacity(capacity);
-        buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
+        let mut chunk = Chunk::with_capacity(capacity);
+        chunk.buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self {
-            buf,
-            offsets: vec![],
+            chunk,
             catalog_id: None,
             info_id: None,
             file_id: None,
@@ -209,46 +217,70 @@ impl PdfWriter {
 
     /// Set the PDF version.
     ///
-    /// The version is not semantically important to the writer, but must be
+    /// The version is not semantically important to the crate, but must be
     /// present in the output document.
     ///
     /// _Default value_: 1.7.
     pub fn set_version(&mut self, major: u8, minor: u8) {
         if major < 10 {
-            self.buf[5] = b'0' + major;
+            self.chunk.buf[5] = b'0' + major;
         }
         if minor < 10 {
-            self.buf[7] = b'0' + minor;
+            self.chunk.buf[7] = b'0' + minor;
         }
     }
 
-    /// The number of bytes that were written so far.
-    #[inline]
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.buf.len()
+    /// Start writing the document catalog. Required.
+    ///
+    /// This will also register the document catalog with the file trailer,
+    /// meaning that you don't need to provide the given `id` anywhere else.
+    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
+        self.catalog_id = Some(id);
+        self.chunk.indirect(id).start()
+    }
+
+    /// Start writing the document information.
+    ///
+    /// This will also register the document information dictionary with the
+    /// file trailer, meaning that you don't need to provide the given `id`
+    /// anywhere else.
+    pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
+        self.info_id = Some(id);
+        self.chunk.indirect(id).start()
+    }
+
+    /// Set the file identifier for the document.
+    ///
+    /// The file identifier is a pair of two byte strings that shall be used to
+    /// uniquely identify a particular file. The first string should always stay
+    /// the same for a document, the second should change for each revision. It
+    /// is optional, but recommended. PDF 1.1+.
+    pub fn file_id(&mut self, id: (Vec<u8>, Vec<u8>)) {
+        self.file_id = Some(id);
     }
 
     /// Write the cross-reference table and file trailer and return the
     /// underlying buffer.
     ///
     /// Panics if any indirect reference id was used twice.
-    pub fn finish(mut self) -> Vec<u8> {
-        self.offsets.sort();
+    pub fn finish(self) -> Vec<u8> {
+        let Chunk { mut buf, mut offsets } = self.chunk;
 
-        let xref_len = 1 + self.offsets.last().map_or(0, |p| p.0.get());
-        let xref_offset = self.buf.len();
+        offsets.sort();
 
-        self.buf.extend(b"xref\n0 ");
-        self.buf.push_int(xref_len);
-        self.buf.push(b'\n');
+        let xref_len = 1 + offsets.last().map_or(0, |p| p.0.get());
+        let xref_offset = buf.len();
 
-        if self.offsets.is_empty() {
-            write!(self.buf, "0000000000 65535 f\r\n").unwrap();
+        buf.extend(b"xref\n0 ");
+        buf.push_int(xref_len);
+        buf.push(b'\n');
+
+        if offsets.is_empty() {
+            write!(buf, "0000000000 65535 f\r\n").unwrap();
         }
 
         let mut written = 0;
-        for (i, (object_id, offset)) in self.offsets.iter().enumerate() {
+        for (i, (object_id, offset)) in offsets.iter().enumerate() {
             if written > object_id.get() {
                 panic!("duplicate indirect reference id: {}", object_id.get());
             }
@@ -259,7 +291,7 @@ impl PdfWriter {
                 let mut next = free_id + 1;
                 if next == object_id.get() {
                     // Find next free id.
-                    for (used_id, _) in &self.offsets[i..] {
+                    for (used_id, _) in &offsets[i..] {
                         if next < used_id.get() {
                             break;
                         } else {
@@ -269,18 +301,18 @@ impl PdfWriter {
                 }
 
                 let gen = if free_id == 0 { "65535" } else { "00000" };
-                write!(self.buf, "{:010} {} f\r\n", next % xref_len, gen).unwrap();
+                write!(buf, "{:010} {} f\r\n", next % xref_len, gen).unwrap();
                 written += 1;
             }
 
-            write!(self.buf, "{:010} 00000 n\r\n", offset).unwrap();
+            write!(buf, "{:010} 00000 n\r\n", offset).unwrap();
             written += 1;
         }
 
         // Write the trailer dictionary.
-        self.buf.extend(b"trailer\n");
+        buf.extend(b"trailer\n");
 
-        let mut trailer = Obj::direct(&mut self.buf, 0).dict();
+        let mut trailer = Obj::direct(&mut buf, 0).dict();
         trailer.pair(Name(b"Size"), xref_len);
 
         if let Some(catalog_id) = self.catalog_id {
@@ -300,319 +332,142 @@ impl PdfWriter {
         trailer.finish();
 
         // Write where the cross-reference table starts.
-        self.buf.extend(b"\nstartxref\n");
-        write!(self.buf, "{}", xref_offset).unwrap();
+        buf.extend(b"\nstartxref\n");
+        write!(buf, "{}", xref_offset).unwrap();
 
         // Write the end of file marker.
-        self.buf.extend(b"\n%%EOF");
-        self.buf
+        buf.extend(b"\n%%EOF");
+        buf
     }
 }
 
-/// Indirect objects and streams.
-impl PdfWriter {
-    /// Start writing an indirectly referenceable object.
-    pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
-        self.offsets.push((id, self.buf.len()));
-        Obj::indirect(&mut self.buf, id)
-    }
-
-    /// Start writing an indirectly referenceable stream.
-    ///
-    /// The stream data and the `/Length` field are written automatically. You
-    /// can add additional key-value pairs to the stream dictionary with the
-    /// returned stream writer.
-    ///
-    /// You can use this function together with a [`Content`] stream builder to
-    /// provide a [page's contents](Page::contents).
-    /// ```
-    /// use pdf_writer::{PdfWriter, Content, Ref};
-    ///
-    /// // Create a simple content stream.
-    /// let mut content = Content::new();
-    /// content.rect(50.0, 50.0, 50.0, 50.0);
-    /// content.stroke();
-    ///
-    /// // Create a writer and write the stream.
-    /// let mut writer = PdfWriter::new();
-    /// writer.stream(Ref::new(1), &content.finish());
-    /// ```
-    ///
-    /// This crate does not do any compression for you. If you want to compress
-    /// a stream, you have to pass already compressed data into this function
-    /// and specify the appropriate filter in the stream dictionary.
-    ///
-    /// For example, if you want to compress your content stream with DEFLATE,
-    /// you could do something like this:
-    /// ```
-    /// use pdf_writer::{PdfWriter, Content, Ref, Filter};
-    /// use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
-    ///
-    /// // Create a simple content stream.
-    /// let mut content = Content::new();
-    /// content.rect(50.0, 50.0, 50.0, 50.0);
-    /// content.stroke();
-    ///
-    /// // Compress the stream.
-    /// let level = CompressionLevel::DefaultLevel as u8;
-    /// let compressed = compress_to_vec_zlib(&content.finish(), level);
-    ///
-    /// // Create a writer, write the compressed stream and specify that it
-    /// // needs to be decoded with a FLATE filter.
-    /// let mut writer = PdfWriter::new();
-    /// writer.stream(Ref::new(1), &compressed).filter(Filter::FlateDecode);
-    /// ```
-    /// For all the specialized stream functions below, it works the same way:
-    /// You can pass compressed data and specify a filter.
-    ///
-    /// Panics if the stream length exceeds `i32::MAX`.
-    pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
-        Stream::start(self.indirect(id), data)
-    }
-}
-
-/// Document structure.
-impl PdfWriter {
-    /// Start writing the document catalog. Required.
-    ///
-    /// This will also register the document catalog with the file trailer,
-    /// meaning that you don't need to provide the given `id` anywhere else.
-    pub fn catalog(&mut self, id: Ref) -> Catalog<'_> {
-        self.catalog_id = Some(id);
-        self.indirect(id).start()
-    }
-
-    /// Start writing the document information.
-    ///
-    /// This will also register the document information dictionary with the
-    /// file trailer, meaning that you don't need to provide the given `id` anywhere
-    /// else.
-    pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
-        self.info_id = Some(id);
-        self.indirect(id).start()
-    }
-
-    /// Set the file identifier for the document.
-    ///
-    /// The file identifier is a pair of two byte strings that shall be used to
-    /// uniquely identify a particular file. The first string should always stay
-    /// the same for a document, the second should change for each revision. It
-    /// is optional, but recommended. PDF 1.1+.
-    pub fn file_id(&mut self, id: (Vec<u8>, Vec<u8>)) {
-        self.file_id = Some(id);
-    }
-
-    /// Start writing a page tree.
-    pub fn pages(&mut self, id: Ref) -> Pages<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a page.
-    pub fn page(&mut self, id: Ref) -> Page<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing an outline.
-    pub fn outline(&mut self, id: Ref) -> Outline<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing an outline item.
-    pub fn outline_item(&mut self, id: Ref) -> OutlineItem<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a named destination dictionary.
-    pub fn destinations(&mut self, id: Ref) -> TypedDict<'_, Destination> {
-        self.indirect(id).dict().typed()
-    }
-
-    /// Start writing a file specification dictionary.
-    pub fn file_spec(&mut self, id: Ref) -> FileSpec<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing an embedded file stream.
-    pub fn embedded_file<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> EmbeddedFile<'a> {
-        EmbeddedFile::start(self.stream(id, bytes))
-    }
-
-    /// Start writing a structure tree element.
-    pub fn struct_element(&mut self, id: Ref) -> StructElement<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a metadata stream.
-    pub fn metadata<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> Metadata<'a> {
-        Metadata::start(self.stream(id, bytes))
-    }
-}
-
-/// Graphics and content.
-impl PdfWriter {
-    /// Start writing an image XObject stream.
-    ///
-    /// The samples should be encoded according to the stream's filter, color
-    /// space and bits per component.
-    pub fn image_xobject<'a>(
-        &'a mut self,
-        id: Ref,
-        samples: &'a [u8],
-    ) -> ImageXObject<'a> {
-        ImageXObject::start(self.stream(id, samples))
-    }
-
-    /// Start writing a form XObject stream.
-    ///
-    /// These can be used as transparency groups.
-    ///
-    /// Note that these have nothing to do with forms that have fields to fill
-    /// out. Rather, they are a way to encapsulate and reuse content across the
-    /// file.
-    ///
-    /// You can create the content bytes using a [`Content`] builder.
-    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject<'a> {
-        FormXObject::start(self.stream(id, content))
-    }
-
-    /// Start writing an external graphics state dictionary.
-    pub fn ext_graphics(&mut self, id: Ref) -> ExtGraphicsState<'_> {
-        self.indirect(id).start()
-    }
-}
-
-/// Fonts.
-impl PdfWriter {
-    /// Start writing a Type-1 font.
-    pub fn type1_font(&mut self, id: Ref) -> Type1Font<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a Type-3 font.
-    pub fn type3_font(&mut self, id: Ref) -> Type3Font<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a Type-0 font.
-    pub fn type0_font(&mut self, id: Ref) -> Type0Font<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a CID font.
-    pub fn cid_font(&mut self, id: Ref) -> CidFont<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a font descriptor.
-    pub fn font_descriptor(&mut self, id: Ref) -> FontDescriptor<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a character map stream.
-    ///
-    /// If you want to use this for a `/ToUnicode` CMap, you can create the
-    /// bytes using a [`UnicodeCmap`](types::UnicodeCmap) builder.
-    pub fn cmap<'a>(&'a mut self, id: Ref, cmap: &'a [u8]) -> Cmap<'a> {
-        Cmap::start(self.stream(id, cmap))
-    }
-}
-
-/// Color spaces, shadings and patterns.
-impl PdfWriter {
-    /// Start writing a color space.
-    pub fn color_space(&mut self, id: Ref) -> ColorSpace<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a function-based shading (type 1-3).
-    pub fn function_shading(&mut self, id: Ref) -> FunctionShading<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a stream-based shading (type 4-7).
-    pub fn stream_shading<'a>(
-        &'a mut self,
-        id: Ref,
-        content: &'a [u8],
-    ) -> StreamShading<'a> {
-        StreamShading::start(self.stream(id, content))
-    }
-
-    /// Start writing a tiling pattern stream.
-    ///
-    /// You can create the content bytes using a [`Content`] builder.
-    pub fn tiling_pattern<'a>(
-        &'a mut self,
-        id: Ref,
-        content: &'a [u8],
-    ) -> TilingPattern<'a> {
-        TilingPattern::start_with_stream(self.stream(id, content))
-    }
-
-    /// Start writing a shading pattern.
-    pub fn shading_pattern(&mut self, id: Ref) -> ShadingPattern<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing an ICC profile stream.
-    ///
-    /// The `profile` argument shall contain the ICC profile data conforming to
-    /// ICC.1:2004-10 (PDF 1.7), ICC.1:2003-09 (PDF 1.6), ICC.1:2001-12 (PDF 1.5),
-    /// ICC.1:1999-04 (PDF 1.4), or ICC 3.3 (PDF 1.3). Profile data is commonly
-    /// compressed using the `FlateDecode` filter.
-    pub fn icc_profile<'a>(&'a mut self, id: Ref, profile: &'a [u8]) -> IccProfile<'a> {
-        IccProfile::start(self.stream(id, profile))
-    }
-}
-
-/// Functions.
-impl PdfWriter {
-    /// Start writing a sampled function stream.
-    pub fn sampled_function<'a>(
-        &'a mut self,
-        id: Ref,
-        samples: &'a [u8],
-    ) -> SampledFunction<'a> {
-        SampledFunction::start(self.stream(id, samples))
-    }
-
-    /// Start writing an exponential function.
-    pub fn exponential_function(&mut self, id: Ref) -> ExponentialFunction<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a stitching function.
-    pub fn stitching_function(&mut self, id: Ref) -> StitchingFunction<'_> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a PostScript function stream.
-    ///
-    /// You can create the code bytes using [`PostScriptOp::encode`](types::PostScriptOp::encode).
-    pub fn post_script_function<'a>(
-        &'a mut self,
-        id: Ref,
-        code: &'a [u8],
-    ) -> PostScriptFunction<'a> {
-        PostScriptFunction::start(self.stream(id, code))
-    }
-}
-
-/// Tree data structures.
-impl PdfWriter {
-    /// Start writing a name tree node.
-    pub fn name_tree<T: Primitive>(&mut self, id: Ref) -> NameTree<'_, T> {
-        self.indirect(id).start()
-    }
-
-    /// Start writing a number tree node.
-    pub fn number_tree<T: Primitive>(&mut self, id: Ref) -> NumberTree<'_, T> {
-        self.indirect(id).start()
-    }
-}
-
-impl Debug for PdfWriter {
+impl Debug for Pdf {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.pad("PdfWriter(..)")
+        f.pad("Pdf(..)")
+    }
+}
+
+impl Deref for Pdf {
+    type Target = Chunk;
+
+    fn deref(&self) -> &Self::Target {
+        &self.chunk
+    }
+}
+
+impl DerefMut for Pdf {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.chunk
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Print a chunk.
+    #[allow(unused)]
+    pub fn print_chunk(chunk: &Chunk) {
+        println!("========== Chunk ==========");
+        for &(id, offset) in &chunk.offsets {
+            println!("[{}]: {}", id.get(), offset);
+        }
+        println!("---------------------------");
+        print!("{}", String::from_utf8_lossy(&chunk.buf));
+        println!("===========================");
+    }
+
+    /// Return the slice of bytes written during the execution of `f`.
+    pub fn slice<F>(f: F) -> Vec<u8>
+    where
+        F: FnOnce(&mut Pdf),
+    {
+        let mut w = Pdf::new();
+        let start = w.len();
+        f(&mut w);
+        let end = w.len();
+        let buf = w.finish();
+        buf[start..end].to_vec()
+    }
+
+    /// Return the slice of bytes written for an object.
+    pub fn slice_obj<F>(f: F) -> Vec<u8>
+    where
+        F: FnOnce(Obj<'_>),
+    {
+        let buf = slice(|w| f(w.indirect(Ref::new(1))));
+        buf[8..buf.len() - 9].to_vec()
+    }
+
+    #[test]
+    fn test_minimal() {
+        let w = Pdf::new();
+        test!(
+            w.finish(),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"xref\n0 1\n0000000000 65535 f\r",
+            b"trailer\n<<\n  /Size 1\n>>",
+            b"startxref\n16\n%%EOF",
+        );
+    }
+
+    #[test]
+    fn test_xref_free_list_short() {
+        let mut w = Pdf::new();
+        w.indirect(Ref::new(1)).primitive(1);
+        w.indirect(Ref::new(2)).primitive(2);
+        test!(
+            w.finish(),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"1 0 obj\n1\nendobj\n",
+            b"2 0 obj\n2\nendobj\n",
+            b"xref",
+            b"0 3",
+            b"0000000000 65535 f\r",
+            b"0000000016 00000 n\r",
+            b"0000000034 00000 n\r",
+            b"trailer",
+            b"<<\n  /Size 3\n>>",
+            b"startxref\n52\n%%EOF",
+        )
+    }
+
+    #[test]
+    fn test_xref_free_list_long() {
+        let mut w = Pdf::new();
+        w.set_version(1, 4);
+        w.indirect(Ref::new(1)).primitive(1);
+        w.indirect(Ref::new(2)).primitive(2);
+        w.indirect(Ref::new(5)).primitive(5);
+        test!(
+            w.finish(),
+            b"%PDF-1.4\n%\x80\x80\x80\x80\n",
+            b"1 0 obj\n1\nendobj\n",
+            b"2 0 obj\n2\nendobj\n",
+            b"5 0 obj\n5\nendobj\n",
+            b"xref",
+            b"0 6",
+            b"0000000003 65535 f\r",
+            b"0000000016 00000 n\r",
+            b"0000000034 00000 n\r",
+            b"0000000004 00000 f\r",
+            b"0000000000 00000 f\r",
+            b"0000000052 00000 n\r",
+            b"trailer",
+            b"<<\n  /Size 6\n>>",
+            b"startxref\n70\n%%EOF",
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "duplicate indirect reference id: 3")]
+    fn test_xref_free_list_duplicate() {
+        let mut w = Pdf::new();
+        w.indirect(Ref::new(3)).primitive(1);
+        w.indirect(Ref::new(5)).primitive(2);
+        w.indirect(Ref::new(13)).primitive(1);
+        w.indirect(Ref::new(3)).primitive(1);
+        w.indirect(Ref::new(6)).primitive(2);
+        w.finish();
     }
 }

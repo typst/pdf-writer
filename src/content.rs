@@ -1185,7 +1185,7 @@ impl<'a> Resources<'a> {
     /// Start writing the `/Shading` dictionary. PDF 1.3+.
     ///
     /// Relevant types:
-    /// - [`Shading`]
+    /// - [`FunctionShading`]
     pub fn shadings(&mut self) -> Dict<'_> {
         self.insert(Name(b"Shading")).dict()
     }
@@ -1269,7 +1269,7 @@ impl ProcSet {
 
 /// Writer for a _dictionary with additional parameters for the graphics state._
 ///
-/// This struct is created by [`PdfWriter::ext_graphics`] and
+/// This struct is created by [`Chunk::ext_graphics`] and
 /// [`ShadingPattern::ext_graphics`].
 pub struct ExtGraphicsState<'a> {
     dict: Dict<'a>,
