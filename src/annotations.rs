@@ -396,8 +396,8 @@ writer!(Appearance: |obj| Self { dict: obj.dict() });
 
 impl<'a> Appearance<'a> {
     /// Write the `/R` attribute. This is the number of degrees the widget
-    /// annotation should be rotated counter clockwise to its page when
-    /// displayed. This should be a multiple of 90.
+    /// annotation should be rotated by counterclockwise relative to its page
+    /// when displayed. This should be a multiple of 90.
     pub fn rotate(&mut self, degrees: i32) -> &mut Self {
         self.pair(Name(b"R"), degrees);
         self
@@ -426,21 +426,21 @@ impl<'a> Appearance<'a> {
 
     /// Write the `/BG` attribute using a grayscale color. This sets the
     /// widget annotation's backround color.
-    pub fn backround_color_gray(&mut self, gray: f32) -> &mut Self {
+    pub fn background_color_gray(&mut self, gray: f32) -> &mut Self {
         self.insert(Name(b"BG")).array().item(gray);
         self
     }
 
     /// Write the `/BG` attribute using an RGB color. This sets the widget
     /// annotation's backround color.
-    pub fn backround_color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+    pub fn background_color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
         self.insert(Name(b"BG")).array().items([r, g, b]);
         self
     }
 
     /// Write the `/BG` attribute using an RGB color. This sets the widget
     /// annotation's backround color.
-    pub fn backround_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
+    pub fn background_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
         self.insert(Name(b"BG")).array().items([c, y, m, k]);
         self
     }
@@ -533,7 +533,7 @@ pub struct IconFit<'a> {
 writer!(IconFit: |obj| Self { dict: obj.dict() });
 
 impl<'a> IconFit<'a> {
-    /// Write the `/SW` attribute. This sets udner whcih circumstances the icon
+    /// Write the `/SW` attribute. This sets under which circumstances the icon
     /// of the widget annotation should be scaled.
     pub fn scale(&mut self, value: IconScale) -> &mut Self {
         self.pair(Name(b"SW"), value.to_name());
