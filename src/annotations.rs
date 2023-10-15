@@ -122,15 +122,15 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Start writing the `/A` dictionary. Only permissible for the subtype
-    /// `Link`.
+    /// Start writing the `/A` dictionary. Only permissible for the subtypes
+    /// `Link` and `Widget`.
     pub fn action(&mut self) -> Action<'_> {
         self.insert(Name(b"A")).start()
     }
 
     /// Write the `/H` attribute to set what effect is used to convey that the
-    /// user is pressing a link annotation. Only permissible for the subtype
-    /// `Link`. PDF 1.2+.
+    /// user is pressing a link or widget annotation. Only permissible for the
+    /// subtypes `Link` and `Widget`. PDF 1.2+.
     pub fn highlight(&mut self, effect: HighlightEffect) -> &mut Self {
         self.pair(Name(b"H"), effect.to_name());
         self
@@ -178,6 +178,13 @@ impl<'a> Annotation<'a> {
         self.pair(Name(b"Name"), icon.to_name());
         self
     }
+
+    /// Write the `/Parent` attribute. Only permissible for the subtype
+    /// `Widget`.
+    pub fn parent(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Parent"), id);
+        self
+    }
 }
 
 deref!('a, Annotation<'a> => Dict<'a>, dict);
@@ -205,6 +212,8 @@ pub enum AnnotationType {
     StrikeOut,
     /// A reference to another file. PDF 1.3+.
     FileAttachment,
+    /// A widget annotation. PDF 1.2+.
+    Widget,
 }
 
 impl AnnotationType {
@@ -220,6 +229,7 @@ impl AnnotationType {
             Self::Squiggly => Name(b"Squiggly"),
             Self::StrikeOut => Name(b"StrikeOut"),
             Self::FileAttachment => Name(b"FileAttachment"),
+            Self::Widget => Name(b"Widget"),
         }
     }
 }
