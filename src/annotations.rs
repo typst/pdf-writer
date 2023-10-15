@@ -179,6 +179,12 @@ impl<'a> Annotation<'a> {
         self
     }
 
+    /// Start writing the `/MK` dictionary. Only permissible for the subtype
+    /// `Widget`.
+    pub fn appearance(&mut self) -> Appearance<'_> {
+        self.dict.insert(Name(b"MK")).start()
+    }
+
     /// Write the `/Parent` attribute. Only permissible for the subtype
     /// `Widget`.
     pub fn parent(&mut self, id: Ref) -> &mut Self {
@@ -378,6 +384,138 @@ impl<'a> Action<'a> {
 }
 
 deref!('a, Action<'a> => Dict<'a>, dict);
+
+/// Writer for an _appearance dictionary_.
+///
+/// This struct is created by [`Annotation::appearance`].
+pub struct Appearance<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(Appearance: |obj| Self { dict: obj.dict() });
+
+impl<'a> Appearance<'a> {
+    /// Write the `/R` attribute. This is the number of degrees the widget
+    /// annotation should be rotated counter clockwise to its page when
+    /// displayed. This should be a multiple of 90.
+    pub fn rotate(&mut self, degrees: i32) -> &mut Self {
+        self.pair(Name(b"R"), degrees);
+        self
+    }
+
+    /// Write the `/BC` attribute using a grayscale color. This sets the
+    /// widget annotation's border color.
+    pub fn border_color_gray(&mut self, gray: f32) -> &mut Self {
+        self.insert(Name(b"BC")).array().item(gray);
+        self
+    }
+
+    /// Write the `/BC` attribute using an RGB color. This sets the widget
+    /// annotation's border color.
+    pub fn border_color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.insert(Name(b"BC")).array().items([r, g, b]);
+        self
+    }
+
+    /// Write the `/BC` attribute using an RGB color. This sets the widget
+    /// annotation's border color.
+    pub fn border_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
+        self.insert(Name(b"BC")).array().items([c, y, m, k]);
+        self
+    }
+
+    /// Write the `/BG` attribute using a grayscale color. This sets the
+    /// widget annotation's backround color.
+    pub fn backround_color_gray(&mut self, gray: f32) -> &mut Self {
+        self.insert(Name(b"BG")).array().item(gray);
+        self
+    }
+
+    /// Write the `/BG` attribute using an RGB color. This sets the widget
+    /// annotation's backround color.
+    pub fn backround_color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.insert(Name(b"BG")).array().items([r, g, b]);
+        self
+    }
+
+    /// Write the `/BG` attribute using an RGB color. This sets the widget
+    /// annotation's backround color.
+    pub fn backround_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
+        self.insert(Name(b"BG")).array().items([c, y, m, k]);
+        self
+    }
+
+    /// Write the `/CA` attribute. This sets the widget annotation's normal
+    /// caption. Only permissible for button fields.
+    pub fn normal_caption(&mut self, caption: TextStr) -> &mut Self {
+        self.pair(Name(b"CA"), caption);
+        self
+    }
+
+    /// Write the `/RC` attribute. This sets the widget annotation's rollover
+    /// caption. Only permissible for push button fields.
+    pub fn rollover_caption(&mut self, caption: TextStr) -> &mut Self {
+        self.pair(Name(b"RC"), caption);
+        self
+    }
+
+    /// Write the `/AC` attribute. This sets the widget annotation's alternate
+    /// (down) caption. Only permissible for push button fields.
+    pub fn alterante_caption(&mut self, caption: TextStr) -> &mut Self {
+        self.pair(Name(b"AC"), caption);
+        self
+    }
+
+    /// Write the `/I` attribute. This sets the widget annotation's normal icon.
+    /// Only permissible for push button fields.
+    pub fn normal_icon(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"I"), id);
+        self
+    }
+
+    /// Write the `/RI` attribute. This sets the widget annotation's rollover
+    /// icon. Only permissible for push button fields.
+    pub fn rollover_icon(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"RI"), id);
+        self
+    }
+
+    /// Write the `/IX` attribute. This sets the widget annotation's alternate
+    /// (down) icon. Only permissible for push button fields.
+    pub fn alternate_icon(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"IX"), id);
+        self
+    }
+
+    /// Write the `/TP` attribute. This sets the widget annotation's caption
+    /// position relative to the annotation's icon.
+    pub fn text_position(&mut self, position: TextPosition) -> &mut Self {
+        self.pair(Name(b"TP"), position as i32);
+        self
+    }
+}
+
+deref!('a, Appearance<'a> => Dict<'a>, dict);
+
+/// The position the text of the widget annotation's caption relative to its
+/// icon.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TextPosition {
+    /// Hide icon, show only caption.
+    CaptionOnly = 0,
+    /// Hide caption, show only icon.
+    IconOnly = 1,
+    /// The caption should be placed below the icon.
+    Below = 2,
+    /// The caption should be placed above the icon.
+    Above = 3,
+    /// The caption should be placed to the right of the icon.
+    Right = 4,
+    /// The caption should be placed to the left of the icon.
+    Left = 5,
+    /// The caption should be placed overlaid directly on the icon.
+    Overlaid = 6,
+}
 
 /// What kind of action to perform when clicking a link annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
