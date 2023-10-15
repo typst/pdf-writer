@@ -403,6 +403,13 @@ impl<'a> Appearance<'a> {
         self
     }
 
+    /// Write the `/BC` attribute forcing a transparent color. This sets the
+    /// widget annotation's border color.
+    pub fn border_color_transparent(&mut self) -> &mut Self {
+        self.insert(Name(b"BC")).array();
+        self
+    }
+
     /// Write the `/BC` attribute using a grayscale color. This sets the
     /// widget annotation's border color.
     pub fn border_color_gray(&mut self, gray: f32) -> &mut Self {
@@ -421,6 +428,13 @@ impl<'a> Appearance<'a> {
     /// annotation's border color.
     pub fn border_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
         self.insert(Name(b"BC")).array().items([c, y, m, k]);
+        self
+    }
+
+    /// Write the `/BG` attribute forcing a transparent color. This sets the
+    /// widget annotation's background color.
+    pub fn background_color_transparent(&mut self) -> &mut Self {
+        self.insert(Name(b"C")).array();
         self
     }
 
