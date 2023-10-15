@@ -104,7 +104,7 @@ mod xobject;
 /// Strongly typed writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use annotations::{Action, Annotation, BorderStyle};
+    pub use annotations::{Action, Annotation, Appearance, BorderStyle, IconFit};
     pub use attributes::{
         Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
         UserProperty,
@@ -141,7 +141,7 @@ pub mod types {
     use super::*;
     pub use annotations::{
         ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
-        HighlightEffect,
+        HighlightEffect, IconScale, IconScaleType, TextPosition,
     };
     pub use attributes::{
         AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
