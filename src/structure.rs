@@ -91,6 +91,12 @@ impl<'a> Catalog<'a> {
         self
     }
 
+    /// Start writing the `/AA` dictionary. This sets the additional actions for
+    /// the whole document. PDF 1.4+.
+    pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
+        self.insert(Name(b"AA")).start()
+    }
+
     /// Write the `/Metadata` attribute to specify the document's metadata. PDF
     /// 1.4+.
     ///
@@ -1185,6 +1191,12 @@ impl<'a> Page<'a> {
     pub fn user_unit(&mut self, value: f32) -> &mut Self {
         self.pair(Name(b"UserUnit"), value);
         self
+    }
+
+    /// Start writing the `/AA` dictionary. This sets the actions to perform
+    /// when a page is opened or closed. PDF 1.2+.
+    pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
+        self.insert(Name(b"AA")).start()
     }
 
     /// Write the `/Metadata` attribute to specify the page's metadata. PDF

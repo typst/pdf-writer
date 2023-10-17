@@ -105,7 +105,7 @@ mod xobject;
 /// Strongly typed writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use actions::Action;
+    pub use actions::{Action, AdditionalActions};
     pub use annotations::{Annotation, Appearance, BorderStyle, IconFit};
     pub use attributes::{
         Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,

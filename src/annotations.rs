@@ -128,6 +128,12 @@ impl<'a> Annotation<'a> {
         self.insert(Name(b"A")).start()
     }
 
+    /// Start writing the `/AA` dictionary. Only permissible for the subtype
+    /// `Widget`. PDF 1.3+.
+    pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
+        self.insert(Name(b"AA")).start()
+    }
+
     /// Write the `/H` attribute to set what effect is used to convey that the
     /// user is pressing a link or widget annotation. Only permissible for the
     /// subtypes `Link` and `Widget`. PDF 1.2+.
