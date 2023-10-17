@@ -76,7 +76,7 @@ impl BufExt for Vec<u8> {
         }
 
         self.push(octal(value >> 6));
-        self.push(octal((value >> 3) & 63));
+        self.push(octal((value >> 3) & 7));
         self.push(octal(value & 7));
     }
 }
