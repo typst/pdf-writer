@@ -434,7 +434,7 @@ impl<'a> Appearance<'a> {
     /// Write the `/BG` attribute forcing a transparent color. This sets the
     /// widget annotation's background color.
     pub fn background_color_transparent(&mut self) -> &mut Self {
-        self.insert(Name(b"C")).array();
+        self.insert(Name(b"BG")).array();
         self
     }
 
@@ -467,7 +467,7 @@ impl<'a> Appearance<'a> {
     }
 
     /// Write the `/RC` attribute. This sets the widget annotation's rollover
-    /// caption. Only permissible for push button fields.
+    /// (hover) caption. Only permissible for push button fields.
     pub fn rollover_caption(&mut self, caption: TextStr) -> &mut Self {
         self.pair(Name(b"RC"), caption);
         self
@@ -480,22 +480,25 @@ impl<'a> Appearance<'a> {
         self
     }
 
-    /// Write the `/I` attribute. This sets the widget annotation's normal icon.
-    /// Only permissible for push button fields.
+    /// Write the `/I` attribute. This sets the widget annotation's normal icon
+    /// as a reference to a [`FormXObject`]. Only permissible for push button
+    /// fields.
     pub fn normal_icon(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"I"), id);
         self
     }
 
     /// Write the `/RI` attribute. This sets the widget annotation's rollover
-    /// icon. Only permissible for push button fields.
+    /// (hover) icon as a reference to a [`FormXObject`]. Only permissible for
+    /// push button fields.
     pub fn rollover_icon(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"RI"), id);
         self
     }
 
     /// Write the `/IX` attribute. This sets the widget annotation's alternate
-    /// (down) icon. Only permissible for push button fields.
+    /// (down) icon as a reference to a [`FormXObject`]. Only permissible for
+    /// push button fields.
     pub fn alternate_icon(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"IX"), id);
         self
@@ -508,7 +511,8 @@ impl<'a> Appearance<'a> {
     }
 
     /// Write the `/TP` attribute. This sets the widget annotation's caption
-    /// position relative to the annotation's icon.
+    /// position relative to the annotation's icon. Only permissible for push
+    /// button fields.
     pub fn text_position(&mut self, position: TextPosition) -> &mut Self {
         self.pair(Name(b"TP"), position as i32);
         self
@@ -608,7 +612,7 @@ impl IconScale {
 /// How the icon in a push button field should be scaled.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum IconScaleType {
-    /// cale the icon to fill the annotation rectangle exactly, without regard
+    /// Scale the icon to fill the annotation rectangle exactly, without regard
     /// to its original aspect ratio (ratio of width to height).
     Anamorphic,
     /// Scale the icon to fit the width or height of the annotation rectangle
