@@ -33,8 +33,12 @@ impl<'a> Action<'a> {
         self
     }
 
-    /// Start writing the `/F` attribute, setting which file to go to or which
-    /// application to launch.
+    /// Start writing the `/F` attribute, depending on the [`action_type`], setting:
+    /// - `RemoteGoTo`: which file to go to
+    /// - `Launch`: which application to launch
+    /// - `SubmitForm`: script location of the webserver that processes the
+    ///   submission
+    /// - `ImportData`: the FDF file from which to import data.
     pub fn file_spec(&mut self) -> FileSpec<'_> {
         self.insert(Name(b"F")).start()
     }
@@ -59,9 +63,48 @@ impl<'a> Action<'a> {
         self.pair(Name(b"IsMap"), map);
         self
     }
+
+    /// Start writing the `/Fields` array to set the fields which are
+    /// [include/exclude](ActionFlags::INCLUDE_EXCLUDE) when submitting a form
+    /// or loading an FDF file.
+    pub fn fields(&mut self) -> Fields<'_> {
+        self.insert(Name(b"Fields")).start()
+    }
+
+    /// Write the `/Flags` attribute to set the various characteristics of the
+    /// action.
+    pub fn flags(&mut self, flags: ActionFlags) -> &mut Self {
+        self.pair(Name(b"Flags"), flags.bits() as i32);
+        self
+    }
 }
 
 deref!('a, Action<'a> => Dict<'a>, dict);
+
+/// Writer for a _fields array_.
+///
+/// This struct is created by [`Action::fields`].
+pub struct Fields<'a> {
+    array: Array<'a>,
+}
+
+writer!(Fields: |obj| Self { array: obj.array() });
+
+impl<'a> Fields<'a> {
+    /// The indirect reference to the field.
+    pub fn id(&mut self, id: Ref) -> &mut Self {
+        self.array.item(id);
+        self
+    }
+
+    /// The fully qualified name of the field. PDF 1.3+.
+    pub fn name(&mut self, name: TextStr) -> &mut Self {
+        self.array.item(name);
+        self
+    }
+}
+
+deref!('a, Fields<'a> => Array<'a>, array);
 
 /// What kind of action to perform when clicking a link annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -74,6 +117,12 @@ pub enum ActionType {
     Launch,
     /// Open a URI.
     Uri,
+    /// Set an annotation's hidden flag. PDF 1.2+.
+    SubmitForm,
+    /// Set form fields to their default values. PDF 1.2+.
+    ResetForm,
+    /// Import form field values from a file. PDF 1.2+.
+    ImportData,
 }
 
 impl ActionType {
@@ -83,7 +132,66 @@ impl ActionType {
             Self::RemoteGoTo => Name(b"GoToR"),
             Self::Launch => Name(b"Launch"),
             Self::Uri => Name(b"URI"),
+            Self::SubmitForm => Name(b"SubmitForm"),
+            Self::ResetForm => Name(b"ResetForm"),
+            Self::ImportData => Name(b"ImportData"),
         }
+    }
+}
+
+bitflags::bitflags! {
+    /// A set of flags specifying various characteristics of an [`Action`].
+    pub struct ActionFlags: u32 {
+        /// Whether to include (unset) or exclude (set) the values in the
+        /// `/Fields` attribute on form submission or reset. This Flag has very
+        /// specific interacitons with other flags and fields, read the PDF 1.7
+        /// spec for more info.
+        const INCLUDE_EXCLUDE = 1;
+        /// Fields shall be submitted regardless of if they have a value or
+        /// not, otherwise they are excluded.
+        const INCLUDE_NO_VALUE_FIELDS = 2;
+        /// Export the fields as HTML instead of submitting as FDF. Ignored if
+        /// `SUBMIT_PDF` or `XFDF` are set.
+        const EXPORT_FORMAT = 1 << 3;
+        /// Field name should be submitted using an HTTP GET request, otherwise
+        /// POST. Should only be if `EXPORT_FORMAT` is also set.
+        const GET_METHOD = 1 << 4;
+        /// Include the coordinates of the mouse when submit was pressed. Should
+        /// only be if `EXPORT_FORMAT` is also set.
+        const SUBMIT_COORDINATES = 1 << 5;
+        /// Submit field names and values as XFDF instead of submitting an FDF.
+        /// Should not be set if `SUBMIT_PDF` is set. PDF1.4+.
+        const XFDF = 1 << 6;
+        /// Include all updates done to the PDF document in the submission FDF
+        /// file. Should only be used when `XFDF` and `EXPORT_FORMAT` are not
+        /// set. PDF 1.4+.
+        const INCLUDE_APPEND_SAVES = 1 << 7;
+        /// Include all markup annotations of the PDF dcoument in the submission
+        /// FDF file. Should only be used when `XFDF` and `EXPORT_FORMAT` are
+        /// not set. PDF 1.4+.
+        const INCLUDE_ANNOTATIONS = 1 << 8;
+        /// Submit the PDF file instead of an FDF file. All other flags other
+        /// than `GET_METHOD` are ignored if this is set. PDF 1.4+.
+        const SUBMIT_PDF = 1 << 9;
+        /// Convert fields which represent dates into the
+        /// [canonical date format](crate::types::Date). The interpretation of
+        /// a form field as a date is is not specified in the field but the
+        /// JavaScript code that processes it. PDF 1.4+.
+        const CANONICAL_FORMAT = 1 << 10;
+        /// Include only the markup annotations made by the current user (the
+        /// `/T` entry of the annotation) as determined by the remote server
+        /// the form will be submitted to. Should only be used when `XFDF` and
+        /// `EXPORT_FORMAT` are not set and `INCLUDE_ANNOTATIONS` is set. PDF
+        /// 1.4+.
+        const EXCLUDE_NON_USER_ANNOTS = 1 << 11;
+        /// Include the F entry in the FDF file.
+        /// Should only be used when `XFDF` and `EXPORT_FORMAT` are not set.
+        /// PDF 1.4+
+        const EXCLUDE_F_KEY = 1 << 12;
+        /// Include the PDF file as a stream in the FDF file that will be submitted.
+        /// Should only be used when `XFDF` and `EXPORT_FORMAT` are not set.
+        /// PDF 1.5+.
+        const EMBED_FORM = 1 << 14;
     }
 }
 
