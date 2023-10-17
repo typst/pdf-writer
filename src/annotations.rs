@@ -122,15 +122,15 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Start writing the `/A` dictionary. Only permissible for the subtype
-    /// `Link`.
+    /// Start writing the `/A` dictionary. Only permissible for the subtypes
+    /// `Link` and `Widget`.
     pub fn action(&mut self) -> Action<'_> {
         self.insert(Name(b"A")).start()
     }
 
     /// Write the `/H` attribute to set what effect is used to convey that the
-    /// user is pressing a link annotation. Only permissible for the subtype
-    /// `Link`. PDF 1.2+.
+    /// user is pressing a link or widget annotation. Only permissible for the
+    /// subtypes `Link` and `Widget`. PDF 1.2+.
     pub fn highlight(&mut self, effect: HighlightEffect) -> &mut Self {
         self.pair(Name(b"H"), effect.to_name());
         self
@@ -178,6 +178,19 @@ impl<'a> Annotation<'a> {
         self.pair(Name(b"Name"), icon.to_name());
         self
     }
+
+    /// Start writing the `/MK` dictionary. Only permissible for the subtype
+    /// `Widget`.
+    pub fn appearance(&mut self) -> Appearance<'_> {
+        self.dict.insert(Name(b"MK")).start()
+    }
+
+    /// Write the `/Parent` attribute. Only permissible for the subtype
+    /// `Widget`.
+    pub fn parent(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"Parent"), id);
+        self
+    }
 }
 
 deref!('a, Annotation<'a> => Dict<'a>, dict);
@@ -205,6 +218,8 @@ pub enum AnnotationType {
     StrikeOut,
     /// A reference to another file. PDF 1.3+.
     FileAttachment,
+    /// A widget annotation. PDF 1.2+.
+    Widget,
 }
 
 impl AnnotationType {
@@ -220,6 +235,7 @@ impl AnnotationType {
             Self::Squiggly => Name(b"Squiggly"),
             Self::StrikeOut => Name(b"StrikeOut"),
             Self::FileAttachment => Name(b"FileAttachment"),
+            Self::Widget => Name(b"Widget"),
         }
     }
 }
@@ -368,6 +384,253 @@ impl<'a> Action<'a> {
 }
 
 deref!('a, Action<'a> => Dict<'a>, dict);
+
+/// Writer for an _appearance dictionary_.
+///
+/// This struct is created by [`Annotation::appearance`].
+pub struct Appearance<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(Appearance: |obj| Self { dict: obj.dict() });
+
+impl<'a> Appearance<'a> {
+    /// Write the `/R` attribute. This is the number of degrees the widget
+    /// annotation should be rotated by counterclockwise relative to its page
+    /// when displayed. This should be a multiple of 90.
+    pub fn rotate(&mut self, degrees: i32) -> &mut Self {
+        self.pair(Name(b"R"), degrees);
+        self
+    }
+
+    /// Write the `/BC` attribute forcing a transparent color. This sets the
+    /// widget annotation's border color.
+    pub fn border_color_transparent(&mut self) -> &mut Self {
+        self.insert(Name(b"BC")).array();
+        self
+    }
+
+    /// Write the `/BC` attribute using a grayscale color. This sets the
+    /// widget annotation's border color.
+    pub fn border_color_gray(&mut self, gray: f32) -> &mut Self {
+        self.insert(Name(b"BC")).array().item(gray);
+        self
+    }
+
+    /// Write the `/BC` attribute using an RGB color. This sets the widget
+    /// annotation's border color.
+    pub fn border_color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.insert(Name(b"BC")).array().items([r, g, b]);
+        self
+    }
+
+    /// Write the `/BC` attribute using an RGB color. This sets the widget
+    /// annotation's border color.
+    pub fn border_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
+        self.insert(Name(b"BC")).array().items([c, y, m, k]);
+        self
+    }
+
+    /// Write the `/BG` attribute forcing a transparent color. This sets the
+    /// widget annotation's background color.
+    pub fn background_color_transparent(&mut self) -> &mut Self {
+        self.insert(Name(b"BG")).array();
+        self
+    }
+
+    /// Write the `/BG` attribute using a grayscale color. This sets the
+    /// widget annotation's backround color.
+    pub fn background_color_gray(&mut self, gray: f32) -> &mut Self {
+        self.insert(Name(b"BG")).array().item(gray);
+        self
+    }
+
+    /// Write the `/BG` attribute using an RGB color. This sets the widget
+    /// annotation's backround color.
+    pub fn background_color_rgb(&mut self, r: f32, g: f32, b: f32) -> &mut Self {
+        self.insert(Name(b"BG")).array().items([r, g, b]);
+        self
+    }
+
+    /// Write the `/BG` attribute using an RGB color. This sets the widget
+    /// annotation's backround color.
+    pub fn background_color_cymk(&mut self, c: f32, y: f32, m: f32, k: f32) -> &mut Self {
+        self.insert(Name(b"BG")).array().items([c, y, m, k]);
+        self
+    }
+
+    /// Write the `/CA` attribute. This sets the widget annotation's normal
+    /// caption. Only permissible for button fields.
+    pub fn normal_caption(&mut self, caption: TextStr) -> &mut Self {
+        self.pair(Name(b"CA"), caption);
+        self
+    }
+
+    /// Write the `/RC` attribute. This sets the widget annotation's rollover
+    /// (hover) caption. Only permissible for push button fields.
+    pub fn rollover_caption(&mut self, caption: TextStr) -> &mut Self {
+        self.pair(Name(b"RC"), caption);
+        self
+    }
+
+    /// Write the `/AC` attribute. This sets the widget annotation's alternate
+    /// (down) caption. Only permissible for push button fields.
+    pub fn alterante_caption(&mut self, caption: TextStr) -> &mut Self {
+        self.pair(Name(b"AC"), caption);
+        self
+    }
+
+    /// Write the `/I` attribute. This sets the widget annotation's normal icon
+    /// as a reference to a [`FormXObject`]. Only permissible for push button
+    /// fields.
+    pub fn normal_icon(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"I"), id);
+        self
+    }
+
+    /// Write the `/RI` attribute. This sets the widget annotation's rollover
+    /// (hover) icon as a reference to a [`FormXObject`]. Only permissible for
+    /// push button fields.
+    pub fn rollover_icon(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"RI"), id);
+        self
+    }
+
+    /// Write the `/IX` attribute. This sets the widget annotation's alternate
+    /// (down) icon as a reference to a [`FormXObject`]. Only permissible for
+    /// push button fields.
+    pub fn alternate_icon(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"IX"), id);
+        self
+    }
+
+    /// Start writing the `/IF` dictonary. This sets the widget annotation's
+    /// icon display characteristics. Only permissible for push button fields.
+    pub fn icon_fit(&mut self) -> IconFit<'_> {
+        self.insert(Name(b"IF")).start()
+    }
+
+    /// Write the `/TP` attribute. This sets the widget annotation's caption
+    /// position relative to the annotation's icon. Only permissible for push
+    /// button fields.
+    pub fn text_position(&mut self, position: TextPosition) -> &mut Self {
+        self.pair(Name(b"TP"), position as i32);
+        self
+    }
+}
+
+deref!('a, Appearance<'a> => Dict<'a>, dict);
+
+/// The position the text of the widget annotation's caption relative to its
+/// icon.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TextPosition {
+    /// Hide icon, show only caption.
+    CaptionOnly = 0,
+    /// Hide caption, show only icon.
+    IconOnly = 1,
+    /// The caption should be placed below the icon.
+    Below = 2,
+    /// The caption should be placed above the icon.
+    Above = 3,
+    /// The caption should be placed to the right of the icon.
+    Right = 4,
+    /// The caption should be placed to the left of the icon.
+    Left = 5,
+    /// The caption should be placed overlaid directly on the icon.
+    Overlaid = 6,
+}
+
+/// Writer for an _icon fit dictionary_.
+///
+/// This struct is created by [`Appearance::icon_fit`].
+pub struct IconFit<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(IconFit: |obj| Self { dict: obj.dict() });
+
+impl<'a> IconFit<'a> {
+    /// Write the `/SW` attribute. This sets under which circumstances the icon
+    /// of the widget annotation should be scaled.
+    pub fn scale(&mut self, value: IconScale) -> &mut Self {
+        self.pair(Name(b"SW"), value.to_name());
+        self
+    }
+
+    /// Write the `/S` attribute. This sets the scaling type of this annoation.
+    pub fn scale_type(&mut self, value: IconScaleType) -> &mut Self {
+        self.pair(Name(b"S"), value.to_name());
+        self
+    }
+
+    /// Write the `/A` attribute. This sets the widget annotation's leftover
+    /// space if proportional scaling is applied given as fractions between
+    /// `0.0` and `1.0`.
+    pub fn leftover_space(&mut self, x: f32, y: f32) -> &mut Self {
+        self.insert(Name(b"A")).array().items([x, y]);
+        self
+    }
+
+    /// Wrtite the `/FB` attribute. This sets whether the border line width
+    /// should be ignored when scaling the icon to fit the annotation bounds.
+    /// PDF 1.5+.
+    pub fn fit_bounds(&mut self, fit: bool) -> &mut Self {
+        self.pair(Name(b"FB"), fit);
+        self
+    }
+}
+
+deref!('a, IconFit<'a> => Dict<'a>, dict);
+
+/// How the icon in a push button field should be scaled.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum IconScale {
+    /// Always scale the icon.
+    Always,
+    /// Scale the icon only when the icon is bigger than the annotation
+    /// rectangle.
+    Bigger,
+    /// Scale the icon only when the icon is smaller than the annotation
+    /// rectangle.
+    Smaller,
+    /// Never scale the icon.
+    Never,
+}
+
+impl IconScale {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Always => Name(b"A"),
+            Self::Bigger => Name(b"B"),
+            Self::Smaller => Name(b"S"),
+            Self::Never => Name(b"N"),
+        }
+    }
+}
+
+/// How the icon in a push button field should be scaled.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum IconScaleType {
+    /// Scale the icon to fill the annotation rectangle exactly, without regard
+    /// to its original aspect ratio (ratio of width to height).
+    Anamorphic,
+    /// Scale the icon to fit the width or height of the annotation rectangle
+    /// while maintaining the icon’s original aspect ratio. If the required
+    /// horizontal and vertical scaling factors are different, use the smaller
+    /// of the two, centering the icon within the annotation rectangle in the
+    /// other dimension.
+    Proportional,
+}
+
+impl IconScaleType {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Anamorphic => Name(b"A"),
+            Self::Proportional => Name(b"P"),
+        }
+    }
+}
 
 /// What kind of action to perform when clicking a link annotation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
