@@ -303,6 +303,38 @@ impl<'a> AdditionalActions<'a> {
     }
 }
 
+/// Only permisible for form fields.
+impl<'a> AdditionalActions<'a> {
+    /// Start writing the `/K` dictionary. This sets the JavaScript action that
+    /// shall be performed when the user modifies a character in a text field
+    /// or combo box or modifies the selection in a scrollable list box. This
+    /// action may check the added text for validity and reject or modify it.
+    /// PDF 1.3+.
+    pub fn k(&mut self) -> Action<'_> {
+        self.insert(Name(b"K")).start()
+    }
+    /// Start writing the `/F` dictionary. This sets the JavaScript action that
+    /// shall be performed before the field is formatted to display its value.
+    /// This action may modify the field's value before formatting. PDF 1.3+.
+    pub fn format(&mut self) -> Action<'_> {
+        self.insert(Name(b"F")).start()
+    }
+    /// Start writing the `/V` dictionary. This sets the JavaScript action that
+    /// shall be performed when the field's value is changed. This action may
+    /// check the new value for validity. PDF 1.3+.
+    pub fn validate(&mut self) -> Action<'_> {
+        self.insert(Name(b"V")).start()
+    }
+    /// Start writing the `/C` dictionary. This sets the JavaScript action that
+    /// shall be performed to recalculate the value of this field when that
+    /// of another field changes. The order in which the document's fields are
+    /// recalculated shall be defined by the `/CO` entry in the interactive form
+    /// dictionary. PDF 1.3+.
+    pub fn calculate(&mut self) -> Action<'_> {
+        self.insert(Name(b"C")).start()
+    }
+}
+
 /// Only permisible for [document catalog](Catalog).
 impl<'a> AdditionalActions<'a> {
     /// Start writing the `/WC` dictionary. This sets the JavaScript action that
