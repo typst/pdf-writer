@@ -1088,6 +1088,7 @@ mod tests {
         test_primitive!(Str(br"\n"), br"(\\n)");
         test_primitive!(Str(b"a\x14b"), br"(a\024b)");
         test_primitive!(Str(b"\xFF\xAA"), b"<FFAA>");
+        test_primitive!(Str(b"\x0A\x7F\x1F"), br"(\n\177\037)");
 
         // Test text strings.
         test_primitive!(TextStr("Hallo"), b"(Hallo)");
