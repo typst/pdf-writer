@@ -141,7 +141,7 @@ pub mod writers {
 /// Types used by specific PDF structures.
 pub mod types {
     use super::*;
-    pub use actions::{ActionFlags, ActionType};
+    pub use actions::{ActionType, FormActionFlags};
     pub use annotations::{
         AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, HighlightEffect,
         IconScale, IconScaleType, TextPosition,
