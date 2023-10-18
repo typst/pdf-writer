@@ -65,6 +65,13 @@ impl<'a> Action<'a> {
         self
     }
 
+    /// Write the `/JS` attribute to set the script of this action. Only
+    /// permissible for JavaScript actions.
+    pub fn js(&mut self, script: TextStr) -> &mut Self {
+        self.pair(Name(b"JS"), script);
+        self
+    }
+
     /// Start writing the `/Fields` array to set the fields which are
     /// [include/exclude](ActionFlags::INCLUDE_EXCLUDE) when submitting a form,
     /// resetting a form or loading an FDF file.
@@ -124,6 +131,8 @@ pub enum ActionType {
     ResetForm,
     /// Import form field values from a file. PDF 1.2+.
     ImportData,
+    /// Execute a JavaScript action. PDF 1.2+.
+    JavaScript,
 }
 
 impl ActionType {
@@ -136,6 +145,7 @@ impl ActionType {
             Self::SubmitForm => Name(b"SubmitForm"),
             Self::ResetForm => Name(b"ResetForm"),
             Self::ImportData => Name(b"ImportData"),
+            Self::JavaScript => Name(b"JavaScript"),
         }
     }
 }
