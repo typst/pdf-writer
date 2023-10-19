@@ -86,6 +86,7 @@ valid PDFs.
 
 #[macro_use]
 mod macros;
+mod actions;
 mod annotations;
 mod attributes;
 mod buf;
@@ -104,7 +105,8 @@ mod xobject;
 /// Strongly typed writers for specific PDF structures.
 pub mod writers {
     use super::*;
-    pub use annotations::{Action, Annotation, Appearance, BorderStyle, IconFit};
+    pub use actions::{Action, AdditionalActions, Fields};
+    pub use annotations::{Annotation, Appearance, BorderStyle, IconFit};
     pub use attributes::{
         Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
         UserProperty,
@@ -139,9 +141,10 @@ pub mod writers {
 /// Types used by specific PDF structures.
 pub mod types {
     use super::*;
+    pub use actions::{ActionType, FormActionFlags};
     pub use annotations::{
-        ActionType, AnnotationFlags, AnnotationIcon, AnnotationType, BorderType,
-        HighlightEffect, IconScale, IconScaleType, TextPosition,
+        AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, HighlightEffect,
+        IconScale, IconScaleType, TextPosition,
     };
     pub use attributes::{
         AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
