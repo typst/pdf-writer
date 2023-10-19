@@ -95,6 +95,7 @@ mod color;
 mod content;
 mod files;
 mod font;
+mod forms;
 mod functions;
 mod object;
 mod renumber;
@@ -125,6 +126,7 @@ pub mod writers {
         CidFont, Cmap, Differences, Encoding, FontDescriptor, Type0Font, Type1Font,
         Type3Font, Widths,
     };
+    pub use forms::Field;
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
@@ -161,6 +163,7 @@ pub mod types {
     };
     pub use font::UnicodeCmap;
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
+    pub use forms::{FieldFlags, FieldType};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
