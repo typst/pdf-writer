@@ -8,7 +8,7 @@ pub struct Field<'a> {
 writer!(Field: |obj| Self { dict: obj.dict() });
 
 impl<'a> Field<'a> {
-    /// Write the `/FT` attribute specifying the type of this field.
+    /// Write the `/FT` attribute to set the type of this field.
     pub fn field_type(&mut self, typ: FieldType) -> &mut Self {
         self.dict.pair(Name(b"FT"), typ.to_name());
         self
@@ -106,16 +106,16 @@ impl FieldType {
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of a form field.
     pub struct FieldFlags: u32 {
-        /// If set, the user may not change the value of the field. Any
-        /// associated widget annotations will not interact with the user; that
-        /// is, they will not respond to mouse clicks or change their appearance
-        /// in response to mouse motions. This flag is useful for fields whose
+        /// The user may not change the value of the field. Any associated
+        /// widget annotations will not interact with the user; that is, they
+        /// will not respond to mouse clicks or change their appearance in
+        /// response to mouse motions. This flag is useful for fields whose
         /// values are computed or imported from a database.
         const READ_ONLY = 1;
-        /// If set, the field shall have a value at the time it is exported by a
+        /// The field shall have a value at the time it is exported by a
         /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
         const REQUIRED = 2;
-        /// If set, the field shall not be exported by a
+        /// The field shall not be exported by a
         /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
         const NO_EXPORT = 1 << 3;
     }
