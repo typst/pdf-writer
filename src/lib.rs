@@ -161,8 +161,7 @@ pub mod types {
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
         TextRenderingMode,
     };
-    pub use font::UnicodeCmap;
-    pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo};
+    pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo, UnicodeCmap};
     pub use forms::{FieldFlags, FieldType};
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{

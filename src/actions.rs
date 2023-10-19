@@ -34,7 +34,7 @@ impl<'a> Action<'a> {
         self
     }
 
-    /// Start writing the `/F` attribute, depending on the [`action_type`], setting:
+    /// Start writing the `/F` attribute, depending on the [`ActionType`], setting:
     /// - `RemoteGoTo`: which file to go to
     /// - `Launch`: which application to launch
     /// - `SubmitForm`: script location of the webserver that processes the
@@ -82,8 +82,8 @@ impl<'a> Action<'a> {
     }
 
     /// Start writing the `/Fields` array to set the fields which are
-    /// [include/exclude](ActionFlags::INCLUDE_EXCLUDE) when submitting a form,
-    /// resetting a form, or loading an FDF file.
+    /// [include/exclude](FormActionFlags::INCLUDE_EXCLUDE) when submitting a
+    /// form, resetting a form, or loading an FDF file.
     pub fn fields(&mut self) -> Fields<'_> {
         self.insert(Name(b"Fields")).start()
     }
