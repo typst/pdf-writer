@@ -15,7 +15,7 @@ impl<'a> Field<'a> {
     }
 
     /// Write the `/Parent` attribute to set the immediate parent of this
-    /// field. A field can have at most one parent.
+    /// field.
     pub fn parent(&mut self, id: Ref) -> &mut Self {
         self.dict.pair(Name(b"Parent"), id);
         self
@@ -44,8 +44,8 @@ impl<'a> Field<'a> {
 
     /// Write the `/TU` attribute to set the alternative field name. This
     /// field name is used in place of the actual field name whenever the field
-    /// shall be identified int he user interface (such as in error or status
-    /// messages). This text is also useful when extracting the document’s
+    /// shall be identified in the user interface (such as in error or status
+    /// messages). This text is also useful when extracting the document's
     /// contents in support of accessibility to users with disabilities or for
     /// other purposes. PDF 1.3+.
     pub fn alternate_name(&mut self, alternate: TextStr) -> &mut Self {
@@ -68,7 +68,7 @@ impl<'a> Field<'a> {
         self
     }
 
-    /// Start writing the `/AA` dictionary to seth the field's response to
+    /// Start writing the `/AA` dictionary to set the field's response to
     /// various trigger events.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
         self.dict.insert(Name(b"AA")).start()
@@ -113,10 +113,10 @@ bitflags::bitflags! {
         /// values are computed or imported from a database.
         const READ_ONLY = 1;
         /// If set, the field shall have a value at the time it is exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm) [`Action`].
+        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
         const REQUIRED = 2;
         /// If set, the field shall not be exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm) [`Action`].
+        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
         const NO_EXPORT = 1 << 3;
     }
 }

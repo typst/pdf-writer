@@ -222,7 +222,8 @@ bitflags::bitflags! {
 /// Writer for an _additional actions dictionary_.
 ///
 /// This struct is created by [`Annotation::additional_actions`],
-/// [`Page::additional_actions`] and [`Catalog::additional_actions`].
+/// [`Field::additional_actions`], [`Page::additional_actions`] and
+/// [`Catalog::additional_actions`].
 pub struct AdditionalActions<'a> {
     dict: Dict<'a>,
 }
