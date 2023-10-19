@@ -65,16 +65,25 @@ impl<'a> Action<'a> {
         self
     }
 
-    /// Write the `/JS` attribute to set the script of this action. Only
-    /// permissible for JavaScript actions.
-    pub fn js(&mut self, script: TextStr) -> &mut Self {
+    /// Write the `/JS` attribute to set the script of this action as a text
+    /// string. Only permissible for JavaScript actions.
+    pub fn js_string(&mut self, script: TextStr) -> &mut Self {
+        self.pair(Name(b"JS"), script);
+        self
+    }
+
+    /// Write the `/JS` attribute to set the script of this action as a text
+    /// stream. The indirect reference shall point to a stream containing valid
+    /// ECMAScript. The stream must have `PdfDocEncoding` or be in Unicode,
+    /// starting with `U+FEFF`. Only permissible for JavaScript actions.
+    pub fn js_stream(&mut self, script: Ref) -> &mut Self {
         self.pair(Name(b"JS"), script);
         self
     }
 
     /// Start writing the `/Fields` array to set the fields which are
     /// [include/exclude](ActionFlags::INCLUDE_EXCLUDE) when submitting a form,
-    /// resetting a form or loading an FDF file.
+    /// resetting a form, or loading an FDF file.
     pub fn fields(&mut self) -> Fields<'_> {
         self.insert(Name(b"Fields")).start()
     }
@@ -132,6 +141,10 @@ pub enum ActionType {
     /// Import form field values from a file. PDF 1.2+.
     ImportData,
     /// Execute a JavaScript action. PDF 1.2+.
+    ///
+    /// See Adobe's
+    /// [JavaScript for Acrobat API Reference](https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/pdfs/acrobatsdk_jsapiref.pdf)
+    /// and ISO 21757.
     JavaScript,
 }
 
@@ -282,14 +295,14 @@ impl<'a> AdditionalActions<'a> {
     /// Start writing the `/Fo` dictionary. This sets the action that shall be
     /// performed when the annotation receives the input focus. Only permissible
     /// for widget annotations. PDF 1.2+.
-    pub fn widgetfocus(&mut self) -> Action<'_> {
+    pub fn widget_focus(&mut self) -> Action<'_> {
         self.insert(Name(b"Fo")).start()
     }
 
     /// Start writing the `/Bl` dictionary. This sets the action that shall be
     /// performed when the annotation loses the input focus. Only permissible
     /// for widget annotations. PDF 1.2+.
-    pub fn widgetfocus_loss(&mut self) -> Action<'_> {
+    pub fn widget_focus_loss(&mut self) -> Action<'_> {
         self.insert(Name(b"Bl")).start()
     }
 }
