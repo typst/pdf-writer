@@ -138,6 +138,84 @@ impl<'a> Field<'a> {
     }
 }
 
+/// Only permissible on choice fields.
+impl<'a> Field<'a> {
+    /// Start writing the `/Opt` attribute specifying the options that shall be
+    /// presented to the user.
+    pub fn choice_options(&mut self) -> ChoiceOptions<'_> {
+        self.dict.insert(Name(b"Opt")).start()
+    }
+
+    /// Write the `/TI` attribute to set the index in the
+    /// [`Field::choice_options`] array of the first visible option for
+    /// scrollable lists.
+    pub fn choice_top_index(&mut self, index: i32) -> &mut Self {
+        self.dict.pair(Name(b"TI"), index);
+        self
+    }
+
+    /// Start writing the `/I` array to set the indices of the currently
+    /// selected options. The integers in this array must be sorted in ascending
+    /// order and correspond to 0-based indices in the [`Field::choice_options`]
+    /// array.
+    ///
+    /// This entry shall be used for choice fields which allow multiple
+    /// selections ([`FieldFlags::MULTI_SELECT`]). This means when two or more
+    /// elements in the [`Field::choice_options`] array have different names
+    /// but export the same value or when the value fo the choice field is an
+    /// array. This entry should not be used for choice fields that do not allow
+    /// multiple selections. PDF 1.4+.
+    pub fn choice_indices(&mut self) -> TypedArray<'_, i32> {
+        self.dict.insert(Name(b"I")).array().typed()
+    }
+
+    /// Write the `/V` attribute to set the currently selected values
+    /// of this choice field. Should be one of the values given in
+    /// [`Self::choice_options`] or `None` if no choice is selected. Only
+    /// permissible on choice fields.
+    pub fn choice_value<'b>(&mut self, option: Option<TextStr>) -> &mut Self {
+        match option {
+            Some(value) => self.dict.pair(Name(b"V"), value),
+            None => self.dict.pair(Name(b"V"), Null),
+        };
+        self
+    }
+
+    /// Write the `/V` attribute to set the currently selected values of this
+    /// choice field. See also [`Self::choice_value`], for a single or no value.
+    /// Only permissible on choice fields.
+    pub fn choice_values<'b>(
+        &mut self,
+        options: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"V")).array().items(options);
+        self
+    }
+
+    /// Write the `/DV` attribute to set the default selected value
+    /// of this choice field. Should be one of the values given in
+    /// [`Self::choice_options`] or `None` if no choice is selected. Only
+    /// permissible on choice fields.
+    pub fn choice_default_value(&mut self, option: Option<TextStr>) -> &mut Self {
+        match option {
+            Some(value) => self.dict.pair(Name(b"DV"), value),
+            None => self.dict.pair(Name(b"DV"), Null),
+        };
+        self
+    }
+
+    /// Write the `/DV` attribute to set the default selected values of this
+    /// choice field. See also [`Self::choice_default_value`], for a single or
+    /// no value. Only permissible on choice fields.
+    pub fn choice_default_values<'b>(
+        &mut self,
+        options: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"DV")).array().items(options);
+        self
+    }
+}
+
 deref!('a, Field<'a> => Dict<'a>, dict);
 
 /// The quadding (justification) of a field containing variable text.
@@ -205,7 +283,8 @@ bitflags::bitflags! {
         /// The entered text represents a path to a file who's contents shall be
         /// submitted as the value of the field. PDF 1.4+.
         const FILE_SELECT = 1 << 21;
-        /// The entered text shall not be spell-checked, can be used for text and choice fields.
+        /// The entered text shall not be spell-checked, can be used for text
+        /// and choice fields.
         const DO_NOT_SPELL_CHECK = 1 << 23;
         /// The field shall not scroll horizontally (for single-line) or
         /// vertically (for multi-line) to accomodate more text. Once the field
@@ -224,5 +303,54 @@ bitflags::bitflags! {
         /// has a value, the [`TextField::rich_text_value`] shall specify the
         /// rich text string. PDF 1.5+.
         const RICH_TEXT = 1 << 26;
+
+        // choice field specific flags
+
+        /// The field is a combo box if set, else it's a list box.
+        const COMBO = 1 << 18;
+        /// The combo box shall include an editable text box as well as a
+        /// drop-down list. Shall only be used if [`COMBO`] is set.
+        const EDIT = 1 << 19;
+        /// The field’s option items shall be sorted alphabetically. This
+        /// flag is intended for use by writers, not by readers.
+        const SORT = 1 << 20;
+        /// More than one option of the choice field's may be selected
+        /// simultaneously. PDF 1.4+.
+        const MULTI_SELECT = 1 << 22;
+        /// The new value shall be committed as soon as a selection is made
+        /// (commonly with the pointing device). In this case, supplying a value
+        /// for a field involves three actions: selecting the field for
+        /// fill-in, selecting a choice for the fill-in value, and leaving that
+        /// field, which finalizes or "commits" the data choice and triggers
+        /// any actions associated with the entry or changing of this data.
+        ///
+        /// If set, processing does not wait for leaving the field action to
+        /// occur, but immediately proceeds to the third step. PDF 1.5+.
+        const COMMIT_ON_SEL_CHANGE = 1 << 27;
     }
 }
+
+/// Writer for a _choice options array_.
+///
+/// This struct is created by [`Field::choice_options`].
+pub struct ChoiceOptions<'a> {
+    array: Array<'a>,
+}
+
+writer!(ChoiceOptions: |obj| Self { array: obj.array() });
+
+impl<'a> ChoiceOptions<'a> {
+    /// Add an option with the given value.
+    pub fn option(&mut self, value: TextStr) -> &mut Self {
+        self.array.item(value);
+        self
+    }
+
+    /// Add an option with the given value and export value.
+    pub fn export(&mut self, value: TextStr, export_value: TextStr) -> &mut Self {
+        self.array.push().array().items([export_value, value]);
+        self
+    }
+}
+
+deref!('a, ChoiceOptions<'a> => Array<'a>, array);
