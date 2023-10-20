@@ -77,32 +77,62 @@ impl<'a> Field<'a> {
     }
 }
 
-/// Permissible on fields containing variable text.
+/// Only permissible on text fields.
+impl<'a> Field<'a> {
+    // TODO: the spec likely means the equivalent of unicode graphemes here
+    //       for characters
+
+    /// Write the `/MaxLen` attribute to set the maximum length of the fields
+    /// text in characters. Only permissible on text fields.
+    pub fn text_max_len(&mut self, len: i32) -> &mut Self {
+        self.dict.pair(Name(b"MaxLen"), len);
+        self
+    }
+
+    /// Start writing the `/V` attribute to set the value of this text field.
+    /// Only permissible on text fields.
+    pub fn text_value(&mut self, value: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"V"), value);
+        self
+    }
+
+    /// Start writing the `/DV` attribute to set the default value of this text
+    /// field. Only permissible on text fields.
+    pub fn text_default_value(&mut self, value: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"DV"), value);
+        self
+    }
+}
+
+/// Only permissible on fields containing variable text.
 impl<'a> Field<'a> {
     /// Write the `/DA` attribute containing a sequence of valid page-content
     /// graphics or text state operators that define such properties as the
-    /// field's text size and colour.
-    pub fn default_appearance(&mut self, appearance: Str) -> &mut Self {
+    /// field's text size and colour. Only permissible on fields containing
+    /// variable text.
+    pub fn vartext_default_appearance(&mut self, appearance: Str) -> &mut Self {
         self.dict.pair(Name(b"DA"), appearance);
         self
     }
 
     /// Write the `/Q` attribute to set the quadding (justification) that shall
-    /// be used in dispalying the text.
-    pub fn quadding(&mut self, quadding: Quadding) -> &mut Self {
+    /// be used in dispalying the text. Only permissible on fields containing
+    /// variable text.
+    pub fn vartext_quadding(&mut self, quadding: Quadding) -> &mut Self {
         self.dict.pair(Name(b"Q"), quadding as u32 as i32);
         self
     }
 
-    /// Write the `/DS` attribute to set the default style string. PDF 1.5+.
-    pub fn default_style(&mut self, style: TextStr) -> &mut Self {
+    /// Write the `/DS` attribute to set the default style string. Only
+    /// permissible on fields containing variable text. PDF 1.5+.
+    pub fn vartext_default_style(&mut self, style: TextStr) -> &mut Self {
         self.dict.pair(Name(b"DS"), style);
         self
     }
 
     /// Write the `/RV` attribute to set the value of this variable text field.
-    /// PDF 1.5+.
-    pub fn rich_value(&mut self, value: TextStr) -> &mut Self {
+    /// Only permissible on fields containing variable text. PDF 1.5+.
+    pub fn vartext_rich_value(&mut self, value: TextStr) -> &mut Self {
         self.dict.pair(Name(b"RV"), value);
         self
     }
@@ -163,5 +193,36 @@ bitflags::bitflags! {
         /// The field shall not be exported by a
         /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
         const NO_EXPORT = 1 << 3;
+
+        // text field specific flags
+
+        /// The text may contain multiple lines of text, otherwise the text is
+        /// restricted to one line.
+        const MULTILINE = 1 << 13;
+        /// The text contains a password and should not be echoed visibly to
+        /// the screen.
+        const PASSWORD = 1 << 14;
+        /// The entered text represents a path to a file who's contents shall be
+        /// submitted as the value of the field. PDF 1.4+.
+        const FILE_SELECT = 1 << 21;
+        /// The entered text shall not be spell-checked, can be used for text and choice fields.
+        const DO_NOT_SPELL_CHECK = 1 << 23;
+        /// The field shall not scroll horizontally (for single-line) or
+        /// vertically (for multi-line) to accomodate more text. Once the field
+        /// is full, no further text shall be accepted for interactive form
+        /// filling; for non-interactive form filling, the filler should take
+        /// care not to add more character than will visibly fit in the defined
+        /// area. PDF 1.4+.
+        const DO_NOT_SCROLL = 1 << 24;
+        /// The field shall eb automatically divided into as many equally
+        /// spaced postions or _combs_ as the value of [`Field::max_len`]
+        /// and the text is layed out into these combs. May only be set if
+        /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
+        /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
+        const COMB = 1 << 25;
+        /// The value of this field shall be a rich text string. If the field
+        /// has a value, the [`TextField::rich_text_value`] shall specify the
+        /// rich text string. PDF 1.5+.
+        const RICH_TEXT = 1 << 26;
     }
 }
