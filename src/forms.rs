@@ -23,7 +23,7 @@ impl<'a> Field<'a> {
 
     /// Start writing the `/Kids` attribute to set the immediate children of
     /// this field. These references shall refer to other [fields][Field], or
-    /// [wdiget](crate::types::AnnotationType::Widget)
+    /// [widget](crate::types::AnnotationType::Widget)
     /// [annoations](Annotation).
     pub fn children(&mut self) -> TypedArray<'_, Ref> {
         self.dict.insert(Name(b"Kids")).array().typed()
