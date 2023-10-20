@@ -7,6 +7,7 @@ pub struct Field<'a> {
 
 writer!(Field: |obj| Self { dict: obj.dict() });
 
+/// Permissible on all fields.
 impl<'a> Field<'a> {
     /// Write the `/FT` attribute to set the type of this field.
     pub fn field_type(&mut self, typ: FieldType) -> &mut Self {
@@ -76,7 +77,50 @@ impl<'a> Field<'a> {
     }
 }
 
+/// Permissible on fields containing variable text.
+impl<'a> Field<'a> {
+    /// Write the `/DA` attribute containing a sequence of valid page-content
+    /// graphics or text state operators that define such properties as the
+    /// field's text size and colour.
+    pub fn default_appearance(&mut self, appearance: Str) -> &mut Self {
+        self.dict.pair(Name(b"DA"), appearance);
+        self
+    }
+
+    /// Write the `/Q` attribute to set the quadding (justification) that shall
+    /// be used in dispalying the text.
+    pub fn quadding(&mut self, quadding: Quadding) -> &mut Self {
+        self.dict.pair(Name(b"Q"), quadding as u32 as i32);
+        self
+    }
+
+    /// Write the `/DS` attribute to set the default style string. PDF 1.5+.
+    pub fn default_style(&mut self, style: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"DS"), style);
+        self
+    }
+
+    /// Write the `/RV` attribute to set the value of this variable text field.
+    /// PDF 1.5+.
+    pub fn rich_value(&mut self, value: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"RV"), value);
+        self
+    }
+}
+
 deref!('a, Field<'a> => Dict<'a>, dict);
+
+/// The quadding (justification) of a field containing variable text.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[repr(u32)]
+pub enum Quadding {
+    /// Left justify the text.
+    Left = 0,
+    /// Center justify the text.
+    Center = 1,
+    /// Right justify the text.
+    Right = 2,
+}
 
 /// The type of a [`Field`].
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
