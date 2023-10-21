@@ -77,6 +77,120 @@ impl<'a> Field<'a> {
     }
 }
 
+deref!('a, Field<'a> => Dict<'a>, dict);
+
+/// The type of a [`Field`].
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum FieldType {
+    /// A button field, includes push buttons, check boxes and radio buttons.
+    Button,
+    /// A text field, a box which a user can enter text into.
+    Text,
+    /// A choice field, list or combo boxes out of which the user may chose at
+    /// most one.
+    Choice,
+    /// A signature field, fields which contain digital signatures and optional
+    /// authentication data. PDF 1.3+.
+    Signature,
+}
+
+impl FieldType {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Button => Name(b"Btn"),
+            Self::Text => Name(b"Tx"),
+            Self::Choice => Name(b"Ch"),
+            Self::Signature => Name(b"Sig"),
+        }
+    }
+}
+
+/// Only permissible on button fields.
+impl<'a> Field<'a> {
+    /// Start writing the `/Opt` array to set the export values of children of
+    /// this field. Only permissible on checkbox fields, or radio button fields.
+    /// PDF 1.4+.
+    pub fn button_options(&mut self) -> TypedArray<'_, TextStr> {
+        self.dict.insert(Name(b"Opt")).array().typed()
+    }
+}
+
+/// Only permissible on check box fields.
+impl<'a> Field<'a> {
+    /// Write the `/V` attribute to set the state of this check box field.
+    /// The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on check box fields.
+    pub fn checkbox_value(&mut self, state: CheckBoxState) -> &mut Self {
+        self.dict.pair(Name(b"V"), state.to_name());
+        self
+    }
+
+    /// Write the `/DV` attribute to set the default state of this check box
+    /// field. The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on check box fields.
+    pub fn checkbox_default_value(&mut self, state: CheckBoxState) -> &mut Self {
+        self.dict.pair(Name(b"DV"), state.to_name());
+        self
+    }
+}
+
+/// The state of a check box [`Field`].
+pub enum CheckBoxState {
+    /// The check box selected state `/Yes`.
+    Yes,
+    /// The check box unselected state `/Off`.
+    Off,
+}
+
+impl CheckBoxState {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Yes => Name(b"Yes"),
+            Self::Off => Name(b"Off"),
+        }
+    }
+}
+
+/// Only permissible on radio button fields.
+impl<'a> Field<'a> {
+    /// Write the `/V` attribute to set the state of this check box field.
+    /// The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on radio button fields.
+    pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
+        self.dict.pair(Name(b"V"), state.to_name());
+        self
+    }
+
+    /// Write the `/DV` attribute to set the default state of this check box
+    /// field. The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on radio button fields.
+    pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
+        self.dict.pair(Name(b"DV"), state.to_name());
+        self
+    }
+}
+
+/// The state of a radio button [`Field`].
+pub enum RadioState<'a> {
+    /// The radio button with the given name is selected.
+    Selected(Name<'a>),
+    /// No radio button is selected `/Off`.
+    Off,
+}
+
+impl<'a> RadioState<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Selected(name) => name,
+            Self::Off => Name(b"Off"),
+        }
+    }
+}
+
 /// Only permissible on text fields.
 impl<'a> Field<'a> {
     // TODO: the spec likely means the equivalent of unicode graphemes here
@@ -119,7 +233,7 @@ impl<'a> Field<'a> {
     /// be used in dispalying the text. Only permissible on fields containing
     /// variable text.
     pub fn vartext_quadding(&mut self, quadding: Quadding) -> &mut Self {
-        self.dict.pair(Name(b"Q"), quadding as u32 as i32);
+        self.dict.pair(Name(b"Q"), quadding as i32);
         self
     }
 
@@ -136,6 +250,17 @@ impl<'a> Field<'a> {
         self.dict.pair(Name(b"RV"), value);
         self
     }
+}
+
+/// The quadding (justification) of a field containing variable text.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum Quadding {
+    /// Left justify the text.
+    Left = 0,
+    /// Center justify the text.
+    Center = 1,
+    /// Right justify the text.
+    Right = 2,
 }
 
 /// Only permissible on choice fields.
@@ -216,226 +341,6 @@ impl<'a> Field<'a> {
     }
 }
 
-/// Only permissible on button fields.
-impl<'a> Field<'a> {
-    /// Start writing the `/Opt` array to set the export values of children of
-    /// this field. Only permissible on checkbox fields, or radio button fields.
-    /// PDF 1.4+.
-    pub fn button_options(&mut self) -> TypedArray<'_, TextStr> {
-        self.dict.insert(Name(b"Opt")).array().typed()
-    }
-}
-
-/// Only permissible on check box fields.
-impl<'a> Field<'a> {
-    /// Write the `/V` attribute to set the state of this check box field.
-    /// The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
-    /// [annotation](Annotation). Only permissible on check box fields.
-    pub fn checkbox_value(&mut self, state: CheckBoxState) -> &mut Self {
-        self.dict.pair(Name(b"V"), state.to_name());
-        self
-    }
-
-    /// Write the `/DV` attribute to set the default state of this check box
-    /// field. The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
-    /// [annotation](Annotation). Only permissible on check box fields.
-    pub fn checkbox_default_value(&mut self, state: CheckBoxState) -> &mut Self {
-        self.dict.pair(Name(b"DV"), state.to_name());
-        self
-    }
-}
-
-/// Only permissible on radio button fields.
-impl<'a> Field<'a> {
-    /// Write the `/V` attribute to set the state of this check box field.
-    /// The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
-    /// [annotation](Annotation). Only permissible on radio button fields.
-    pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
-        self.dict.pair(Name(b"V"), state.to_name());
-        self
-    }
-
-    /// Write the `/DV` attribute to set the default state of this check box
-    /// field. The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
-    /// [annotation](Annotation). Only permissible on radio button fields.
-    pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
-        self.dict.pair(Name(b"DV"), state.to_name());
-        self
-    }
-}
-
-deref!('a, Field<'a> => Dict<'a>, dict);
-
-/// The quadding (justification) of a field containing variable text.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(u32)]
-pub enum Quadding {
-    /// Left justify the text.
-    Left = 0,
-    /// Center justify the text.
-    Center = 1,
-    /// Right justify the text.
-    Right = 2,
-}
-
-/// The type of a [`Field`].
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub enum FieldType {
-    /// A button field, includes push buttons, check boxes and radio buttons.
-    Button,
-    /// A text field, a box which a user can enter text into.
-    Text,
-    /// A choice field, list or combo boxes out of which the user may chose at
-    /// most one.
-    Choice,
-    /// A signature field, fields which contain digital signatures and optional
-    /// authentication data. PDF 1.3+.
-    Signature,
-}
-
-impl FieldType {
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::Button => Name(b"Btn"),
-            Self::Text => Name(b"Tx"),
-            Self::Choice => Name(b"Ch"),
-            Self::Signature => Name(b"Sig"),
-        }
-    }
-}
-
-/// The state of a check box [`Field`].
-pub enum CheckBoxState {
-    /// The check box selected state `/Yes`.
-    Yes,
-    /// The check box unselected state `/Off`.
-    Off,
-}
-
-impl CheckBoxState {
-    pub(crate) fn to_name(self) -> Name<'static> {
-        match self {
-            Self::Yes => Name(b"Yes"),
-            Self::Off => Name(b"Off"),
-        }
-    }
-}
-
-/// The state of a radio button [`Field`].
-pub enum RadioState<'a> {
-    /// The radio button with the given name is selected.
-    Selected(Name<'a>),
-    /// No radio button is selected `/Off`.
-    Off,
-}
-
-impl<'a> RadioState<'a> {
-    pub(crate) fn to_name(self) -> Name<'a> {
-        match self {
-            Self::Selected(name) => name,
-            Self::Off => Name(b"Off"),
-        }
-    }
-}
-
-bitflags::bitflags! {
-    /// Bitflags describing various characteristics of a form field.
-    pub struct FieldFlags: u32 {
-        /// The user may not change the value of the field. Any associated
-        /// widget annotations will not interact with the user; that is, they
-        /// will not respond to mouse clicks or change their appearance in
-        /// response to mouse motions. This flag is useful for fields whose
-        /// values are computed or imported from a database.
-        const READ_ONLY = 1;
-        /// The field shall have a value at the time it is exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
-        const REQUIRED = 2;
-        /// The field shall not be exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
-        const NO_EXPORT = 1 << 3;
-
-        // button specific flags
-
-        /// Exactly one radio button shall be selected at all times; selecting
-        /// the currently selected button has no effect. If unset, clicking
-        /// the selected button deselects it, leaving no button selected. Only
-        /// permissible for radio buttons.
-        const NO_TOGGLE_TO_OFF = 1 << 15;
-        /// The field is a set of radio buttons; if clear, the field is a check
-        /// box. This flag may be set only if the `PUSHBUTTON` flag is unset.
-        const RADIO = 1 << 16;
-        /// The field is a push button that does not retain a permanent
-        /// value.
-        const PUSHBUTTON = 1 << 17;
-        /// A group of radio buttons within a radio button field that use the
-        /// same value for the on state will turn on and off in unison; that
-        /// is if one is checked, they are all checked. If unset, the buttons
-        /// are mutually exclusive (the same behavior as HTML radio buttons).
-        /// PDF 1.5+.
-        const RADIOS_IN_UNISON = 1 << 26;
-
-        // text field specific flags
-
-        /// The text may contain multiple lines of text, otherwise the text is
-        /// restricted to one line.
-        const MULTILINE = 1 << 13;
-        /// The text contains a password and should not be echoed visibly to
-        /// the screen.
-        const PASSWORD = 1 << 14;
-        /// The entered text represents a path to a file who's contents shall be
-        /// submitted as the value of the field. PDF 1.4+.
-        const FILE_SELECT = 1 << 21;
-        /// The entered text shall not be spell-checked, can be used for text
-        /// and choice fields.
-        const DO_NOT_SPELL_CHECK = 1 << 23;
-        /// The field shall not scroll horizontally (for single-line) or
-        /// vertically (for multi-line) to accomodate more text. Once the field
-        /// is full, no further text shall be accepted for interactive form
-        /// filling; for non-interactive form filling, the filler should take
-        /// care not to add more character than will visibly fit in the defined
-        /// area. PDF 1.4+.
-        const DO_NOT_SCROLL = 1 << 24;
-        /// The field shall eb automatically divided into as many equally
-        /// spaced postions or _combs_ as the value of [`Field::max_len`]
-        /// and the text is layed out into these combs. May only be set if
-        /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
-        /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
-        const COMB = 1 << 25;
-        /// The value of this field shall be a rich text string. If the field
-        /// has a value, the [`TextField::rich_text_value`] shall specify the
-        /// rich text string. PDF 1.5+.
-        const RICH_TEXT = 1 << 26;
-
-        // choice field specific flags
-
-        /// The field is a combo box if set, else it's a list box.
-        const COMBO = 1 << 18;
-        /// The combo box shall include an editable text box as well as a
-        /// drop-down list. Shall only be used if [`COMBO`] is set.
-        const EDIT = 1 << 19;
-        /// The field’s option items shall be sorted alphabetically. This
-        /// flag is intended for use by writers, not by readers.
-        const SORT = 1 << 20;
-        /// More than one option of the choice field may be selected
-        /// simultaneously. PDF 1.4+.
-        const MULTI_SELECT = 1 << 22;
-        /// The new value shall be committed as soon as a selection is made
-        /// (commonly with the mouse). In this case, supplying a value for
-        /// a field involves three actions: selecting the field for fill-in,
-        /// selecting a choice for the fill-in value, and leaving that field,
-        /// which finalizes or "commits" the data choice and triggers any
-        /// actions associated with the entry or changing of this data.
-        ///
-        /// If set, processing does not wait for leaving the field action to
-        /// occur, but immediately proceeds to the third step. PDF 1.5+.
-        const COMMIT_ON_SEL_CHANGE = 1 << 27;
-    }
-}
-
 /// Writer for a _choice options array_.
 ///
 /// This struct is created by [`Field::choice_options`].
@@ -460,3 +365,97 @@ impl<'a> ChoiceOptions<'a> {
 }
 
 deref!('a, ChoiceOptions<'a> => Array<'a>, array);
+
+bitflags::bitflags! {
+    /// Bitflags describing various characteristics of a form field.
+    pub struct FieldFlags: u32 {
+        /// The user may not change the value of the field. Any associated
+        /// widget annotations will not interact with the user; that is, they
+        /// will not respond to mouse clicks or change their appearance in
+        /// response to mouse motions. This flag is useful for fields whose
+        /// values are computed or imported from a database.
+        const READ_ONLY = 1;
+        /// The field shall have a value at the time it is exported by a
+        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
+        const REQUIRED = 2;
+        /// The field shall not be exported by a
+        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
+        const NO_EXPORT = 1 << 3;
+        /// The entered text shall not be spell-checked, can be used for text
+        /// and choice fields.
+        const DO_NOT_SPELL_CHECK = 1 << 23;
+
+        // Button specific flags
+
+        /// Exactly one radio button shall be selected at all times; selecting
+        /// the currently selected button has no effect. If unset, clicking
+        /// the selected button deselects it, leaving no button selected. Only
+        /// permissible for radio buttons.
+        const NO_TOGGLE_TO_OFF = 1 << 15;
+        /// The field is a set of radio buttons; if clear, the field is a check
+        /// box. This flag may be set only if the `PUSHBUTTON` flag is unset.
+        const RADIO = 1 << 16;
+        /// The field is a push button that does not retain a permanent
+        /// value.
+        const PUSHBUTTON = 1 << 17;
+        /// A group of radio buttons within a radio button field that use the
+        /// same value for the on state will turn on and off in unison; that
+        /// is if one is checked, they are all checked. If unset, the buttons
+        /// are mutually exclusive (the same behavior as HTML radio buttons).
+        /// PDF 1.5+.
+        const RADIOS_IN_UNISON = 1 << 26;
+
+        // Text field specific flags
+
+        /// The text may contain multiple lines of text, otherwise the text is
+        /// restricted to one line.
+        const MULTILINE = 1 << 13;
+        /// The text contains a password and should not be echoed visibly to
+        /// the screen.
+        const PASSWORD = 1 << 14;
+        /// The entered text represents a path to a file who's contents shall be
+        /// submitted as the value of the field. PDF 1.4+.
+        const FILE_SELECT = 1 << 21;
+        /// The field shall not scroll horizontally (for single-line) or
+        /// vertically (for multi-line) to accomodate more text. Once the field
+        /// is full, no further text shall be accepted for interactive form
+        /// filling; for non-interactive form filling, the filler should take
+        /// care not to add more character than will visibly fit in the defined
+        /// area. PDF 1.4+.
+        const DO_NOT_SCROLL = 1 << 24;
+        /// The field shall eb automatically divided into as many equally
+        /// spaced postions or _combs_ as the value of [`Field::max_len`]
+        /// and the text is layed out into these combs. May only be set if
+        /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
+        /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
+        const COMB = 1 << 25;
+        /// The value of this field shall be a rich text string. If the field
+        /// has a value, the [`TextField::rich_text_value`] shall specify the
+        /// rich text string. PDF 1.5+.
+        const RICH_TEXT = 1 << 26;
+
+        // Choice field specific flags
+
+        /// The field is a combo box if set, else it's a list box.
+        const COMBO = 1 << 18;
+        /// The combo box shall include an editable text box as well as a
+        /// drop-down list. Shall only be used if [`COMBO`] is set.
+        const EDIT = 1 << 19;
+        /// The field’s option items shall be sorted alphabetically. This
+        /// flag is intended for use by writers, not by readers.
+        const SORT = 1 << 20;
+        /// More than one option of the choice field may be selected
+        /// simultaneously. PDF 1.4+.
+        const MULTI_SELECT = 1 << 22;
+        /// The new value shall be committed as soon as a selection is made
+        /// (commonly with the mouse). In this case, supplying a value for
+        /// a field involves three actions: selecting the field for fill-in,
+        /// selecting a choice for the fill-in value, and leaving that field,
+        /// which finalizes or "commits" the data choice and triggers any
+        /// actions associated with the entry or changing of this data.
+        ///
+        /// If set, processing does not wait for leaving the field action to
+        /// occur, but immediately proceeds to the third step. PDF 1.5+.
+        const COMMIT_ON_SEL_CHANGE = 1 << 27;
+    }
+}
