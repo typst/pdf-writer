@@ -82,14 +82,14 @@ impl<'a> Field<'a> {
     // TODO: the spec likely means the equivalent of unicode graphemes here
     //       for characters
 
-    /// Write the `/MaxLen` attribute to set the maximum length of the fields
+    /// Write the `/MaxLen` attribute to set the maximum length of the field's
     /// text in characters. Only permissible on text fields.
     pub fn text_max_len(&mut self, len: i32) -> &mut Self {
         self.dict.pair(Name(b"MaxLen"), len);
         self
     }
 
-    /// Start writing the `/V` attribute to set the value of this text field.
+    /// Write the `/V` attribute to set the value of this text field.
     /// Only permissible on text fields.
     pub fn text_value(&mut self, value: TextStr) -> &mut Self {
         self.dict.pair(Name(b"V"), value);
@@ -420,15 +420,15 @@ bitflags::bitflags! {
         /// The field’s option items shall be sorted alphabetically. This
         /// flag is intended for use by writers, not by readers.
         const SORT = 1 << 20;
-        /// More than one option of the choice field's may be selected
+        /// More than one option of the choice field may be selected
         /// simultaneously. PDF 1.4+.
         const MULTI_SELECT = 1 << 22;
         /// The new value shall be committed as soon as a selection is made
-        /// (commonly with the pointing device). In this case, supplying a value
-        /// for a field involves three actions: selecting the field for
-        /// fill-in, selecting a choice for the fill-in value, and leaving that
-        /// field, which finalizes or "commits" the data choice and triggers
-        /// any actions associated with the entry or changing of this data.
+        /// (commonly with the mouse). In this case, supplying a value for
+        /// a field involves three actions: selecting the field for fill-in,
+        /// selecting a choice for the fill-in value, and leaving that field,
+        /// which finalizes or "commits" the data choice and triggers any
+        /// actions associated with the entry or changing of this data.
         ///
         /// If set, processing does not wait for leaving the field action to
         /// occur, but immediately proceeds to the third step. PDF 1.5+.
