@@ -140,7 +140,7 @@ impl<'a> Field<'a> {
 
 /// Only permissible on choice fields.
 impl<'a> Field<'a> {
-    /// Start writing the `/Opt` attribute specifying the options that shall be
+    /// Start writing the `/Opt` array to set the options that shall be
     /// presented to the user.
     pub fn choice_options(&mut self) -> ChoiceOptions<'_> {
         self.dict.insert(Name(b"Opt")).start()
@@ -216,6 +216,37 @@ impl<'a> Field<'a> {
     }
 }
 
+/// Only permissible on button fields.
+impl<'a> Field<'a> {
+    /// Start writing the `/Opt` array to set the export values of children of
+    /// this field. Only permissible on checkbox fields, or radio button fields.
+    /// PDF 1.4+.
+    pub fn button_options(&mut self) -> TypedArray<'_, TextStr> {
+        self.dict.insert(Name(b"Opt")).array().typed()
+    }
+}
+
+/// Only permissible on check box fields.
+impl<'a> Field<'a> {
+    /// Write the `/V` attribute to set the state of this check box field.
+    /// The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on check box fields.
+    pub fn checkbox_value(&mut self, state: CheckBoxState) -> &mut Self {
+        self.dict.pair(Name(b"V"), state.to_name());
+        self
+    }
+
+    /// Write the `/DV` attribute to set the default state of this check box
+    /// field. The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on check box fields.
+    pub fn checkbox_default_value(&mut self, state: CheckBoxState) -> &mut Self {
+        self.dict.pair(Name(b"DV"), state.to_name());
+        self
+    }
+}
+
 deref!('a, Field<'a> => Dict<'a>, dict);
 
 /// The quadding (justification) of a field containing variable text.
@@ -256,6 +287,23 @@ impl FieldType {
     }
 }
 
+/// The state of a check box [`Field`].
+pub enum CheckBoxState {
+    /// The check box selected state `/Yes`.
+    Yes,
+    /// The check box unselected state `/Off`.
+    Off,
+}
+
+impl CheckBoxState {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Yes => Name(b"Yes"),
+            Self::Off => Name(b"Off"),
+        }
+    }
+}
+
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of a form field.
     pub struct FieldFlags: u32 {
@@ -271,6 +319,26 @@ bitflags::bitflags! {
         /// The field shall not be exported by a
         /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
         const NO_EXPORT = 1 << 3;
+
+        // button specific flags
+
+        /// Exactly one radio button shall be selected at all times; selecting
+        /// the currently selected button has no effect. If unset, clicking
+        /// the selected button deselects it, leaving no button selected. Only
+        /// permissible for radio buttons.
+        const NO_TOGGLE_TO_OFF = 1 << 15;
+        /// The field is a set of radio buttons; if clear, the field is a check
+        /// box. This flag may be set only if the `PUSHBUTTON` flag is unset.
+        const RADIO = 1 << 16;
+        /// The field is a push button that does not retain a permanent
+        /// value.
+        const PUSHBUTTON = 1 << 17;
+        /// A group of radio buttons within a radio button field that use the
+        /// same value for the on state will turn on and off in unison; that
+        /// is if one is checked, they are all checked. If unset, the buttons
+        /// are mutually exclusive (the same behavior as HTML radio buttons).
+        /// PDF 1.5+.
+        const RADIOS_IN_UNISON = 1 << 26;
 
         // text field specific flags
 
