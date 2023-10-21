@@ -247,6 +247,27 @@ impl<'a> Field<'a> {
     }
 }
 
+/// Only permissible on radio button fields.
+impl<'a> Field<'a> {
+    /// Write the `/V` attribute to set the state of this check box field.
+    /// The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on radio button fields.
+    pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
+        self.dict.pair(Name(b"V"), state.to_name());
+        self
+    }
+
+    /// Write the `/DV` attribute to set the default state of this check box
+    /// field. The state corresponds to an appearance stream in the
+    /// [appearance dictionary](Appearance) of this field's widget
+    /// [annotation](Annotation). Only permissible on radio button fields.
+    pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
+        self.dict.pair(Name(b"DV"), state.to_name());
+        self
+    }
+}
+
 deref!('a, Field<'a> => Dict<'a>, dict);
 
 /// The quadding (justification) of a field containing variable text.
@@ -299,6 +320,23 @@ impl CheckBoxState {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::Yes => Name(b"Yes"),
+            Self::Off => Name(b"Off"),
+        }
+    }
+}
+
+/// The state of a radio button [`Field`].
+pub enum RadioState<'a> {
+    /// The radio button with the given name is selected.
+    Selected(Name<'a>),
+    /// No radio button is selected `/Off`.
+    Off,
+}
+
+impl<'a> RadioState<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Selected(name) => name,
             Self::Off => Name(b"Off"),
         }
     }
