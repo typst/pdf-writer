@@ -187,7 +187,7 @@ impl<'a> Annotation<'a> {
 
     /// Start writing the `/MK` dictionary. Only permissible for the subtype
     /// `Widget`.
-    pub fn appearance(&mut self) -> Appearance<'_> {
+    pub fn appearance_characteristics(&mut self) -> AppearanceCharacteristics<'_> {
         self.dict.insert(Name(b"MK")).start()
     }
 
@@ -328,16 +328,16 @@ bitflags::bitflags! {
     }
 }
 
-/// Writer for an _appearance dictionary_.
+/// Writer for an _appearance characteristics dictionary_.
 ///
 /// This struct is created by [`Annotation::appearance`].
-pub struct Appearance<'a> {
+pub struct AppearanceCharacteristics<'a> {
     dict: Dict<'a>,
 }
 
-writer!(Appearance: |obj| Self { dict: obj.dict() });
+writer!(AppearanceCharacteristics: |obj| Self { dict: obj.dict() });
 
-impl<'a> Appearance<'a> {
+impl<'a> AppearanceCharacteristics<'a> {
     /// Write the `/R` attribute. This is the number of degrees the widget
     /// annotation should be rotated by counterclockwise relative to its page
     /// when displayed. This should be a multiple of 90.
@@ -462,7 +462,7 @@ impl<'a> Appearance<'a> {
     }
 }
 
-deref!('a, Appearance<'a> => Dict<'a>, dict);
+deref!('a, AppearanceCharacteristics<'a> => Dict<'a>, dict);
 
 /// The position the text of the widget annotation's caption relative to its
 /// icon.
