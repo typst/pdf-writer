@@ -375,6 +375,14 @@ impl Chunk {
     }
 }
 
+/// Interactive features.
+impl Chunk {
+    /// Start writing a form field dictionary.
+    pub fn form_field(&mut self, id: Ref) -> Field<'_> {
+        self.indirect(id).start()
+    }
+}
+
 impl Debug for Chunk {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad("Chunk(..)")

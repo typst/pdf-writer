@@ -1,6 +1,8 @@
 use super::*;
 
 /// A form field.
+///
+/// This struct is created by [`Chunk::form_field`].
 pub struct Field<'a> {
     dict: Dict<'a>,
 }
@@ -117,9 +119,9 @@ impl<'a> Field<'a> {
 
 /// Only permissible on check box fields.
 impl<'a> Field<'a> {
-    /// Write the `/V` attribute to set the state of this check box field.
-    /// The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
+    /// Write the `/V` attribute to set the state of this check box field. The
+    /// state corresponds to an appearance stream in the [appearance
+    /// dictionary](AppearanceCharacteristics) of this field's widget
     /// [annotation](Annotation). Only permissible on check box fields.
     pub fn checkbox_value(&mut self, state: CheckBoxState) -> &mut Self {
         self.dict.pair(Name(b"V"), state.to_name());
@@ -127,8 +129,8 @@ impl<'a> Field<'a> {
     }
 
     /// Write the `/DV` attribute to set the default state of this check box
-    /// field. The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
+    /// field. The state corresponds to an appearance stream in the [appearance
+    /// dictionary](AppearanceCharacteristics) of this field's widget
     /// [annotation](Annotation). Only permissible on check box fields.
     pub fn checkbox_default_value(&mut self, state: CheckBoxState) -> &mut Self {
         self.dict.pair(Name(b"DV"), state.to_name());
@@ -155,10 +157,11 @@ impl CheckBoxState {
 
 /// Only permissible on radio button fields.
 impl<'a> Field<'a> {
-    /// Write the `/V` attribute to set the state of this check box field.
-    /// The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
-    /// [annotation](Annotation). Only permissible on radio button fields.
+    /// Write the `/V` attribute to set the state of this check box field. The
+    /// state corresponds to an appearance stream in the
+    /// [appearance dictionary](AppearanceCharacteristics) of this field's
+    /// widget [annotation](Annotation). Only permissible on radio button
+    /// fields.
     pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
         self.dict.pair(Name(b"V"), state.to_name());
         self
@@ -166,8 +169,9 @@ impl<'a> Field<'a> {
 
     /// Write the `/DV` attribute to set the default state of this check box
     /// field. The state corresponds to an appearance stream in the
-    /// [appearance dictionary](Appearance) of this field's widget
-    /// [annotation](Annotation). Only permissible on radio button fields.
+    /// [appearance dictionary](AppearanceCharacteristics) of this field's
+    /// widget [annotation](Annotation). Only permissible on radio button
+    /// fields.
     pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
         self.dict.pair(Name(b"DV"), state.to_name());
         self

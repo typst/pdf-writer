@@ -162,7 +162,9 @@ pub mod types {
         TextRenderingMode,
     };
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo, UnicodeCmap};
-    pub use forms::{FieldFlags, FieldType};
+    pub use forms::{
+        CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
+    };
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,

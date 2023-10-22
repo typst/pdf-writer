@@ -330,7 +330,7 @@ bitflags::bitflags! {
 
 /// Writer for an _appearance characteristics dictionary_.
 ///
-/// This struct is created by [`Annotation::appearance`].
+/// This struct is created by [`Annotation::appearance_characteristics`].
 pub struct AppearanceCharacteristics<'a> {
     dict: Dict<'a>,
 }
@@ -486,7 +486,7 @@ pub enum TextPosition {
 
 /// Writer for an _icon fit dictionary_.
 ///
-/// This struct is created by [`Appearance::icon_fit`].
+/// This struct is created by [`AppearanceCharacteristics::icon_fit`].
 pub struct IconFit<'a> {
     dict: Dict<'a>,
 }
