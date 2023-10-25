@@ -1,5 +1,87 @@
 use super::*;
 
+/// Writer for an _interactive forms dictionary_. PDF 1.2+.
+///
+/// This struct is created by [`Catalog::form`].
+pub struct Form<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(Form: |obj| Self { dict: obj.dict() });
+
+impl<'a> Form<'a> {
+    /// Start writing the `/Fields` attribute to reference the root
+    /// [form fields](Field) (those who have no immediate parent) of this
+    /// document.
+    pub fn fields(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"Fields")).array().typed()
+    }
+
+    // TODO: deprecated in PDF 2.0
+
+    /// Write the `/NeedAppearances` attribute to set whether to construct
+    /// appearance streams and appearance dictionaries for all widget
+    /// annotations in this document.
+    pub fn need_appearances(&mut self, need: bool) -> &mut Self {
+        self.dict.pair(Name(b"NeedAppearances"), need);
+        self
+    }
+
+    /// Write the `/SigFlags` attribute to set various document-level
+    /// characteristics related to signature fields.
+    pub fn sig_flags(&mut self, flags: SigFlags) -> &mut Self {
+        self.dict.pair(Name(b"SigFlags"), flags.bits() as i32);
+        self
+    }
+
+    /// Start writing the `/CO` attribute to set the field dictionaries
+    /// with calculation actions, defining the calculation order in which their
+    /// values will be recalculated when the value of any field changes.
+    pub fn calculation_order(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"CO")).array().typed()
+    }
+
+    /// Start writing the `/DR` attribute to set the default resources
+    /// that shall be used by form field appearance streams. At a minimum, this
+    /// dictionary shall contain a font entry specifying the resource name and
+    /// font dictionary of the default font for displaying text.
+    pub fn default_resources(&mut self) -> Resources<'_> {
+        self.dict.insert(Name(b"DR")).start()
+    }
+
+    /// Write the document-wide default value for the `/DA` attribute of
+    /// fields containing variable text.
+    pub fn default_appearance(&mut self, default: Str) -> &mut Self {
+        self.dict.pair(Name(b"DA"), default);
+        self
+    }
+
+    /// Write the document-wide default value for the `/Q` attribute of
+    /// fields containing variable text.
+    pub fn quadding(&mut self, default: Quadding) -> &mut Self {
+        self.dict.pair(Name(b"Q"), default as u32 as i32);
+        self
+    }
+}
+
+deref!('a, Form<'a> => Dict<'a>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing various document-level characteristics related to
+    /// signature fields.
+    pub struct SigFlags: u32 {
+        /// The document contains at least one signature field.
+        const SIGNATURES_EXIST = 1;
+
+        /// The document contains signatures that may be invalidated if the
+        /// file is saved (written) in a way that alters its previous contents,
+        /// as opposed to an incremental update. Merely updating the file by
+        /// appending new information to the end of the previous version is
+        /// safe.
+        const APPEND_ONLY = 1 << 2;
+    }
+}
+
 /// A form field.
 ///
 /// This struct is created by [`Chunk::form_field`].
