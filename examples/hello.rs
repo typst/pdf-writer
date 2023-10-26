@@ -13,6 +13,7 @@ fn main() -> std::io::Result<()> {
     let page_id = Ref::new(3);
     let font_id = Ref::new(4);
     let content_id = Ref::new(5);
+    let annotation_id = Ref::new(6);
     let font_name = Name(b"F1");
 
     // Write the document catalog with a reference to the page tree.
@@ -29,11 +30,16 @@ fn main() -> std::io::Result<()> {
     page.media_box(Rect::new(0.0, 0.0, 595.0, 842.0));
     page.parent(page_tree_id);
     page.contents(content_id);
+    page.annotations([annotation_id]);
 
-    // We also create the annotations list here that allows us to have things
-    // like links or comments on the page.
-    let mut annotations = page.annotations();
-    let mut annotation = annotations.push();
+    // We also need to specify which resources the page needs, which in our case
+    // is only a font that we name "F1" (the specific name doesn't matter).
+    page.resources().fonts().pair(font_name, font_id);
+    page.finish();
+
+    // We also create an annotation which allows us to have things like links or
+    // comments on the page.
+    let mut annotation = pdf.annotation(annotation_id);
 
     // Write the type, area, alt-text, and color for our link annotation.
     annotation.subtype(AnnotationType::Link);
@@ -58,12 +64,6 @@ fn main() -> std::io::Result<()> {
     // you cannot accidentally forget it. The `finish()` method from the `Finish`
     // trait is just a postfix-style version of dropping.
     annotation.finish();
-    annotations.finish();
-
-    // We also need to specify which resources the page needs, which in our case
-    // is only a font that we name "F1" (the specific name doesn't matter).
-    page.resources().fonts().pair(font_name, font_id);
-    page.finish();
 
     // Specify the font we want to use. Because Helvetica is one of the 14 base
     // fonts shipped with every PDF reader, we don't have to embed any font
