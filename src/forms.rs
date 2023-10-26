@@ -54,14 +54,15 @@ impl<'a> Form<'a> {
     }
 
     /// Write the document-wide default value for the `/DA` attribute of
-    /// fields containing variable text.
+    /// fields containing variable text. See
+    /// [`Field::vartext_default_appearance`].
     pub fn default_appearance(&mut self, default: Str) -> &mut Self {
         self.dict.pair(Name(b"DA"), default);
         self
     }
 
     /// Write the document-wide default value for the `/Q` attribute of
-    /// fields containing variable text.
+    /// fields containing variable text. See [`Field::vartext_quadding`].
     pub fn quadding(&mut self, default: Quadding) -> &mut Self {
         self.dict.pair(Name(b"Q"), default as i32);
         self
@@ -86,7 +87,7 @@ bitflags::bitflags! {
     }
 }
 
-/// A form field.
+/// Writer for an _ form field dictionary_.
 ///
 /// This struct is created by [`Chunk::form_field`].
 pub struct Field<'a> {
@@ -112,7 +113,7 @@ impl<'a> Field<'a> {
 
     /// Write the `/Kids` attribute to set the immediate children of this field.
     /// These references shall refer to other [fields][Field], or
-    /// [widget](crate::types::AnnotationType::Widget) [annoations](Annotation).
+    /// [widget](crate::types::AnnotationType::Widget) [annotations](Annotation).
     pub fn children(&mut self, children: impl IntoIterator<Item = Ref>) -> &mut Self {
         self.dict.insert(Name(b"Kids")).array().items(children);
         self
