@@ -10,11 +10,11 @@ pub struct Form<'a> {
 writer!(Form: |obj| Self { dict: obj.dict() });
 
 impl<'a> Form<'a> {
-    /// Start writing the `/Fields` attribute to reference the root
-    /// [form fields](Field) (those who have no immediate parent) of this
-    /// document.
-    pub fn fields(&mut self) -> TypedArray<'_, Ref> {
-        self.dict.insert(Name(b"Fields")).array().typed()
+    /// Write the `/Fields` attribute to reference the root [form fields](Field)
+    /// (those who have no immediate parent) of this document.
+    pub fn fields(&mut self, fields: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.dict.insert(Name(b"Fields")).array().items(fields);
+        self
     }
 
     // TODO: deprecated in PDF 2.0
@@ -34,11 +34,15 @@ impl<'a> Form<'a> {
         self
     }
 
-    /// Start writing the `/CO` attribute to set the field dictionaries
-    /// with calculation actions, defining the calculation order in which their
-    /// values will be recalculated when the value of any field changes.
-    pub fn calculation_order(&mut self) -> TypedArray<'_, Ref> {
-        self.dict.insert(Name(b"CO")).array().typed()
+    /// Write the `/CO` attribute to set the field dictionaries with calculation
+    /// actions, defining the calculation order in which their values will be
+    /// recalculated when the value of any field changes.
+    pub fn calculation_order(
+        &mut self,
+        actions: impl IntoIterator<Item = Ref>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"CO")).array().items(actions);
+        self
     }
 
     /// Start writing the `/DR` attribute to set the default resources
@@ -59,7 +63,7 @@ impl<'a> Form<'a> {
     /// Write the document-wide default value for the `/Q` attribute of
     /// fields containing variable text.
     pub fn quadding(&mut self, default: Quadding) -> &mut Self {
-        self.dict.pair(Name(b"Q"), default as u32 as i32);
+        self.dict.pair(Name(b"Q"), default as i32);
         self
     }
 }
@@ -106,11 +110,12 @@ impl<'a> Field<'a> {
         self
     }
 
-    /// Start writing the `/Kids` attribute to set the immediate children of
-    /// this field. These references shall refer to other [fields][Field], or
+    /// Write the `/Kids` attribute to set the immediate children of this field.
+    /// These references shall refer to other [fields][Field], or
     /// [widget](crate::types::AnnotationType::Widget) [annoations](Annotation).
-    pub fn children(&mut self) -> TypedArray<'_, Ref> {
-        self.dict.insert(Name(b"Kids")).array().typed()
+    pub fn children(&mut self, children: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.dict.insert(Name(b"Kids")).array().items(children);
+        self
     }
 
     /// Write the `/T` attribute to set the partial field name.
@@ -191,11 +196,15 @@ impl FieldType {
 
 /// Only permissible on button fields.
 impl<'a> Field<'a> {
-    /// Start writing the `/Opt` array to set the export values of children of
-    /// this field. Only permissible on checkbox fields, or radio button fields.
+    /// Write the `/Opt` array to set the export values of children of this
+    /// field. Only permissible on checkbox fields, or radio button fields.
     /// PDF 1.4+.
-    pub fn button_options(&mut self) -> TypedArray<'_, TextStr> {
-        self.dict.insert(Name(b"Opt")).array().typed()
+    pub fn button_options<'b>(
+        &mut self,
+        options: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"Opt")).array().items(options);
+        self
     }
 }
 
@@ -365,9 +374,9 @@ impl<'a> Field<'a> {
         self
     }
 
-    /// Start writing the `/I` array to set the indices of the currently
-    /// selected options. The integers in this array must be sorted in ascending
-    /// order and correspond to 0-based indices in the [`Field::choice_options`]
+    /// Write the `/I` array to set the indices of the currently selected
+    /// options. The integers in this array must be sorted in ascending order
+    /// and correspond to 0-based indices in the [`Field::choice_options`]
     /// array.
     ///
     /// This entry shall be used for choice fields which allow multiple
@@ -376,8 +385,12 @@ impl<'a> Field<'a> {
     /// but export the same value or when the value fo the choice field is an
     /// array. This entry should not be used for choice fields that do not allow
     /// multiple selections. PDF 1.4+.
-    pub fn choice_indices(&mut self) -> TypedArray<'_, i32> {
-        self.dict.insert(Name(b"I")).array().typed()
+    pub fn choice_indices(
+        &mut self,
+        indices: impl IntoIterator<Item = i32>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"I")).array().items(indices);
+        self
     }
 
     /// Write the `/V` attribute to set the currently selected values
