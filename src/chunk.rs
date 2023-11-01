@@ -34,6 +34,11 @@ impl Chunk {
         self.buf.len()
     }
 
+    /// The bytes already written so far.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.buf.as_slice()
+    }
+
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
