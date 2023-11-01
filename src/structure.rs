@@ -1167,7 +1167,7 @@ impl<'a> Page<'a> {
         self.insert(Name(b"Trans")).start()
     }
 
-    /// Start writing the `/Annots` (annotations) array.
+    /// Write the `/Annots` (annotations) array.
     pub fn annotations(&mut self, ids: impl IntoIterator<Item = Ref>) -> &mut Self {
         self.insert(Name(b"Annots")).array().items(ids);
         self
