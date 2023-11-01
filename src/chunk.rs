@@ -10,7 +10,6 @@ use super::*;
 /// able to write two things at the same time (which isn't possible with a
 /// single chunk because of the streaming nature --- only one writer can borrow
 /// it at a time).
-#[derive(Hash)]
 pub struct Chunk {
     pub(crate) buf: Vec<u8>,
     pub(crate) offsets: Vec<(Ref, usize)>,
@@ -21,6 +20,11 @@ impl Chunk {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_capacity(1024)
+    }
+
+    /// The bytes already written so far.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.buf.as_slice()
     }
 
     /// Create a new chunk with the specified initial capacity.

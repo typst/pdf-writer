@@ -182,7 +182,6 @@ pub use self::object::{
 };
 
 use std::fmt::{self, Debug, Formatter};
-use std::hash::Hash;
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
@@ -197,7 +196,6 @@ use self::writers::*;
 /// into a [`Chunk`], which you can add to the [`Pdf`] (or another chunk) later.
 /// Therefore, most writing methods are exposed on the chunk type, which this
 /// type dereferences to.
-#[derive(Hash)]
 pub struct Pdf {
     chunk: Chunk,
     catalog_id: Option<Ref>,
