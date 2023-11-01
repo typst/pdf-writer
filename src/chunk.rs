@@ -22,11 +22,6 @@ impl Chunk {
         Self::with_capacity(1024)
     }
 
-    /// The bytes already written so far.
-    pub fn as_bytes(&self) -> &[u8] {
-        self.buf.as_slice()
-    }
-
     /// Create a new chunk with the specified initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self { buf: Vec::with_capacity(capacity), offsets: vec![] }
@@ -37,6 +32,11 @@ impl Chunk {
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.buf.len()
+    }
+
+    /// The bytes already written so far.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.buf.as_slice()
     }
 
     /// Add all objects from another chunk to this one.
