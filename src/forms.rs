@@ -249,8 +249,8 @@ impl CheckBoxState {
 
 /// Only permissible on radio button fields.
 impl<'a> Field<'a> {
-    /// Write the `/V` attribute to set the state of this check box field. The
-    /// state corresponds to an appearance stream in the
+    /// Write the `/V` attribute to set the state of this radio button field.
+    /// The state corresponds to an appearance stream in the
     /// [appearance dictionary](AppearanceCharacteristics) of this field's
     /// widget [annotation](Annotation). Only permissible on radio button
     /// fields.
@@ -259,7 +259,7 @@ impl<'a> Field<'a> {
         self
     }
 
-    /// Write the `/DV` attribute to set the default state of this check box
+    /// Write the `/DV` attribute to set the default state of this radio button
     /// field. The state corresponds to an appearance stream in the
     /// [appearance dictionary](AppearanceCharacteristics) of this field's
     /// widget [annotation](Annotation). Only permissible on radio button
