@@ -83,7 +83,7 @@ bitflags::bitflags! {
         /// as opposed to an incremental update. Merely updating the file by
         /// appending new information to the end of the previous version is
         /// safe.
-        const APPEND_ONLY = 1 << 2;
+        const APPEND_ONLY = 2;
     }
 }
 
@@ -480,10 +480,10 @@ bitflags::bitflags! {
         const REQUIRED = 2;
         /// The field shall not be exported by a
         /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
-        const NO_EXPORT = 1 << 3;
+        const NO_EXPORT = 1 << 2;
         /// The entered text shall not be spell-checked, can be used for text
         /// and choice fields.
-        const DO_NOT_SPELL_CHECK = 1 << 23;
+        const DO_NOT_SPELL_CHECK = 1 << 22;
 
         // Button specific flags
 
@@ -491,62 +491,62 @@ bitflags::bitflags! {
         /// the currently selected button has no effect. If unset, clicking
         /// the selected button deselects it, leaving no button selected. Only
         /// permissible for radio buttons.
-        const NO_TOGGLE_TO_OFF = 1 << 15;
+        const NO_TOGGLE_TO_OFF = 1 << 14;
         /// The field is a set of radio buttons; if clear, the field is a check
         /// box. This flag may be set only if the `PUSHBUTTON` flag is unset.
-        const RADIO = 1 << 16;
+        const RADIO = 1 << 15;
         /// The field is a push button that does not retain a permanent
         /// value.
-        const PUSHBUTTON = 1 << 17;
+        const PUSHBUTTON = 1 << 16;
         /// A group of radio buttons within a radio button field that use the
         /// same value for the on state will turn on and off in unison; that
         /// is if one is checked, they are all checked. If unset, the buttons
         /// are mutually exclusive (the same behavior as HTML radio buttons).
         /// PDF 1.5+.
-        const RADIOS_IN_UNISON = 1 << 26;
+        const RADIOS_IN_UNISON = 1 << 25;
 
         // Text field specific flags
 
         /// The text may contain multiple lines of text, otherwise the text is
         /// restricted to one line.
-        const MULTILINE = 1 << 13;
+        const MULTILINE = 1 << 12;
         /// The text contains a password and should not be echoed visibly to
         /// the screen.
-        const PASSWORD = 1 << 14;
+        const PASSWORD = 1 << 13;
         /// The entered text represents a path to a file who's contents shall be
         /// submitted as the value of the field. PDF 1.4+.
-        const FILE_SELECT = 1 << 21;
+        const FILE_SELECT = 1 << 20;
         /// The field shall not scroll horizontally (for single-line) or
         /// vertically (for multi-line) to accomodate more text. Once the field
         /// is full, no further text shall be accepted for interactive form
         /// filling; for non-interactive form filling, the filler should take
         /// care not to add more character than will visibly fit in the defined
         /// area. PDF 1.4+.
-        const DO_NOT_SCROLL = 1 << 24;
+        const DO_NOT_SCROLL = 1 << 23;
         /// The field shall eb automatically divided into as many equally
         /// spaced postions or _combs_ as the value of [`Field::max_len`]
         /// and the text is layed out into these combs. May only be set if
         /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
         /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
-        const COMB = 1 << 25;
+        const COMB = 1 << 24;
         /// The value of this field shall be a rich text string. If the field
         /// has a value, the [`TextField::rich_text_value`] shall specify the
         /// rich text string. PDF 1.5+.
-        const RICH_TEXT = 1 << 26;
+        const RICH_TEXT = 1 << 25;
 
         // Choice field specific flags
 
         /// The field is a combo box if set, else it's a list box.
-        const COMBO = 1 << 18;
+        const COMBO = 1 << 17;
         /// The combo box shall include an editable text box as well as a
         /// drop-down list. Shall only be used if [`COMBO`] is set.
-        const EDIT = 1 << 19;
+        const EDIT = 1 << 18;
         /// The field’s option items shall be sorted alphabetically. This
         /// flag is intended for use by writers, not by readers.
-        const SORT = 1 << 20;
+        const SORT = 1 << 19;
         /// More than one option of the choice field may be selected
         /// simultaneously. PDF 1.4+.
-        const MULTI_SELECT = 1 << 22;
+        const MULTI_SELECT = 1 << 21;
         /// The new value shall be committed as soon as a selection is made
         /// (commonly with the mouse). In this case, supplying a value for
         /// a field involves three actions: selecting the field for fill-in,
@@ -556,6 +556,6 @@ bitflags::bitflags! {
         ///
         /// If set, processing does not wait for leaving the field action to
         /// occur, but immediately proceeds to the third step. PDF 1.5+.
-        const COMMIT_ON_SEL_CHANGE = 1 << 27;
+        const COMMIT_ON_SEL_CHANGE = 1 << 28;
     }
 }
