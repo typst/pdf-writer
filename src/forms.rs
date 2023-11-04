@@ -556,6 +556,6 @@ bitflags::bitflags! {
         ///
         /// If set, processing does not wait for leaving the field action to
         /// occur, but immediately proceeds to the third step. PDF 1.5+.
-        const COMMIT_ON_SEL_CHANGE = 1 << 28;
+        const COMMIT_ON_SEL_CHANGE = 1 << 26;
     }
 }
