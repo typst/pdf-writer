@@ -4,7 +4,7 @@ use super::*;
 ///
 /// An array of this struct is created by [`Chunk::annotation`].
 pub struct Annotation<'a> {
-    dict: Dict<'a>,
+    pub(crate) dict: Dict<'a>,
 }
 
 writer!(Annotation: |obj| {

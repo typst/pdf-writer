@@ -1,3 +1,5 @@
+use crate::types::AnnotationType;
+
 use super::*;
 
 /// Writer for an _interactive forms dictionary_. PDF 1.2+.
@@ -164,6 +166,19 @@ impl<'a> Field<'a> {
     /// various trigger events.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
         self.dict.insert(Name(b"AA")).start()
+    }
+
+    /// Finish writing this field as a widget annotation. This is encouraged
+    /// for fields which are non-root and terminal (i.e. they have a parent and
+    /// no children).
+    ///
+    /// While the widget annotation could be a single child to a
+    /// terminal field, most readers will not correctly read the form
+    /// field, if it's not merged with its annotation.
+    pub fn to_annotation(self) -> Annotation<'a> {
+        let mut annot = Annotation { dict: self.dict };
+        annot.subtype(AnnotationType::Widget);
+        annot
     }
 }
 
