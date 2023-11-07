@@ -2,7 +2,7 @@ use super::*;
 
 /// Writer for an _annotation dictionary_.
 ///
-/// An array of this struct is created by [`Page::annotations`].
+/// An array of this struct is created by [`Chunk::annotation`].
 pub struct Annotation<'a> {
     dict: Dict<'a>,
 }
@@ -671,24 +671,19 @@ mod tests {
     fn test_annotations() {
         test!(
             crate::tests::slice(|w| {
-                let mut page = w.page(Ref::new(1));
-                let mut annots = page.annotations();
-                annots.push().rect(Rect::new(0.0, 0.0, 1.0, 1.0));
-                annots.push().rect(Rect::new(1.0, 1.0, 0.0, 0.0));
-                annots.finish();
-                page.bleed_box(Rect::new(-100.0, -100.0, 100.0, 100.0));
+                w.annotation(Ref::new(1)).rect(Rect::new(0.0, 0.0, 1.0, 1.0));
+                w.annotation(Ref::new(2)).rect(Rect::new(1.0, 1.0, 0.0, 0.0));
             }),
             b"1 0 obj",
             b"<<",
-            b"  /Type /Page",
-            b"  /Annots [<<",
-            b"    /Type /Annot",
-            b"    /Rect [0 0 1 1]",
-            b"  >> <<",
-            b"    /Type /Annot",
-            b"    /Rect [1 1 0 0]",
-            b"  >>]",
-            b"  /BleedBox [-100 -100 100 100]",
+            b"  /Type /Annot",
+            b"  /Rect [0 0 1 1]",
+            b">>",
+            b"endobj\n",
+            b"2 0 obj",
+            b"<<",
+            b"  /Type /Annot",
+            b"  /Rect [1 1 0 0]",
             b">>",
             b"endobj\n\n",
         );

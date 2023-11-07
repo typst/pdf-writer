@@ -382,6 +382,11 @@ impl Chunk {
 
 /// Interactive features.
 impl Chunk {
+    /// Start writing an annotation dictionary.
+    pub fn annotation(&mut self, id: Ref) -> Annotation<'_> {
+        self.indirect(id).start()
+    }
+
     /// Start writing a form field dictionary.
     pub fn form_field(&mut self, id: Ref) -> Field<'_> {
         self.indirect(id).start()
