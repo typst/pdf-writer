@@ -266,39 +266,22 @@ impl CheckBoxState {
 impl<'a> Field<'a> {
     /// Write the `/V` attribute to set the state of this radio button field.
     /// The state corresponds to an appearance stream in the
-    /// [appearance dictionary](AppearanceCharacteristics) of this field's
-    /// widget [annotation](Annotation). Only permissible on radio button
-    /// fields.
-    pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
-        self.pair(Name(b"V"), state.to_name());
+    /// [appearance subdictionary](Appearance) of this field's widget
+    /// [annotation](Annotation) and is either a custom name unique for
+    /// all unique fields, or `/Off`. Only permissible on radio button fields.
+    pub fn radio_value(&mut self, state: Name) -> &mut Self {
+        self.pair(Name(b"V"), state);
         self
     }
 
     /// Write the `/DV` attribute to set the default state of this radio button
     /// field. The state corresponds to an appearance stream in the
-    /// [appearance dictionary](AppearanceCharacteristics) of this field's
-    /// widget [annotation](Annotation). Only permissible on radio button
-    /// fields.
-    pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
-        self.pair(Name(b"DV"), state.to_name());
+    /// [appearance subdictionary](Appearance) of this field's widget
+    /// [annotation](Annotation) and is either a custom name unique for
+    /// all unique fields, or `/Off`. Only permissible on radio button fields.
+    pub fn radio_default_value(&mut self, state: Name) -> &mut Self {
+        self.pair(Name(b"DV"), state);
         self
-    }
-}
-
-/// The state of a radio button [`Field`].
-pub enum RadioState<'a> {
-    /// The radio button with the given name is selected.
-    Selected(Name<'a>),
-    /// No radio button is selected `/Off`.
-    Off,
-}
-
-impl<'a> RadioState<'a> {
-    pub(crate) fn to_name(self) -> Name<'a> {
-        match self {
-            Self::Selected(name) => name,
-            Self::Off => Name(b"Off"),
-        }
     }
 }
 
