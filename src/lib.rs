@@ -168,8 +168,7 @@ pub mod types {
     };
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo, UnicodeCmap};
     pub use forms::{
-        CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
-        SigFlags,
+        CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, SigFlags,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use renditions::{MediaClipType, RenditionType, TempFileType};
