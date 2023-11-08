@@ -15,7 +15,7 @@ impl<'a> Form<'a> {
     /// Write the `/Fields` attribute to reference the root [form fields](Field)
     /// (those who have no immediate parent) of this document.
     pub fn fields(&mut self, fields: impl IntoIterator<Item = Ref>) -> &mut Self {
-        self.dict.insert(Name(b"Fields")).array().items(fields);
+        self.insert(Name(b"Fields")).array().items(fields);
         self
     }
 
@@ -25,14 +25,14 @@ impl<'a> Form<'a> {
     /// appearance streams and appearance dictionaries for all widget
     /// annotations in this document.
     pub fn need_appearances(&mut self, need: bool) -> &mut Self {
-        self.dict.pair(Name(b"NeedAppearances"), need);
+        self.pair(Name(b"NeedAppearances"), need);
         self
     }
 
     /// Write the `/SigFlags` attribute to set various document-level
     /// characteristics related to signature fields.
     pub fn sig_flags(&mut self, flags: SigFlags) -> &mut Self {
-        self.dict.pair(Name(b"SigFlags"), flags.bits() as i32);
+        self.pair(Name(b"SigFlags"), flags.bits() as i32);
         self
     }
 
@@ -43,7 +43,7 @@ impl<'a> Form<'a> {
         &mut self,
         actions: impl IntoIterator<Item = Ref>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"CO")).array().items(actions);
+        self.insert(Name(b"CO")).array().items(actions);
         self
     }
 
@@ -52,21 +52,21 @@ impl<'a> Form<'a> {
     /// dictionary shall contain a font entry specifying the resource name and
     /// font dictionary of the default font for displaying text.
     pub fn default_resources(&mut self) -> Resources<'_> {
-        self.dict.insert(Name(b"DR")).start()
+        self.insert(Name(b"DR")).start()
     }
 
     /// Write the document-wide default value for the `/DA` attribute of
     /// fields containing variable text. See
     /// [`Field::vartext_default_appearance`].
     pub fn default_appearance(&mut self, default: Str) -> &mut Self {
-        self.dict.pair(Name(b"DA"), default);
+        self.pair(Name(b"DA"), default);
         self
     }
 
     /// Write the document-wide default value for the `/Q` attribute of
     /// fields containing variable text. See [`Field::vartext_quadding`].
     pub fn quadding(&mut self, default: Quadding) -> &mut Self {
-        self.dict.pair(Name(b"Q"), default as i32);
+        self.pair(Name(b"Q"), default as i32);
         self
     }
 }
@@ -102,14 +102,14 @@ writer!(Field: |obj| Self { dict: obj.dict() });
 impl<'a> Field<'a> {
     /// Write the `/FT` attribute to set the type of this field.
     pub fn field_type(&mut self, typ: FieldType) -> &mut Self {
-        self.dict.pair(Name(b"FT"), typ.to_name());
+        self.pair(Name(b"FT"), typ.to_name());
         self
     }
 
     /// Write the `/Parent` attribute to set the immediate parent of this
     /// field.
     pub fn parent(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair(Name(b"Parent"), id);
+        self.pair(Name(b"Parent"), id);
         self
     }
 
@@ -117,7 +117,7 @@ impl<'a> Field<'a> {
     /// These references shall refer to other [fields][Field], or
     /// [widget](crate::types::AnnotationType::Widget) [annotations](Annotation).
     pub fn children(&mut self, children: impl IntoIterator<Item = Ref>) -> &mut Self {
-        self.dict.insert(Name(b"Kids")).array().items(children);
+        self.insert(Name(b"Kids")).array().items(children);
         self
     }
 
@@ -132,7 +132,7 @@ impl<'a> Field<'a> {
     /// in properties that specify their visual appearance. In particular, they
     /// should have the same `/FT`, `/V` and `/DV` attribute values.
     pub fn partial_name(&mut self, name: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"T"), name);
+        self.pair(Name(b"T"), name);
         self
     }
 
@@ -143,7 +143,7 @@ impl<'a> Field<'a> {
     /// contents in support of accessibility to users with disabilities or for
     /// other purposes. PDF 1.3+.
     pub fn alternate_name(&mut self, alternate: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"TU"), alternate);
+        self.pair(Name(b"TU"), alternate);
         self
     }
 
@@ -151,21 +151,21 @@ impl<'a> Field<'a> {
     /// name shall be used when exporting interactive form field data from the
     /// document.
     pub fn mapping_name(&mut self, name: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"TM"), name);
+        self.pair(Name(b"TM"), name);
         self
     }
 
     /// Write the `/Ff` attribute to set various characteristics of this
     /// field.
     pub fn field_flags(&mut self, flags: FieldFlags) -> &mut Self {
-        self.dict.pair(Name(b"Tf"), flags.bits() as i32);
+        self.pair(Name(b"Tf"), flags.bits() as i32);
         self
     }
 
     /// Start writing the `/AA` dictionary to set the field's response to
     /// various trigger events.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
-        self.dict.insert(Name(b"AA")).start()
+        self.insert(Name(b"AA")).start()
     }
 
     /// Finish writing this field as a widget annotation. This is encouraged
@@ -219,7 +219,7 @@ impl<'a> Field<'a> {
         &mut self,
         options: impl IntoIterator<Item = TextStr<'b>>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"Opt")).array().items(options);
+        self.insert(Name(b"Opt")).array().items(options);
         self
     }
 }
@@ -231,7 +231,7 @@ impl<'a> Field<'a> {
     /// dictionary](AppearanceCharacteristics) of this field's widget
     /// [annotation](Annotation). Only permissible on check box fields.
     pub fn checkbox_value(&mut self, state: CheckBoxState) -> &mut Self {
-        self.dict.pair(Name(b"V"), state.to_name());
+        self.pair(Name(b"V"), state.to_name());
         self
     }
 
@@ -240,7 +240,7 @@ impl<'a> Field<'a> {
     /// dictionary](AppearanceCharacteristics) of this field's widget
     /// [annotation](Annotation). Only permissible on check box fields.
     pub fn checkbox_default_value(&mut self, state: CheckBoxState) -> &mut Self {
-        self.dict.pair(Name(b"DV"), state.to_name());
+        self.pair(Name(b"DV"), state.to_name());
         self
     }
 }
@@ -270,7 +270,7 @@ impl<'a> Field<'a> {
     /// widget [annotation](Annotation). Only permissible on radio button
     /// fields.
     pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
-        self.dict.pair(Name(b"V"), state.to_name());
+        self.pair(Name(b"V"), state.to_name());
         self
     }
 
@@ -280,7 +280,7 @@ impl<'a> Field<'a> {
     /// widget [annotation](Annotation). Only permissible on radio button
     /// fields.
     pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
-        self.dict.pair(Name(b"DV"), state.to_name());
+        self.pair(Name(b"DV"), state.to_name());
         self
     }
 }
@@ -310,21 +310,21 @@ impl<'a> Field<'a> {
     /// Write the `/MaxLen` attribute to set the maximum length of the field's
     /// text in characters. Only permissible on text fields.
     pub fn text_max_len(&mut self, len: i32) -> &mut Self {
-        self.dict.pair(Name(b"MaxLen"), len);
+        self.pair(Name(b"MaxLen"), len);
         self
     }
 
     /// Write the `/V` attribute to set the value of this text field.
     /// Only permissible on text fields.
     pub fn text_value(&mut self, value: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"V"), value);
+        self.pair(Name(b"V"), value);
         self
     }
 
     /// Start writing the `/DV` attribute to set the default value of this text
     /// field. Only permissible on text fields.
     pub fn text_default_value(&mut self, value: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"DV"), value);
+        self.pair(Name(b"DV"), value);
         self
     }
 }
@@ -336,7 +336,7 @@ impl<'a> Field<'a> {
     /// field's text size and colour. Only permissible on fields containing
     /// variable text.
     pub fn vartext_default_appearance(&mut self, appearance: Str) -> &mut Self {
-        self.dict.pair(Name(b"DA"), appearance);
+        self.pair(Name(b"DA"), appearance);
         self
     }
 
@@ -344,21 +344,21 @@ impl<'a> Field<'a> {
     /// be used in dispalying the text. Only permissible on fields containing
     /// variable text.
     pub fn vartext_quadding(&mut self, quadding: Quadding) -> &mut Self {
-        self.dict.pair(Name(b"Q"), quadding as i32);
+        self.pair(Name(b"Q"), quadding as i32);
         self
     }
 
     /// Write the `/DS` attribute to set the default style string. Only
     /// permissible on fields containing variable text. PDF 1.5+.
     pub fn vartext_default_style(&mut self, style: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"DS"), style);
+        self.pair(Name(b"DS"), style);
         self
     }
 
     /// Write the `/RV` attribute to set the value of this variable text field.
     /// Only permissible on fields containing variable text. PDF 1.5+.
     pub fn vartext_rich_value(&mut self, value: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"RV"), value);
+        self.pair(Name(b"RV"), value);
         self
     }
 }
@@ -379,14 +379,14 @@ impl<'a> Field<'a> {
     /// Start writing the `/Opt` array to set the options that shall be
     /// presented to the user.
     pub fn choice_options(&mut self) -> ChoiceOptions<'_> {
-        self.dict.insert(Name(b"Opt")).start()
+        self.insert(Name(b"Opt")).start()
     }
 
     /// Write the `/TI` attribute to set the index in the
     /// [`Field::choice_options`] array of the first visible option for
     /// scrollable lists.
     pub fn choice_top_index(&mut self, index: i32) -> &mut Self {
-        self.dict.pair(Name(b"TI"), index);
+        self.pair(Name(b"TI"), index);
         self
     }
 
@@ -405,7 +405,7 @@ impl<'a> Field<'a> {
         &mut self,
         indices: impl IntoIterator<Item = i32>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"I")).array().items(indices);
+        self.insert(Name(b"I")).array().items(indices);
         self
     }
 
@@ -415,8 +415,8 @@ impl<'a> Field<'a> {
     /// permissible on choice fields.
     pub fn choice_value(&mut self, option: Option<TextStr>) -> &mut Self {
         match option {
-            Some(value) => self.dict.pair(Name(b"V"), value),
-            None => self.dict.pair(Name(b"V"), Null),
+            Some(value) => self.pair(Name(b"V"), value),
+            None => self.pair(Name(b"V"), Null),
         };
         self
     }
@@ -428,7 +428,7 @@ impl<'a> Field<'a> {
         &mut self,
         options: impl IntoIterator<Item = TextStr<'b>>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"V")).array().items(options);
+        self.insert(Name(b"V")).array().items(options);
         self
     }
 
@@ -438,8 +438,8 @@ impl<'a> Field<'a> {
     /// permissible on choice fields.
     pub fn choice_default_value(&mut self, option: Option<TextStr>) -> &mut Self {
         match option {
-            Some(value) => self.dict.pair(Name(b"DV"), value),
-            None => self.dict.pair(Name(b"DV"), Null),
+            Some(value) => self.pair(Name(b"DV"), value),
+            None => self.pair(Name(b"DV"), Null),
         };
         self
     }
@@ -451,7 +451,7 @@ impl<'a> Field<'a> {
         &mut self,
         options: impl IntoIterator<Item = TextStr<'b>>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"DV")).array().items(options);
+        self.insert(Name(b"DV")).array().items(options);
         self
     }
 }
