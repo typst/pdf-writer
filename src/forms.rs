@@ -455,9 +455,29 @@ impl<'a> ChoiceOptions<'a> {
         self
     }
 
+    /// Add options with the given values.
+    pub fn options<'b>(
+        &mut self,
+        values: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.array.items(values);
+        self
+    }
+
     /// Add an option with the given value and export value.
     pub fn export(&mut self, value: TextStr, export_value: TextStr) -> &mut Self {
         self.array.push().array().items([export_value, value]);
+        self
+    }
+
+    /// Add options with the given pairs of value and export value.
+    pub fn exports<'b>(
+        &mut self,
+        values: impl IntoIterator<Item = (TextStr<'b>, TextStr<'b>)>,
+    ) -> &mut Self {
+        for (value, export) in values {
+            self.export(value, export);
+        }
         self
     }
 }
