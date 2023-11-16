@@ -19,16 +19,6 @@ impl<'a> Form<'a> {
         self
     }
 
-    // TODO: deprecated in PDF 2.0
-
-    /// Write the `/NeedAppearances` attribute to set whether to construct
-    /// appearance streams and appearance dictionaries for all widget
-    /// annotations in this document.
-    pub fn need_appearances(&mut self, need: bool) -> &mut Self {
-        self.pair(Name(b"NeedAppearances"), need);
-        self
-    }
-
     /// Write the `/SigFlags` attribute to set various document-level
     /// characteristics related to signature fields.
     pub fn sig_flags(&mut self, flags: SigFlags) -> &mut Self {
@@ -287,11 +277,11 @@ impl<'a> Field<'a> {
 
 /// Only permissible on text fields.
 impl<'a> Field<'a> {
-    // TODO: the spec likely means the equivalent of unicode graphemes here
-    //       for characters
-
-    /// Write the `/MaxLen` attribute to set the maximum length of the field's
+    /// Write the `/MaxLen` attribute to set the maximum length of the fields
     /// text in characters. Only permissible on text fields.
+    ///
+    /// The definition of a chracter depends on the encoding of the content of
+    /// `/V`. Which is either one byte for PDFDocEncoding or 2 for UTF16-BE.
     pub fn text_max_len(&mut self, len: i32) -> &mut Self {
         self.pair(Name(b"MaxLen"), len);
         self
