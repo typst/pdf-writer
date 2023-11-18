@@ -154,9 +154,24 @@ impl<'a> Fields<'a> {
         self
     }
 
+    /// The indirect references to the fields.
+    pub fn ids(&mut self, ids: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.array.items(ids);
+        self
+    }
+
     /// The fully qualified name of the field. PDF 1.3+.
     pub fn name(&mut self, name: TextStr) -> &mut Self {
         self.array.item(name);
+        self
+    }
+
+    /// The fully qualified names of the fields. PDF 1.3+.
+    pub fn names<'b>(
+        &mut self,
+        names: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.array.items(names);
         self
     }
 }
