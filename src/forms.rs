@@ -148,7 +148,7 @@ impl<'a> Field<'a> {
     /// Write the `/Ff` attribute to set various characteristics of this
     /// field.
     pub fn field_flags(&mut self, flags: FieldFlags) -> &mut Self {
-        self.pair(Name(b"Tf"), flags.bits() as i32);
+        self.pair(Name(b"Ff"), flags.bits() as i32);
         self
     }
 
@@ -165,7 +165,8 @@ impl<'a> Field<'a> {
     /// While the widget annotation could be a single child to a
     /// terminal field, most readers will not correctly read the form
     /// field, if it's not merged with its annotation.
-    pub fn to_annotation(self) -> Annotation<'a> {
+    pub fn to_annotation(mut self) -> Annotation<'a> {
+        self.dict.pair(Name(b"Type"), Name(b"Annot"));
         let mut annot = Annotation { dict: self.dict };
         annot.subtype(AnnotationType::Widget);
         annot
@@ -531,8 +532,8 @@ bitflags::bitflags! {
         /// care not to add more character than will visibly fit in the defined
         /// area. PDF 1.4+.
         const DO_NOT_SCROLL = 1 << 23;
-        /// The field shall eb automatically divided into as many equally
-        /// spaced postions or _combs_ as the value of [`Field::max_len`]
+        /// The field shall be automatically divided into as many equally
+        /// spaced positions or _combs_ as the value of [`Field::max_len`]
         /// and the text is layed out into these combs. May only be set if
         /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
         /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
