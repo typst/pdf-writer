@@ -545,7 +545,8 @@ bitflags::bitflags! {
 
         // Choice field specific flags
 
-        /// The field is a combo box if set, else it's a list box.
+        /// The field is a combo box if set, else it's a list box. A combo box
+        /// is often referred to as a dropdown menu.
         const COMBO = 1 << 17;
         /// The combo box shall include an editable text box as well as a
         /// drop-down list. Shall only be used if [`COMBO`] is set.
