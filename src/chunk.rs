@@ -191,6 +191,11 @@ impl Chunk {
         self.indirect(id).start()
     }
 
+    /// Start writing a destination for use in a name tree.
+    pub fn destination(&mut self, id: Ref) -> Destination<'_> {
+        self.indirect(id).start()
+    }
+
     /// Start writing a named destination dictionary.
     pub fn destinations(&mut self, id: Ref) -> TypedDict<'_, Destination> {
         self.indirect(id).dict().typed()
