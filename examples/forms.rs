@@ -146,8 +146,8 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Let's add a dropdown menu and allow the user to chose a custom option
-    // too.
+    // Let's add a dropdown menu and allow the user to chose from preconfigrued
+    // options while allowing them to add their own custom option too.
     let dropdown_id = Ref::new(11);
     let mut field = pdf.form_field(dropdown_id);
 
@@ -155,6 +155,8 @@ fn main() -> std::io::Result<()> {
     // also known as a dropdown menu, a list box is like a permanently expanded
     // drop down menu. The edit flag allows the user to insert their own custom
     // option.
+    // NOTE: at the time of writing this pdf.js (firefox) does not allow
+    //       editing of the box
     field
         .partial_name(TextStr("choice"))
         .field_type(FieldType::Choice)
