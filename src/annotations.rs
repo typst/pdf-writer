@@ -43,11 +43,11 @@ impl<'a> Annotation<'a> {
         self
     }
 
-    /// Write the `/AP` dictionary to provide the visual appearance for a screen
-    /// annotation. For now, this sets only the normal appearance as a reference
-    /// to a [`FormXObject`]. Only permissible for the subtype `Screen`.
-    /// PDF 1.5+.
-    pub fn appearance(&mut self, id: Ref) -> &mut Self {
+    /// Write the `/N` attribute inside the `/AP` dictionary to provide the
+    /// visual appearance for a screen annotation. For now, this sets only the
+    /// normal appearance as a reference to a [`FormXObject`]. Only permissible
+    /// for the subtype `Screen`. PDF 1.5+.
+    pub fn normal_appearance(&mut self, id: Ref) -> &mut Self {
         self.insert(Name(b"AP")).dict()
                                 .pair(Name(b"N"), id);
         self
