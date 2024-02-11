@@ -35,6 +35,24 @@ impl<'a> Annotation<'a> {
         self
     }
 
+    /// Write the `/P` attribute to provide a reference to the page object with
+    /// which this annotation is associated. Required and only permissible for
+    /// the subtype `Screen`. PDF 1.5+.
+    pub fn page(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"P"), id);
+        self
+    }
+
+    /// Write the `/AP` dictionary to provide the visual appearance for a screen
+    /// annotation. For now, this sets only the normal appearance as a reference
+    /// to a [`FormXObject`]. Only permissible for the subtype `Screen`.
+    /// PDF 1.5+.
+    pub fn appearance(&mut self, id: Ref) -> &mut Self {
+        self.insert(Name(b"AP")).dict()
+                                .pair(Name(b"N"), id);
+        self
+    }
+
     /// Write the `/NM` attribute. This uniquely identifies the annotation on the
     /// page. PDF 1.3+.
     pub fn name(&mut self, text: TextStr) -> &mut Self {
@@ -226,6 +244,8 @@ pub enum AnnotationType {
     FileAttachment,
     /// A widget annotation. PDF 1.2+.
     Widget,
+    /// A screen annotation. PDF 1.5+.
+    Screen,
 }
 
 impl AnnotationType {
@@ -242,6 +262,7 @@ impl AnnotationType {
             Self::StrikeOut => Name(b"StrikeOut"),
             Self::FileAttachment => Name(b"FileAttachment"),
             Self::Widget => Name(b"Widget"),
+            Self::Screen => Name(b"Screen"),
         }
     }
 }

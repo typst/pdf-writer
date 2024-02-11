@@ -99,6 +99,7 @@ mod forms;
 mod functions;
 mod object;
 mod renumber;
+mod renditions;
 mod structure;
 mod transitions;
 mod xobject;
@@ -131,6 +132,7 @@ pub mod writers {
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
     pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
+    pub use renditions::{Rendition, MediaClip, MediaPlayParams};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
         MarkedRef, Metadata, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel,
@@ -166,6 +168,7 @@ pub mod types {
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
+    pub use renditions::{RenditionType, MediaClipType};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
         TabOrder, TrappingStatus,

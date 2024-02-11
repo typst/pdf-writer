@@ -94,6 +94,26 @@ impl<'a> Action<'a> {
         self.pair(Name(b"Flags"), flags.bits() as i32);
         self
     }
+
+    /// Write the `/OP` attribute to set the operation to perform when the
+    /// action is triggered.
+    pub fn operation(&mut self, op: i32) -> &mut Self {
+        self.pair(Name(b"OP"), op);
+        self
+    }
+
+    /// Write the `/AN` attribute to provide a reference to the screen
+    /// annotation for the operation. Required if OP is present.
+    pub fn annotation(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"AN"), id);
+        self
+    }
+
+    /// Start writing the `/R` dictionary. Only permissible for the subtype
+    /// `Rendition`.
+    pub fn rendition(&mut self) -> Rendition<'_> {
+        self.insert(Name(b"R")).start()
+    }
 }
 
 deref!('a, Action<'a> => Dict<'a>, dict);
@@ -146,6 +166,8 @@ pub enum ActionType {
     /// [JavaScript for Acrobat API Reference](https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/pdfs/acrobatsdk_jsapiref.pdf)
     /// and ISO 21757.
     JavaScript,
+    /// A rendition action to control the playing of multimedia content. PDF 1.5+.
+    Rendition,
 }
 
 impl ActionType {
@@ -159,6 +181,7 @@ impl ActionType {
             Self::ResetForm => Name(b"ResetForm"),
             Self::ImportData => Name(b"ImportData"),
             Self::JavaScript => Name(b"JavaScript"),
+            Self::Rendition => Name(b"Rendition"),
         }
     }
 }
