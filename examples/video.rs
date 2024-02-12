@@ -14,7 +14,7 @@ fn get_bbox(page: &Rect, mut w: f32, mut h: f32) -> Rect {
         h *= f;
     }
     if h > (page.y2 - page.y1) {
-        let f = (page.y2 - page.y1)/w;
+        let f = (page.y2 - page.y1)/h;
         w *= f;
         h *= f;
     }
