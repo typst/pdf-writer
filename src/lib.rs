@@ -108,7 +108,10 @@ mod xobject;
 pub mod writers {
     use super::*;
     pub use actions::{Action, AdditionalActions, Fields};
-    pub use annotations::{Annotation, AppearanceCharacteristics, BorderStyle, IconFit};
+    pub use annotations::{
+        Annotation, Appearance, AppearanceCharacteristics, AppearanceEntry, BorderStyle,
+        IconFit,
+    };
     pub use attributes::{
         Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
         UserProperty,

@@ -120,7 +120,7 @@ fn main() -> std::io::Result<()> {
     annotation.subtype(AnnotationType::Screen);
     annotation.rect(bbox);
     annotation.page(page_id);
-    annotation.normal_appearance(form_xobject_id);
+    annotation.appearance().normal().stream(form_xobject_id);
 
     // Write a rendition action for the screen annotation.
     let mut action = annotation.action();
