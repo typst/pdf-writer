@@ -135,7 +135,7 @@ pub mod writers {
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
     pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
-    pub use renditions::{Rendition, MediaClip, MediaPlayParams};
+    pub use renditions::{Rendition, MediaClip, MediaPlayParams, MediaPermissions};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
         MarkedRef, Metadata, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel,

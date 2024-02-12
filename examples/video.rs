@@ -145,7 +145,7 @@ fn main() -> std::io::Result<()> {
         media_clip.data_url(Str(file_url));
     }
     media_clip.data_type(Str(b"video/mp4"));
-    media_clip.temp_file(Str(b"TEMPACCESS"));
+    media_clip.permissions().temp_file(Str(b"TEMPACCESS"));
     media_clip.finish();
 
     // Add controls for the media player.

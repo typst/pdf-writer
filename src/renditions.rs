@@ -86,16 +86,9 @@ impl<'a> MediaClip<'a> {
         self
     }
 
-    /// Write the `/TF` attribute inside the `/P` dictionary controlling the
-    /// permissions to write a temporary file.
-    ///
-    /// The media permissions dictionary has a single entry. Thus, skip
-    /// implementing a full MediaPermissions dictionary object.
-    pub fn temp_file(&mut self, tf: Str) -> &mut Self {
-        self.insert(Name(b"P")).dict()
-                               .pair(Name(b"Type"), Name(b"MediaPermissions"))
-                               .pair(Name(b"TF"), tf);
-        self
+    /// Start writing the `/P`, i.e. media permissions, dictionary.
+    pub fn permissions(&mut self) -> MediaPermissions<'_> {
+        self.insert(Name(b"P")).start()
     }
 }
 
@@ -129,6 +122,30 @@ impl<'a> MediaPlayParams<'a> {
 }
 
 deref!('a, MediaPlayParams<'a> => Dict<'a>, dict);
+
+
+/// Writer for an _media permissions dictionary_.
+///
+/// This struct is created by [`Rendition::permissions`].
+pub struct MediaPermissions<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(MediaPermissions: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"MediaPermissions"));
+    Self { dict }
+});
+
+impl<'a> MediaPermissions<'a> {
+    /// Write the `/TF` attribute to control permissions to write a temporary file.
+    pub fn temp_file(&mut self, tf: Str) -> &mut Self {
+        self.pair(Name(b"TF"), tf);
+        self
+    }
+}
+
+deref!('a, MediaPermissions<'a> => Dict<'a>, dict);
 
 
 /// Type of rendition objects.
