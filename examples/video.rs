@@ -130,11 +130,11 @@ fn main() -> std::io::Result<()> {
 
     // Write a media rendition for the action.
     let mut rendition = action.rendition();
-    rendition.rendition_type(RenditionType::Media);
+    rendition.subtype(RenditionType::Media);
 
     // Write the media clip data for the media rendition.
     let mut media_clip = rendition.media_clip();
-    media_clip.media_clip_type(MediaClipType::Data);
+    media_clip.subtype(MediaClipType::Data);
     if embedded {
         media_clip.data_embedded(video_file_id);
     } else {
