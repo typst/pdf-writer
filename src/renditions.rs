@@ -20,6 +20,13 @@ impl<'a> Rendition<'a> {
         self
     }
 
+    /// Write the `/N` attribute. Specify the name of the rendition for use in a
+    /// user interface and for name tree lookup by JavaScript actions.
+    pub fn name(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"N"), text);
+        self
+    }
+
     /// Start writing the `/C`, i.e. media clip, dictionary which specifies what
     /// media should be played. Only permissible for Media Renditions.
     pub fn media_clip(&mut self) -> MediaClip<'_> {
@@ -53,6 +60,14 @@ impl<'a> MediaClip<'a> {
     /// Write the `/S` attribute to set the media clip type.
     pub fn subtype(&mut self, kind: MediaClipType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
+        self
+    }
+
+
+    /// Write the `/N` attribute. Specifies the name of the media clip, for use
+    /// in the user interface.
+    pub fn name(&mut self, text: TextStr) -> &mut Self {
+        self.pair(Name(b"N"), text);
         self
     }
 
