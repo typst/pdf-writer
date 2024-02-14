@@ -15,7 +15,7 @@ writer!(Rendition: |obj| {
 
 impl<'a> Rendition<'a> {
     /// Write the `/S` attribute to set the rendition type.
-    pub fn rendition_type(&mut self, kind: RenditionType) -> &mut Self {
+    pub fn subtype(&mut self, kind: RenditionType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
         self
     }
@@ -51,7 +51,7 @@ writer!(MediaClip: |obj| {
 
 impl<'a> MediaClip<'a> {
     /// Write the `/S` attribute to set the media clip type.
-    pub fn media_clip_type(&mut self, kind: MediaClipType) -> &mut Self {
+    pub fn subtype(&mut self, kind: MediaClipType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
         self
     }
