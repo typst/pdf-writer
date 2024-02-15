@@ -94,7 +94,7 @@ impl<'a> MediaClip<'a> {
         self
     }
 
-    /// Write the `/CT` attribute identifying the type of data in D, i.e. the
+    /// Write the `/CT` attribute identifying the type of data in `/D`, i.e. the
     /// MIME type.
     pub fn data_type(&mut self, tf: Str) -> &mut Self {
         self.pair(Name(b"CT"), tf);
@@ -104,6 +104,17 @@ impl<'a> MediaClip<'a> {
     /// Start writing the `/P`, i.e. media permissions, dictionary.
     pub fn permissions(&mut self) -> MediaPermissions<'_> {
         self.insert(Name(b"P")).start()
+    }
+
+    /// Write the `/Alt` attribute, listing alternate text descriptions which
+    /// are specified as a multi-language text array. A multi-language text
+    /// array shall contain pairs of strings.
+    pub fn alt_texts<'b>(
+        &mut self,
+        texts: impl IntoIterator<Item = TextStr<'b>>
+    ) -> &mut Self {
+        self.insert(Name(b"Alt")).array().items(texts);
+        self
     }
 }
 
