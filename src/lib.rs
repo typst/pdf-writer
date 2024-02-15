@@ -171,7 +171,7 @@ pub mod types {
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
-    pub use renditions::{MediaClipType, RenditionType};
+    pub use renditions::{MediaClipType, RenditionType, TempFileType};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
         TabOrder, TrappingStatus,

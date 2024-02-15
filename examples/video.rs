@@ -1,7 +1,8 @@
 //! This example demonstrates how to link/embed videos.
 
 use pdf_writer::types::{
-    ActionType, AnnotationType, MediaClipType, RenditionType, RenditionOperation
+    ActionType, AnnotationType, MediaClipType, RenditionType,
+    RenditionOperation, TempFileType
 };
 use pdf_writer::{Content, Finish, Pdf, Rect, Ref, Str, TextStr, Name, Filter};
 use image::ColorType;
@@ -147,7 +148,7 @@ fn main() -> std::io::Result<()> {
         media_clip.data_url(Str(file_url));
     }
     media_clip.data_type(Str(b"video/mp4"));
-    media_clip.permissions().temp_file(Str(b"TEMPACCESS"));
+    media_clip.permissions().temp_file(TempFileType::Access);
     media_clip.alt_texts([TextStr(""), TextStr("default text")]);
     media_clip.finish();
 

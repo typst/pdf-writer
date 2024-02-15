@@ -120,7 +120,6 @@ impl<'a> MediaClip<'a> {
 
 deref!('a, MediaClip<'a> => Dict<'a>, dict);
 
-
 /// Writer for an _media play parameters dictionary_.
 ///
 /// This struct is created by [`Rendition::media_play_params`].
@@ -149,7 +148,6 @@ impl<'a> MediaPlayParams<'a> {
 
 deref!('a, MediaPlayParams<'a> => Dict<'a>, dict);
 
-
 /// Writer for an _media permissions dictionary_.
 ///
 /// This struct is created by [`Rendition::permissions`].
@@ -165,14 +163,39 @@ writer!(MediaPermissions: |obj| {
 
 impl<'a> MediaPermissions<'a> {
     /// Write the `/TF` attribute to control permissions to write a temporary file.
-    pub fn temp_file(&mut self, tf: Str) -> &mut Self {
-        self.pair(Name(b"TF"), tf);
+    pub fn temp_file(&mut self, tf: TempFileType) -> &mut Self {
+        self.pair(Name(b"TF"), tf.to_str());
         self
     }
 }
 
 deref!('a, MediaPermissions<'a> => Dict<'a>, dict);
 
+/// The circumstances under which it is acceptable to write a temporary file in
+/// order to play a media clip.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TempFileType {
+    /// Never allowed.
+    Never,
+    /// Allowed only if the document permissions allow content extraction.
+    Extract,
+    /// Allowed only if the document permissions allow content extraction,
+    /// including for accessibility purposes.
+    Access,
+    /// Always allowed.
+    Always,
+}
+
+impl TempFileType {
+    pub(crate) fn to_str(self) -> Str<'static> {
+        match self {
+            Self::Never => Str(b"TEMPNEVER"),
+            Self::Extract => Str(b"TEMPEXTRACT"),
+            Self::Access => Str(b"TEMPACCESS"),
+            Self::Always => Str(b"TEMPALWAYS"),
+        }
+    }
+}
 
 /// Type of rendition objects.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -191,7 +214,6 @@ impl RenditionType {
         }
     }
 }
-
 
 /// Type of media clip objects.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
