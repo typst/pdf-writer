@@ -76,24 +76,6 @@ impl<'a> MediaClip<'a> {
         self.insert(Name(b"D")).start()
     }
 
-    /// Writing the `/D` dictionary including the file specification as a link,
-    /// i.e. an URL, to a given path.
-    pub fn data_url(&mut self, path: Str) -> &mut Self {
-        self.data()
-            .file_system(Name(b"URL"))
-            .path(path);
-        self
-    }
-
-    /// Writing the `/D` dictionary including the file specification as
-    /// embedded file referenced by a given id.
-    pub fn data_embedded(&mut self, id: Ref) -> &mut Self {
-        self.data()
-            .path(Str(b"<embedded file>"))
-            .embedded_file(id);
-        self
-    }
-
     /// Write the `/CT` attribute identifying the type of data in `/D`, i.e. the
     /// MIME type.
     pub fn data_type(&mut self, tf: Str) -> &mut Self {

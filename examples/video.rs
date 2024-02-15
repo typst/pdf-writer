@@ -110,11 +110,13 @@ fn main() -> std::io::Result<()> {
     // Video file
     // Downloaded from the Chromium sources at:
     //     https://github.com/chromium/chromium/blob/main/media/test/data/bear-1280x720.mp4
-    let file_name = "examples/bear-1280x720.mp4";
+    // Get the absolute path and file name.
+    let file_path = std::fs::canonicalize("examples/bear-1280x720.mp4").unwrap();
+    let file_name = file_path.file_name().unwrap();
 
     if embedded {
         // Read video file and add to pdf as embedded file.
-        let data = std::fs::read(file_name).unwrap();
+        let data = std::fs::read(&file_path).unwrap();
         pdf.embedded_file(video_file_id, &data);
     }
 
@@ -139,13 +141,11 @@ fn main() -> std::io::Result<()> {
     let mut media_clip = rendition.media_clip();
     media_clip.subtype(MediaClipType::Data);
     if embedded {
-        media_clip.data_embedded(video_file_id);
+        media_clip.data().path(Str(file_name.as_encoded_bytes())).embedded_file(video_file_id);
     } else {
-        // Get the absolute path to the video file.
-        let file_path = std::fs::canonicalize(file_name)?;
         // FIXME: Is there a more elegant way to assemble the URL?
         let file_url = &[b"file://", file_path.as_os_str().as_encoded_bytes()].concat();
-        media_clip.data_url(Str(file_url));
+        media_clip.data().file_system(Name(b"URL")).path(Str(file_url));
     }
     media_clip.data_type(Str(b"video/mp4"));
     media_clip.permissions().temp_file(TempFileType::Access);
