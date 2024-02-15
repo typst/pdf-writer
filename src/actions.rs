@@ -66,7 +66,7 @@ impl<'a> Action<'a> {
     }
 
     /// Write the `/JS` attribute to set the script of this action as a text
-    /// string. Only permissible for JavaScript actions.
+    /// string. Only permissible for JavaScript and Rendition actions.
     pub fn js_string(&mut self, script: TextStr) -> &mut Self {
         self.pair(Name(b"JS"), script);
         self
@@ -75,7 +75,8 @@ impl<'a> Action<'a> {
     /// Write the `/JS` attribute to set the script of this action as a text
     /// stream. The indirect reference shall point to a stream containing valid
     /// ECMAScript. The stream must have `PdfDocEncoding` or be in Unicode,
-    /// starting with `U+FEFF`. Only permissible for JavaScript actions.
+    /// starting with `U+FEFF`. Only permissible for JavaScript and Rendition
+    /// actions.
     pub fn js_stream(&mut self, script: Ref) -> &mut Self {
         self.pair(Name(b"JS"), script);
         self
