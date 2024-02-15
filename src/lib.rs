@@ -148,7 +148,7 @@ pub mod writers {
 /// Types used by specific PDF structures.
 pub mod types {
     use super::*;
-    pub use actions::{ActionType, FormActionFlags};
+    pub use actions::{ActionType, FormActionFlags, RenditionOperation};
     pub use annotations::{
         AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, HighlightEffect,
         IconScale, IconScaleType, TextPosition,
@@ -171,7 +171,7 @@ pub mod types {
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
-    pub use renditions::{RenditionType, MediaClipType};
+    pub use renditions::{MediaClipType, RenditionType};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
         TabOrder, TrappingStatus,

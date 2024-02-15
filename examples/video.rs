@@ -1,6 +1,8 @@
 //! This example demonstrates how to link/embed videos.
 
-use pdf_writer::types::{ActionType, AnnotationType, MediaClipType, RenditionType};
+use pdf_writer::types::{
+    ActionType, AnnotationType, MediaClipType, RenditionType, RenditionOperation
+};
 use pdf_writer::{Content, Finish, Pdf, Rect, Ref, Str, TextStr, Name, Filter};
 use image::ColorType;
 
@@ -125,7 +127,7 @@ fn main() -> std::io::Result<()> {
     // Write a rendition action for the screen annotation.
     let mut action = annotation.action();
     action.action_type(ActionType::Rendition);
-    action.operation(0);
+    action.operation(RenditionOperation::Play);
     action.annotation(annotation_id);
 
     // Write a media rendition for the action.

@@ -97,8 +97,8 @@ impl<'a> Action<'a> {
 
     /// Write the `/OP` attribute to set the operation to perform when the
     /// action is triggered.
-    pub fn operation(&mut self, op: i32) -> &mut Self {
-        self.pair(Name(b"OP"), op);
+    pub fn operation(&mut self, op: RenditionOperation) -> &mut Self {
+        self.pair(Name(b"OP"), op as i32);
         self
     }
 
@@ -117,6 +117,25 @@ impl<'a> Action<'a> {
 }
 
 deref!('a, Action<'a> => Dict<'a>, dict);
+
+/// The operation to perform when a rendition action is triggered.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum RenditionOperation {
+    /// Play the rendition specified by /R, and associating it with the
+    /// annotation. If a rendition is already associated with the annotation, it
+    /// shall be stopped, and the new rendition shall be associated with the
+    /// annotation.
+    Play = 0,
+    /// Stop any rendition being played in association with the annotation.
+    Stop = 1,
+    /// Pause any rendition being played in association with the annotation.
+    Pause = 2,
+    /// Resume any rendition being played in association with the annotation.
+    Resume = 3,
+    /// Play the rendition specified by /R, and associating it with the
+    /// annotation, or resume if a rendition is already associated.
+    PlayOrResume = 4,
+}
 
 /// Writer for a _fields array_.
 ///
