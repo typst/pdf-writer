@@ -66,7 +66,7 @@ impl<'a> Action<'a> {
     }
 
     /// Write the `/JS` attribute to set the script of this action as a text
-    /// string. Only permissible for JavaScript actions.
+    /// string. Only permissible for JavaScript and Rendition actions.
     pub fn js_string(&mut self, script: TextStr) -> &mut Self {
         self.pair(Name(b"JS"), script);
         self
@@ -75,7 +75,8 @@ impl<'a> Action<'a> {
     /// Write the `/JS` attribute to set the script of this action as a text
     /// stream. The indirect reference shall point to a stream containing valid
     /// ECMAScript. The stream must have `PdfDocEncoding` or be in Unicode,
-    /// starting with `U+FEFF`. Only permissible for JavaScript actions.
+    /// starting with `U+FEFF`. Only permissible for JavaScript and Rendition
+    /// actions.
     pub fn js_stream(&mut self, script: Ref) -> &mut Self {
         self.pair(Name(b"JS"), script);
         self
@@ -94,9 +95,48 @@ impl<'a> Action<'a> {
         self.pair(Name(b"Flags"), flags.bits() as i32);
         self
     }
+
+    /// Write the `/OP` attribute to set the operation to perform when the
+    /// action is triggered.
+    pub fn operation(&mut self, op: RenditionOperation) -> &mut Self {
+        self.pair(Name(b"OP"), op as i32);
+        self
+    }
+
+    /// Write the `/AN` attribute to provide a reference to the screen
+    /// annotation for the operation. Required if OP is present.
+    pub fn annotation(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"AN"), id);
+        self
+    }
+
+    /// Start writing the `/R` dictionary. Only permissible for the subtype
+    /// `Rendition`.
+    pub fn rendition(&mut self) -> Rendition<'_> {
+        self.insert(Name(b"R")).start()
+    }
 }
 
 deref!('a, Action<'a> => Dict<'a>, dict);
+
+/// The operation to perform when a rendition action is triggered.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum RenditionOperation {
+    /// Play the rendition specified by /R, and associating it with the
+    /// annotation. If a rendition is already associated with the annotation, it
+    /// shall be stopped, and the new rendition shall be associated with the
+    /// annotation.
+    Play = 0,
+    /// Stop any rendition being played in association with the annotation.
+    Stop = 1,
+    /// Pause any rendition being played in association with the annotation.
+    Pause = 2,
+    /// Resume any rendition being played in association with the annotation.
+    Resume = 3,
+    /// Play the rendition specified by /R, and associating it with the
+    /// annotation, or resume if a rendition is already associated.
+    PlayOrResume = 4,
+}
 
 /// Writer for a _fields array_.
 ///
@@ -146,6 +186,8 @@ pub enum ActionType {
     /// [JavaScript for Acrobat API Reference](https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/pdfs/acrobatsdk_jsapiref.pdf)
     /// and ISO 21757.
     JavaScript,
+    /// A rendition action to control the playing of multimedia content. PDF 1.5+.
+    Rendition,
 }
 
 impl ActionType {
@@ -159,6 +201,7 @@ impl ActionType {
             Self::ResetForm => Name(b"ResetForm"),
             Self::ImportData => Name(b"ImportData"),
             Self::JavaScript => Name(b"JavaScript"),
+            Self::Rendition => Name(b"Rendition"),
         }
     }
 }

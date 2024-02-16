@@ -98,6 +98,7 @@ mod font;
 mod forms;
 mod functions;
 mod object;
+mod renditions;
 mod renumber;
 mod structure;
 mod transitions;
@@ -107,7 +108,10 @@ mod xobject;
 pub mod writers {
     use super::*;
     pub use actions::{Action, AdditionalActions, Fields};
-    pub use annotations::{Annotation, AppearanceCharacteristics, BorderStyle, IconFit};
+    pub use annotations::{
+        Annotation, Appearance, AppearanceCharacteristics, AppearanceEntry, BorderStyle,
+        IconFit,
+    };
     pub use attributes::{
         Attributes, FieldAttributes, LayoutAttributes, ListAttributes, TableAttributes,
         UserProperty,
@@ -131,6 +135,7 @@ pub mod writers {
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
     pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
+    pub use renditions::{MediaClip, MediaPermissions, MediaPlayParams, Rendition};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
         MarkedRef, Metadata, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel,
@@ -143,7 +148,7 @@ pub mod writers {
 /// Types used by specific PDF structures.
 pub mod types {
     use super::*;
-    pub use actions::{ActionType, FormActionFlags};
+    pub use actions::{ActionType, FormActionFlags, RenditionOperation};
     pub use annotations::{
         AnnotationFlags, AnnotationIcon, AnnotationType, BorderType, HighlightEffect,
         IconScale, IconScaleType, TextPosition,
@@ -166,6 +171,7 @@ pub mod types {
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
+    pub use renditions::{MediaClipType, RenditionType, TempFileType};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
         TabOrder, TrappingStatus,

@@ -35,6 +35,14 @@ impl<'a> Annotation<'a> {
         self
     }
 
+    /// Write the `/P` attribute. This provides an indirect reference to the
+    /// page object with which this annotation is associated. Required for the
+    /// subtype `Screen` associated with rendition actions. PDF 1.3+.
+    pub fn page(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"P"), id);
+        self
+    }
+
     /// Write the `/NM` attribute. This uniquely identifies the annotation on the
     /// page. PDF 1.3+.
     pub fn name(&mut self, text: TextStr) -> &mut Self {
@@ -52,6 +60,21 @@ impl<'a> Annotation<'a> {
     /// Write the `/F` attribute.
     pub fn flags(&mut self, flags: AnnotationFlags) -> &mut Self {
         self.pair(Name(b"F"), flags.bits() as i32);
+        self
+    }
+
+    /// Start writing the `/AP` dictionary to set how the annotation shall
+    /// be presented visually. If this dictionary contains sub dictionaries,
+    /// [`Self::appearance_state`] must be set. PDF 1.2+.
+    pub fn appearance(&mut self) -> Appearance<'_> {
+        self.insert(Name(b"AP")).start()
+    }
+
+    /// Write the `/AS` attribute to set the annotation's current appearance
+    /// state from the `/AP` subdictionary. Must be set if [`Self::appearance`]
+    /// has one or more subdictionaries. PDF 1.2+.
+    pub fn appearance_state(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"AS"), name);
         self
     }
 
@@ -226,6 +249,8 @@ pub enum AnnotationType {
     FileAttachment,
     /// A widget annotation. PDF 1.2+.
     Widget,
+    /// A screen annotation. PDF 1.5+.
+    Screen,
 }
 
 impl AnnotationType {
@@ -242,6 +267,7 @@ impl AnnotationType {
             Self::StrikeOut => Name(b"StrikeOut"),
             Self::FileAttachment => Name(b"FileAttachment"),
             Self::Widget => Name(b"Widget"),
+            Self::Screen => Name(b"Screen"),
         }
     }
 }
@@ -599,6 +625,63 @@ impl HighlightEffect {
         }
     }
 }
+
+/// Writer for an _appearance dictionary_.
+///
+/// This struct is created by [`Annotation::appearance`].
+pub struct Appearance<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(Appearance: |obj| Self { dict: obj.dict() });
+
+impl<'a> Appearance<'a> {
+    /// Start writing the `/N` stream or dictionary to set the annotation's
+    /// normal appearance.
+    pub fn normal(&mut self) -> AppearanceEntry<'_> {
+        self.insert(Name(b"N")).start()
+    }
+
+    /// Start writing the `/R` stream or dictionary to set the annotation's
+    /// rollover (hover) appearance.
+    pub fn rollover(&mut self) -> AppearanceEntry<'_> {
+        self.insert(Name(b"R")).start()
+    }
+
+    /// Start writing the `/D` stream or dictionary to set the annotation's
+    /// alternate (down) appearance.
+    pub fn alternate(&mut self) -> AppearanceEntry<'_> {
+        self.insert(Name(b"D")).start()
+    }
+}
+
+deref!('a, Appearance<'a> => Dict<'a>, dict);
+
+/// Writer for an _appearance stream_ or an _appearance subdictionary_.
+///
+/// This struct is created by [`Appearance::normal`], [`Appearance::rollover`]
+/// and [`Appearance::alternate`].
+pub struct AppearanceEntry<'a> {
+    obj: Obj<'a>,
+}
+
+writer!(AppearanceEntry: |obj| Self { obj });
+
+impl<'a> AppearanceEntry<'a> {
+    /// Write an indirect reference to a [`FormXObject`] containing the
+    /// appearance stream.
+    pub fn stream(self, id: Ref) {
+        self.obj.primitive(id);
+    }
+
+    /// Start writing an appearance subdictionary containing indirect references
+    /// to [`FormXObject`]s for each appearance state.
+    pub fn streams(self) -> TypedDict<'a, Ref> {
+        self.obj.dict().typed()
+    }
+}
+
+deref!('a, AppearanceEntry<'a> => Obj<'a>, obj);
 
 /// Writer for an _border style dictionary_.
 ///
