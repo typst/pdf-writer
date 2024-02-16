@@ -82,7 +82,6 @@ impl<'a> MediaClip<'a> {
         self
     }
 
-
     /// Write the `/N` attribute. Specifies the name of the media clip, for use
     /// in the user interface.
     pub fn name(&mut self, text: TextStr) -> &mut Self {
@@ -112,7 +111,7 @@ impl<'a> MediaClip<'a> {
     /// array shall contain pairs of strings.
     pub fn alt_texts<'b>(
         &mut self,
-        texts: impl IntoIterator<Item = TextStr<'b>>
+        texts: impl IntoIterator<Item = TextStr<'b>>,
     ) -> &mut Self {
         self.insert(Name(b"Alt")).array().items(texts);
         self
@@ -141,7 +140,7 @@ impl<'a> MediaPlayParams<'a> {
     /// This avoids implementing the "must honour" (MH) or "best effort" (BE)
     /// dictionaries for MediaPlayParams, as the required boiler-plate code
     /// would be high, and its usefulness low.
-    pub fn controls (&mut self, c: bool) -> &mut Self {
+    pub fn controls(&mut self, c: bool) -> &mut Self {
         self.insert(Name(b"BE")).dict().pair(Name(b"C"), c);
         self
     }

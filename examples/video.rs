@@ -1,34 +1,34 @@
 //! This example demonstrates how to link/embed videos.
 
-use pdf_writer::types::{
-    ActionType, AnnotationType, MediaClipType, RenditionType,
-    RenditionOperation, TempFileType
-};
-use pdf_writer::{Content, Finish, Pdf, Rect, Ref, Str, TextStr, Name, Filter};
 use image::ColorType;
-
+use pdf_writer::types::{
+    ActionType, AnnotationType, MediaClipType, RenditionOperation, RenditionType,
+    TempFileType,
+};
+use pdf_writer::{Content, Filter, Finish, Name, Pdf, Rect, Ref, Str, TextStr};
 
 fn get_bbox(page: &Rect, mut w: f32, mut h: f32) -> Rect {
     // Limit the width and height of the object to the page size, retaining the
     // aspect ratio.
     if w > (page.x2 - page.x1) {
-        let f = (page.x2 - page.x1)/w;
+        let f = (page.x2 - page.x1) / w;
         w *= f;
         h *= f;
     }
     if h > (page.y2 - page.y1) {
-        let f = (page.y2 - page.y1)/h;
+        let f = (page.y2 - page.y1) / h;
         w *= f;
         h *= f;
     }
 
     // Return a bounding box for the object centered on the page.
-    Rect::new((page.x2 - w)/2.0,
-              (page.y2 - h)/2.0,
-              (page.x2 + w)/2.0,
-              (page.y2 + h)/2.0)
+    Rect::new(
+        (page.x2 - w) / 2.0,
+        (page.y2 - h) / 2.0,
+        (page.x2 + w) / 2.0,
+        (page.y2 + h) / 2.0,
+    )
 }
-
 
 fn main() -> std::io::Result<()> {
     let embedded = true;
@@ -75,9 +75,7 @@ fn main() -> std::io::Result<()> {
     image.finish();
 
     // Get a centered and fitted bounding box for the screen annotation and image.
-    let bbox = get_bbox(&a4_landscape,
-                        dynamic.width() as f32,
-                        dynamic.height() as f32);
+    let bbox = get_bbox(&a4_landscape, dynamic.width() as f32, dynamic.height() as f32);
 
     // Place and size the image in a content stream.
     //
@@ -90,12 +88,14 @@ fn main() -> std::io::Result<()> {
     // restore the state so that they are not affected by the transformation.
     let mut content = Content::new();
     content.save_state();
-    content.transform([(bbox.x2 - bbox.x1),
-                       0.0,
-                       0.0,
-                       (bbox.y2 - bbox.y1),
-                       bbox.x1,
-                       bbox.y1]);
+    content.transform([
+        (bbox.x2 - bbox.x1),
+        0.0,
+        0.0,
+        (bbox.y2 - bbox.y1),
+        bbox.x1,
+        bbox.y1,
+    ]);
     content.x_object(image_name);
     content.restore_state();
     let content_data = content.finish();
@@ -141,7 +141,10 @@ fn main() -> std::io::Result<()> {
     let mut media_clip = rendition.media_clip();
     media_clip.subtype(MediaClipType::Data);
     if embedded {
-        media_clip.data().path(Str(file_name.as_encoded_bytes())).embedded_file(video_file_id);
+        media_clip
+            .data()
+            .path(Str(file_name.as_encoded_bytes()))
+            .embedded_file(video_file_id);
     } else {
         // FIXME: Is there a more elegant way to assemble the URL?
         let file_url = &[b"file://", file_path.as_os_str().as_encoded_bytes()].concat();
