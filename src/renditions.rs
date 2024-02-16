@@ -46,6 +46,25 @@ deref!('a, Rendition<'a> => Dict<'a>, dict);
 /// Writer for an _media clip dictionary_.
 ///
 /// This struct is created by [`Rendition::media_clip`].
+///
+/// ## Note on reader compatibility
+///
+/// Different PDF readers may have support for different media codecs and
+/// container formats.
+///
+/// For example, [Adobe's documentation][1] states that Adobe Acrobat can play
+/// videos in MP4, MOV, M4V, 3GP, and 3G2 containers using the H.264 codec.
+///
+/// Other readers may depend on the media libraries installed on the system. KDE
+/// Okular, for example, uses the Phonon library to support a range of media
+/// formats.
+///
+/// Yet other viewers do not support media clips at all. At the time of writing,
+/// this includes the popular Pdfium library used by Google Chrome and Microsoft
+/// Edge, `pdf.js` used by Firefox, mupdf, and Quartz, the PDF viewer on Apple
+/// platforms.
+///
+/// [1]: https://helpx.adobe.com/acrobat/using/playing-video-audio-multimedia-formats.html#supported_video_audio_and_interactive_formats
 pub struct MediaClip<'a> {
     dict: Dict<'a>,
 }
