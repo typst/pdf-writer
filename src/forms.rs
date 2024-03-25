@@ -302,7 +302,7 @@ impl<'a> Field<'a> {
     /// of this choice field. Should be one of the values given in
     /// [`Self::choice_options`] or `None` if no choice is selected. Only
     /// permissible on choice fields.
-    pub fn choice_value<'b>(&mut self, option: Option<TextStr>) -> &mut Self {
+    pub fn choice_value(&mut self, option: Option<TextStr>) -> &mut Self {
         match option {
             Some(value) => self.dict.pair(Name(b"V"), value),
             None => self.dict.pair(Name(b"V"), Null),
