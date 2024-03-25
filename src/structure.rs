@@ -97,6 +97,12 @@ impl<'a> Catalog<'a> {
         self.insert(Name(b"AA")).start()
     }
 
+    /// Start writing the `/AcroForm` dictionary to specify the document wide
+    /// form. PDF 1.2+.
+    pub fn form(&mut self) -> Form<'_> {
+        self.insert(Name(b"AcroForm")).start()
+    }
+
     /// Write the `/Metadata` attribute to specify the document's metadata. PDF
     /// 1.4+.
     ///
