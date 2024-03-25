@@ -64,6 +64,10 @@ fn main() -> std::io::Result<()> {
     // annotations shares a single radio button field as parent.
     let radio_group_id = Ref::new(5);
 
+    // The FormXObjects for our checkboxes need bounding boxes, in this case these are the same size
+    // as out rectangles, but within their coordinate system.
+    let bbox = Rect::new(0.0, 0.0, 30.0, 18.0);
+
     // We'll place the buttons right next to each other and have two choices for
     // three buttons. The first and third button will share their appearance on-
     // state. This means it's a differnet button with the same meaning.
@@ -117,10 +121,11 @@ fn main() -> std::io::Result<()> {
     content.show(Str(b"4"));
     content.end_text();
     content.restore_state();
-    pdf.form_xobject(radio_on_appearance_id, &content.finish());
+    pdf.form_xobject(radio_on_appearance_id, &content.finish()).bbox(bbox);
 
     // Our off appearance is empty, we haven't ticked the box.
-    pdf.form_xobject(radio_off_appearance_id, &Content::new().finish());
+    pdf.form_xobject(radio_off_appearance_id, &Content::new().finish())
+        .bbox(bbox);
 
     // Now we'll write a widget annotation for each button.
     for (id, rect, state) in radios {
