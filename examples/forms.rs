@@ -1,7 +1,7 @@
 //! This example shows how to create forms accepted by the most popular readers.
 
 use pdf_writer::types::{
-    ActionType, AnnotationFlags, FieldFlags, FieldType, FormActionFlags,
+    ActionType, AnnotationFlags, BorderType, FieldFlags, FieldType, FormActionFlags,
 };
 use pdf_writer::{Content, Finish, Name, Pdf, Rect, Ref, Str, TextStr};
 
@@ -11,6 +11,10 @@ fn main() -> std::io::Result<()> {
     // Let's set up our primary font, we'll have to reference it a few times.
     let font_id = Ref::new(1);
     let font_name = Name(b"F1");
+
+    // Here we'll set up our dingbat font, this is used for symbols such as the tics in checkboxes.
+    let font_id2 = Ref::new(2);
+    let font_name2 = Name(b"F2");
 
     // One of the most common form field types is the text field. Let's add
     // that and look at some of the basics of PDF form fields.
@@ -38,6 +42,12 @@ fn main() -> std::io::Result<()> {
     // relevant to button fields, we'll see how to cofigure it below.
     let mut annot = field.to_annotation();
     annot.rect(Rect::new(108.0, 730.0, 208.0, 748.0));
+
+    // We can pass some fairly simple appearances here, common things such as the border color and
+    // style. This will give out field a purple underline, keep in mind that this may be drowned out
+    // by the viewer's form highlighting.
+    annot.border_style().style(BorderType::Underline);
+    annot.appearance_characteristics().border_color_rgb(0.0, 0.0, 0.5);
 
     // TODO: test whether this is actually needed depending on the
     // appearance stream
@@ -97,25 +107,20 @@ fn main() -> std::io::Result<()> {
     let radio_on_appearance_id = Ref::new(9);
     let radio_off_appearance_id = Ref::new(10);
 
-    // The appearances are simply `y` and `n` for the on and of state
-    // respectively for this example, but could be anything.
+    // Here we prepare our appearances, the on appearance is a tick and the off appearance is empty.
     let mut content = Content::new();
     content.save_state();
     content.begin_text();
-    content.set_font(font_name, 14.0);
-    content.show(Str(b"y"));
+    content.set_fill_gray(0.0);
+    content.set_font(font_name2, 14.0);
+    // The character 4 is a tick in this font.
+    content.show(Str(b"4"));
     content.end_text();
     content.restore_state();
     pdf.form_xobject(radio_on_appearance_id, &content.finish());
 
-    let mut content = Content::new();
-    content.save_state();
-    content.begin_text();
-    content.set_font(font_name, 14.0);
-    content.show(Str(b"n"));
-    content.end_text();
-    content.restore_state();
-    pdf.form_xobject(radio_off_appearance_id, &content.finish());
+    // Our off appearance is empty, we haven't ticked the box.
+    pdf.form_xobject(radio_off_appearance_id, &Content::new().finish());
 
     // Now we'll write a widget annotation for each button.
     for (id, rect, state) in radios {
@@ -231,7 +236,8 @@ fn main() -> std::io::Result<()> {
         .parent(page_tree_id)
         .resources()
         .fonts()
-        .pair(font_name, font_id);
+        .pair(font_name, font_id)
+        .pair(font_name2, font_id2);
 
     // Now we write each widget annotations refereence into the annotations
     // array. Those are our terminal fields, those with no children.
@@ -247,6 +253,7 @@ fn main() -> std::io::Result<()> {
 
     // Finally we write the font and page tree.
     pdf.type1_font(font_id).base_font(Name(b"Helvetica"));
+    pdf.type1_font(font_id2).base_font(Name(b"ZapfDingbats"));
     pdf.pages(page_tree_id).kids([page_id]).count(1);
 
     std::fs::write("target/forms.pdf", pdf.finish())
