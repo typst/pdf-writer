@@ -12,12 +12,13 @@ fn main() -> std::io::Result<()> {
     let font_id = Ref::new(1);
     let font_name = Name(b"F1");
 
-    // Here we'll set up our dingbat font, this is used for symbols such as the tics in checkboxes.
+    // Here we'll set up our dingbat font, this is used for symbols such as the
+    // ticks in checkboxes.
     let font_id2 = Ref::new(2);
     let font_name2 = Name(b"F2");
 
-    // One of the most common form field types is the text field. Let's add
-    // that and look at some of the basics of PDF form fields.
+    // One of the most common form field types is the text field. Let's add that
+    // and look at some of the basics of PDF form fields.
     let text_id = Ref::new(4);
 
     // We start by writing a form field dictionary with an id which we later
@@ -43,9 +44,10 @@ fn main() -> std::io::Result<()> {
     let mut annot = field.to_annotation();
     annot.rect(Rect::new(108.0, 730.0, 208.0, 748.0));
 
-    // We can pass some fairly simple appearances here, common things such as the border color and
-    // style. This will give out field a purple underline, keep in mind that this may be drowned out
-    // by the viewer's form highlighting.
+    // We can pass some fairly simple appearances here, common things such
+    // as the border color and style. This will give out field a purple
+    // underline, keep in mind that this may be drowned out by the viewer's
+    // form highlighting.
     annot.border_style().style(BorderType::Underline);
     annot.appearance_characteristics().border_color_rgb(0.0, 0.0, 0.5);
 
@@ -64,20 +66,23 @@ fn main() -> std::io::Result<()> {
     // annotations shares a single radio button field as parent.
     let radio_group_id = Ref::new(5);
 
-    // The FormXObjects for our checkboxes need bounding boxes, in this case these are the same size
-    // as out rectangles, but within their coordinate system.
+    // The FormXObjects for our checkboxes need bounding boxes, in this case
+    // these are the same size as out rectangles, but within their coordinate
+    // system.
     let bbox = Rect::new(0.0, 0.0, 30.0, 18.0);
 
-    // We'll place the buttons right next to each other and have two choices for
-    // three buttons. The first and third button will share their appearance on-
-    // state. This means it's a differnet button with the same meaning.
+    // We define our three radio buttons, they all have a different appearance
+    // streams, but if they shared the same appearance stream and used the
+    // RADIOS_IN_UNISON flag, then two buttons could refer to the same choice.
+    // This is not widely supported, so we'll simply chowcase some normal radio
+    // buttons here.
     //
     // NOTE: a reader like okular will also use on-state name in the default
     //       appearance.
     let radios = [
         (Ref::new(6), Rect::new(108.0, 710.0, 138.0, 728.0), b"ch1"),
         (Ref::new(7), Rect::new(140.0, 710.0, 170.0, 728.0), b"ch2"),
-        (Ref::new(8), Rect::new(172.0, 710.0, 202.0, 728.0), b"ch1"),
+        (Ref::new(8), Rect::new(172.0, 710.0, 202.0, 728.0), b"ch3"),
     ];
     // First, we define the radio group parent. The children of this field will
     // be our actual buttons. We can define most of the radio related properties
@@ -89,12 +94,12 @@ fn main() -> std::io::Result<()> {
     //   cannot be manually turned off without turning another button on
     // - FieldFlags::RADIOS_IN_UNISON ensures that if we have buttons which use
     //   the same appearance on-state, they'll be toggled in unison with the
-    //   others
+    //   others (although we don't use this here)
     // Finally we define the children of this field, the widget annotations
     // which again define appearance and postion of the individual buttons.
     //
     // NOTE: by the time of writing this, RADIOS_IN_UNISON does not work
-    //       correctly pdf.js (firefox).
+    //       correctly pdf.js (firefox), okular or evince.
     field
         .partial_name(TextStr("radio"))
         .field_type(FieldType::Button)
@@ -111,7 +116,8 @@ fn main() -> std::io::Result<()> {
     let radio_on_appearance_id = Ref::new(9);
     let radio_off_appearance_id = Ref::new(10);
 
-    // Here we prepare our appearances, the on appearance is a tick and the off appearance is empty.
+    // Here we prepare our appearances, the on appearance is a tick and the off
+    // appearance is empty.
     let mut content = Content::new();
     content.save_state();
     content.begin_text();
