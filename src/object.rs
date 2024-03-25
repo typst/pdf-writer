@@ -834,6 +834,15 @@ impl<'a> Stream<'a> {
         self.pair(Name(b"Filter"), filter.to_name());
         self
     }
+
+    /// Start writing the `/DecodeParms` attribute.
+    ///
+    /// This is a dictionary that specifies parameters to be used in decoding
+    /// the stream data using the filter specified by the
+    /// [`/Filter`](Self::filter) attribute.
+    pub fn decode_parms(&mut self) -> DecodeParms<'_> {
+        self.insert(Name(b"DecodeParms")).start()
+    }
 }
 
 impl Drop for Stream<'_> {
@@ -877,6 +886,220 @@ impl Filter {
             Self::DctDecode => Name(b"DCTDecode"),
             Self::JpxDecode => Name(b"JPXDecode"),
             Self::Crypt => Name(b"Crypt"),
+        }
+    }
+}
+
+/// Writer for an _filter decode parameters dictionary_.
+///
+/// This struct is created by [`Stream::decode_parms`].
+pub struct DecodeParms<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(DecodeParms: |obj| Self { dict: obj.dict() });
+
+/// Properties for `FlateDecode` and `LzwDecode`.
+impl DecodeParms<'_> {
+    /// Write the `/Predictor` attribute for `FlateDecode` and `LzwDecode`.
+    ///
+    /// No predictor is used by default.
+    pub fn predictor(&mut self, predictor: Predictor) -> &mut Self {
+        self.pair(Name(b"Predictor"), predictor.to_i32());
+        self
+    }
+
+    /// Write the `/Colors` attribute for `FlateDecode` and `LzwDecode`.
+    ///
+    /// Must be greater than 0. [`/Predictor`](Self::predictor) must be set.
+    /// Defaults to 1.
+    pub fn colors(&mut self, colors: i32) -> &mut Self {
+        if colors <= 0 {
+            panic!("`Columns` must be greater than 0");
+        }
+
+        self.pair(Name(b"Columns"), colors);
+        self
+    }
+
+    /// Write the `/BitsPerComponent` attribute for `FlateDecode` and
+    /// `LzwDecode`.
+    ///
+    /// Must be one of 1, 2, 4, 8, or 16. [`/Predictor`](Self::predictor) must
+    /// be set. Defaults to 8.
+    pub fn bits_per_component(&mut self, bits: i32) -> &mut Self {
+        if ![1, 2, 4, 8, 16].contains(&bits) {
+            panic!("`BitsPerComponent` must be one of 1, 2, 4, 8, or 16");
+        }
+
+        self.pair(Name(b"BitsPerComponent"), bits);
+        self
+    }
+
+    /// Write the `/Columns` attribute for `FlateDecode` and `LzwDecode` or
+    /// `CcittFaxDecode`.
+    ///
+    /// When used with `FlateDecode` and `LzwDecode`, it indicates the number of
+    /// samples in each row. In that case, [`/Predictor`](Self::predictor) must
+    /// be set and the default is 1.
+    ///
+    /// When used with `CcittFaxDecode` it denominates the width of the image in
+    /// pixels and defaults to 1728.
+    pub fn columns(&mut self, columns: i32) -> &mut Self {
+        self.pair(Name(b"Columns"), columns);
+        self
+    }
+
+    /// Write the `/EarlyChange` attribute for `LzwDecode`.
+    ///
+    /// If `true` (1), the code length increases one code earlier, if `false`
+    /// (0), length change is postponed as long as possible.
+    ///
+    /// Defaults to 1.
+    pub fn early_change(&mut self, early_change: bool) -> &mut Self {
+        self.pair(Name(b"EarlyChange"), if early_change { 1 } else { 0 });
+        self
+    }
+}
+
+/// Properties for `CcittFaxDecode`. Also see [`Self::columns`].
+impl DecodeParms<'_> {
+    /// Write the `/K` attribute for `CcittFaxDecode`.
+    ///
+    /// Defaults to 0.
+    pub fn k(&mut self, k: i32) -> &mut Self {
+        self.pair(Name(b"K"), k);
+        self
+    }
+
+    /// Write the `/EndOfLine` attribute for `CcittFaxDecode`.
+    ///
+    /// Whether the EOL bit pattern is present in the encoding. Defaults to
+    /// `false`.
+    pub fn end_of_line(&mut self, eol: bool) -> &mut Self {
+        self.pair(Name(b"EndOfLine"), eol);
+        self
+    }
+
+    /// Write the `/EncodedByteAlign` attribute for `CcittFaxDecode`.
+    ///
+    /// Whether to expect zero bits before each encoded line. Defaults to
+    /// `false`.
+    pub fn encoded_byte_align(&mut self, encoded_byte_align: bool) -> &mut Self {
+        self.pair(Name(b"EncodedByteAlign"), encoded_byte_align);
+        self
+    }
+
+    /// Write the `/Rows` attribute for `CcittFaxDecode`.
+    ///
+    /// The image's height. Defaults to 0.
+    pub fn rows(&mut self, rows: i32) -> &mut Self {
+        self.pair(Name(b"Rows"), rows);
+        self
+    }
+
+    /// Write the `/EndOfBlock` attribute for `CcittFaxDecode`.
+    ///
+    /// Whether to expect an EOB code at the end of the data. Defaults to
+    /// `true`.
+    pub fn end_of_block(&mut self, end_of_block: bool) -> &mut Self {
+        self.pair(Name(b"EndOfBlock"), end_of_block);
+        self
+    }
+
+    /// Write the `/BlackIs1` attribute for `CcittFaxDecode`.
+    ///
+    /// Whether to invert the bits in the image. Defaults to `false`.
+    pub fn black_is_1(&mut self, black_is_1: bool) -> &mut Self {
+        self.pair(Name(b"BlackIs1"), black_is_1);
+        self
+    }
+
+    /// Write the `/DamagedRowsBeforeError` attribute for `CcittFaxDecode`.
+    ///
+    /// How many damaged rows are allowed before an error is raised. Defaults to
+    /// 0.
+    pub fn damaged_rows_before_error(&mut self, count: i32) -> &mut Self {
+        self.pair(Name(b"DamagedRowsBeforeError"), count);
+        self
+    }
+}
+
+/// Properties for `Jbig2Decode`.
+impl DecodeParms<'_> {
+    /// Write the `/JBIG2Globals` attribute for `Jbig2Decode`.
+    ///
+    /// A reference to a stream containing global segments.
+    pub fn jbig2_globals(&mut self, globals: Ref) -> &mut Self {
+        self.pair(Name(b"JBIG2Globals"), globals);
+        self
+    }
+}
+
+/// Properties for `JpxDecode`.
+impl DecodeParms<'_> {
+    /// Write the `/ColorTransform` attribute for `JpxDecode`.
+    ///
+    /// How to handle color data. If `true` (1), images with three color
+    /// channels shall be decoded from the YCbCr space and images with four
+    /// color channels are decoded from YCbCrK. If `false` (0), no
+    /// transformation is applied. The default depends on the `APP14` marker in
+    /// the data stream.
+    pub fn color_transform(&mut self, color_transform: bool) -> &mut Self {
+        self.pair(Name(b"ColorTransform"), if color_transform { 1 } else { 0 });
+        self
+    }
+}
+
+/// Properties for `Crypt`.
+impl DecodeParms<'_> {
+    /// Write the `/Type` attribute for `Crypt` as `CryptFilterDecodeParms`.
+    pub fn crypt_type(&mut self) -> &mut Self {
+        self.pair(Name(b"Type"), Name(b"CryptFilterDecodeParms"));
+        self
+    }
+
+    /// Write the `/Name` attribute for `Crypt`.
+    ///
+    /// The name of the crypt filter corresponding to a `CF` entry of the
+    /// encryption dictionary.
+    pub fn name(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"Name"), name);
+        self
+    }
+}
+
+deref!('a, DecodeParms<'a> => Dict<'a>, dict);
+
+/// Which kind of predictor to use for a `FlateDecode` or `LzwDecode` stream.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum Predictor {
+    /// No prediction.
+    None,
+    /// TIFF Predictor 2.
+    Tiff,
+    PngNone,
+    PngSub,
+    PngUp,
+    PngAverage,
+    PngPaeth,
+    PngOptimum,
+}
+
+impl Predictor {
+    /// Convert the predictor to its integer representation according to ISO
+    /// 32000-2:2020, Table E.
+    fn to_i32(self) -> i32 {
+        match self {
+            Self::None => 1,
+            Self::Tiff => 2,
+            Self::PngNone => 10,
+            Self::PngSub => 11,
+            Self::PngUp => 12,
+            Self::PngAverage => 13,
+            Self::PngPaeth => 14,
+            Self::PngOptimum => 15,
         }
     }
 }

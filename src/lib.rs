@@ -183,8 +183,8 @@ pub mod types {
 pub use self::chunk::Chunk;
 pub use self::content::Content;
 pub use self::object::{
-    Array, Date, Dict, Filter, Finish, Name, Null, Obj, Primitive, Rect, Ref, Rewrite,
-    Str, Stream, TextStr, TypedArray, TypedDict, Writer,
+    Array, Date, DecodeParms, Dict, Filter, Finish, Name, Null, Obj, Predictor,
+    Primitive, Rect, Ref, Rewrite, Str, Stream, TextStr, TypedArray, TypedDict, Writer,
 };
 
 use std::fmt::{self, Debug, Formatter};
