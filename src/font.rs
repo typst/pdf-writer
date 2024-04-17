@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use super::*;
 
 /// Writer for a _Type-1 font dictionary_.
@@ -653,27 +655,19 @@ impl<'a> Cmap<'a> {
 deref!('a, Cmap<'a> => Stream<'a>, stream);
 
 /// A builder for a `/ToUnicode` character map stream.
-pub struct UnicodeCmap {
+pub struct UnicodeCmap<G> {
     buf: Vec<u8>,
     mappings: Vec<u8>,
     count: i32,
-    /// Are the glyphs IDs represented using one byte only?
-    one_byte_gids: bool,
+    glyph_id: PhantomData<G>,
 }
 
-impl UnicodeCmap {
+impl<G> UnicodeCmap<G>
+where
+    G: GlyphId,
+{
     /// Create a new, empty unicode character map.
     pub fn new(name: Name, info: SystemInfo) -> Self {
-        Self::new_with_dimension(name, info, false)
-    }
-
-    /// Create a new, empty unicode character map, that supports either one-byte
-    /// or two-bytes glyph IDs.
-    ///
-    /// Most fonts will use two bytes, but for Type3 fonts (which can only contain
-    /// up to 256 glyphs) some readers (Adobe Acrobat) will only accept one-byte
-    /// glyph IDs.
-    pub fn new_with_dimension(name: Name, info: SystemInfo, one_byte_gids: bool) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
         let mut buf = Vec::new();
@@ -722,33 +716,34 @@ impl UnicodeCmap {
 
         // We just cover the whole unicode codespace.
         buf.extend(b"1 begincodespacerange\n");
-        if one_byte_gids {
-            buf.extend(b"<00> <ff>\n");
-        } else {
-            buf.extend(b"<0000> <ffff>\n");
-        }
+        buf.push(b'<');
+        G::MIN.push(&mut buf);
+        buf.extend(b"> <");
+        G::MAX.push(&mut buf);
+        buf.extend(b">\n");
         buf.extend(b"endcodespacerange\n");
 
-        Self { buf, mappings: vec![], count: 0, one_byte_gids }
+        Self {
+            buf,
+            mappings: vec![],
+            count: 0,
+            glyph_id: PhantomData,
+        }
     }
 
     /// Add a mapping from a glyph ID to a codepoint.
-    pub fn pair(&mut self, glyph: u16, codepoint: char) {
+    pub fn pair(&mut self, glyph: G, codepoint: char) {
         self.pair_with_multiple(glyph, [codepoint]);
     }
 
     /// Add a mapping from a glyph ID to multiple codepoints.
     pub fn pair_with_multiple(
         &mut self,
-        glyph: u16,
+        glyph: G,
         codepoints: impl IntoIterator<Item = char>,
     ) {
         self.mappings.push(b'<');
-        if self.one_byte_gids {
-            self.mappings.push_hex(glyph as u8);
-        } else {
-            self.mappings.push_hex_u16(glyph);
-        }
+        glyph.push(&mut self.mappings);
         self.mappings.extend(b"> <");
 
         for c in codepoints {
@@ -793,6 +788,40 @@ impl UnicodeCmap {
         self.count = 0;
         self.mappings.clear();
     }
+}
+
+/// Type3 fonts require (in Acrobat at least) IDs in CMaps to be encoded with one byte only, whereas other font types use two bytes.
+///
+/// This trait provides an abstraction to support both.
+pub trait GlyphId: private::Sealed {
+    const MIN: Self;
+    const MAX: Self;
+    fn push(self, buf: &mut Vec<u8>);
+}
+
+impl GlyphId for u8 {
+    const MIN: Self = u8::MIN;
+    const MAX: Self = u8::MAX;
+
+    fn push(self, buf: &mut Vec<u8>) {
+        buf.push_hex(self);
+    }
+}
+
+impl GlyphId for u16 {
+    const MIN: Self = u16::MIN;
+    const MAX: Self = u16::MAX;
+
+    fn push(self, buf: &mut Vec<u8>) {
+        buf.push_hex_u16(self);
+    }
+}
+
+/// Module to seal the `GlyphId` trait.
+mod private {
+    pub trait Sealed {}
+    impl Sealed for u8 {}
+    impl Sealed for u16 {}
 }
 
 /// Specifics about a character collection.
