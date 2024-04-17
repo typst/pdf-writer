@@ -9,21 +9,21 @@ fn main() -> std::io::Result<()> {
     let mut pdf = Pdf::new();
 
     // Let's set up our primary font, we'll have to reference it a few times.
-    let font_id = Ref::new(1);
-    let font_name = Name(b"F1");
+    let text_font_id = Ref::new(1);
+    let text_font_name = Name(b"F1");
 
-    // Here we'll set up our dingbat font, this is used for symbols such as the
+    // Here we'll set up our Dingbat font, this is used for symbols such as the
     // ticks in checkboxes.
-    let font_id2 = Ref::new(2);
-    let font_name2 = Name(b"F2");
+    let symbol_font_id = Ref::new(2);
+    let symbol_font_name = Name(b"F2");
 
     // One of the most common form field types is the text field. Let's add that
     // and look at some of the basics of PDF form fields.
-    let text_id = Ref::new(4);
+    let text_field_id = Ref::new(4);
 
     // We start by writing a form field dictionary with an id which we later
     // need for referencing it.
-    let mut field = pdf.form_field(text_id);
+    let mut field = pdf.form_field(text_field_id);
 
     // While the `/T` attribute is optional according to the spec, you should
     // include it, most readers will only render widget annotations with both
@@ -37,9 +37,9 @@ fn main() -> std::io::Result<()> {
         .text_default_value(TextStr("Who reset me"));
 
     // Our field is a terminal field because it has no children, so it's merged
-    // with its widget annotation. The weidet annotation is what declares the
+    // with its widget annotation. The widget annotation is what declares the
     // appearance and position in the document, whereas the field defines its
-    // semantic behavior for the document wide form. The appearance is more
+    // semantic behavior for the document-wide form. The appearance is more
     // relevant to button fields, we'll see how to cofigure it below.
     let mut annot = field.to_annotation();
     annot.rect(Rect::new(108.0, 730.0, 208.0, 748.0));
@@ -61,7 +61,7 @@ fn main() -> std::io::Result<()> {
     annot.flags(AnnotationFlags::PRINT);
     annot.finish();
 
-    // A good form has radio buttons, radio buttons are check boxes which turn
+    // A good form has radio buttons. Radio buttons are checkboxes which turn
     // off when another checkbox is turned on. A group of radio button widget
     // annotations shares a single radio button field as parent.
     let radio_group_id = Ref::new(5);
@@ -74,10 +74,10 @@ fn main() -> std::io::Result<()> {
     // We define our three radio buttons, they all have a different appearance
     // streams, but if they shared the same appearance stream and used the
     // RADIOS_IN_UNISON flag, then two buttons could refer to the same choice.
-    // This is not widely supported, so we'll simply chowcase some normal radio
+    // This is not widely supported, so we'll simply showcase some normal radio
     // buttons here.
     //
-    // NOTE: a reader like okular will also use on-state name in the default
+    // NOTE: A reader like Okular will also use on-state name in the default
     //       appearance.
     let radios = [
         (Ref::new(6), Rect::new(108.0, 710.0, 138.0, 728.0), b"ch1"),
@@ -91,10 +91,10 @@ fn main() -> std::io::Result<()> {
 
     // We set some flags to get the exact behavior we want.
     // - FieldFlags::NO_TOGGLE_OFF means that once a button is selected it
-    //   cannot be manually turned off without turning another button on
+    //   cannot be manually turned off without turning another button on.
     // - FieldFlags::RADIOS_IN_UNISON ensures that if we have buttons which use
     //   the same appearance on-state, they'll be toggled in unison with the
-    //   others (although we don't use this here)
+    //   others (although we don't use this here).
     // Finally we define the children of this field, the widget annotations
     // which again define appearance and postion of the individual buttons.
     //
@@ -122,12 +122,25 @@ fn main() -> std::io::Result<()> {
     content.save_state();
     content.begin_text();
     content.set_fill_gray(0.0);
-    content.set_font(font_name2, 14.0);
+    content.set_font(symbol_font_name, 14.0);
     // The character 4 is a tick in this font.
     content.show(Str(b"4"));
     content.end_text();
     content.restore_state();
-    pdf.form_xobject(radio_on_appearance_id, &content.finish()).bbox(bbox);
+
+    let on_stream = content.finish();
+    let mut on_appearance = pdf.form_xobject(radio_on_appearance_id, &on_stream);
+
+    on_appearance.bbox(bbox);
+
+    // We use the symbol font to display the tick, so we need to add it to the
+    // resources of the appearance stream.
+    on_appearance
+        .resources()
+        .fonts()
+        .pair(symbol_font_name, symbol_font_id);
+
+    on_appearance.finish();
 
     // Our off appearance is empty, we haven't ticked the box.
     pdf.form_xobject(radio_off_appearance_id, &Content::new().finish())
@@ -171,7 +184,7 @@ fn main() -> std::io::Result<()> {
     // also known as a dropdown menu, a list box is like a permanently expanded
     // drop down menu. The edit flag allows the user to insert their own custom
     // option.
-    // NOTE: at the time of writing this pdf.js (firefox) does not allow
+    // NOTE: at the time of writing this pdf.js (Firefox) does not allow
     //       editing of the box
     field
         .partial_name(TextStr("choice"))
@@ -236,7 +249,8 @@ fn main() -> std::io::Result<()> {
 
     // We write all root fields in to the form field dictionary. Root fields are
     // those which have no parent.
-    cat.form().fields([text_id, radio_group_id, dropdown_id, button_id]);
+    cat.form()
+        .fields([text_field_id, radio_group_id, dropdown_id, button_id]);
     cat.finish();
 
     // First we create a page which should contain the form fields and write
@@ -247,13 +261,12 @@ fn main() -> std::io::Result<()> {
         .parent(page_tree_id)
         .resources()
         .fonts()
-        .pair(font_name, font_id)
-        .pair(font_name2, font_id2);
+        .pair(text_font_name, text_font_id);
 
     // Now we write each widget annotations refereence into the annotations
     // array. Those are our terminal fields, those with no children.
     page.annotations([
-        text_id,
+        text_field_id,
         radios[0].0,
         radios[1].0,
         radios[2].0,
@@ -263,8 +276,8 @@ fn main() -> std::io::Result<()> {
     page.finish();
 
     // Finally we write the font and page tree.
-    pdf.type1_font(font_id).base_font(Name(b"Helvetica"));
-    pdf.type1_font(font_id2).base_font(Name(b"ZapfDingbats"));
+    pdf.type1_font(text_font_id).base_font(Name(b"Helvetica"));
+    pdf.type1_font(symbol_font_id).base_font(Name(b"ZapfDingbats"));
     pdf.pages(page_tree_id).kids([page_id]).count(1);
 
     std::fs::write("target/forms.pdf", pdf.finish())
