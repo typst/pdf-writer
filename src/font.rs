@@ -657,11 +657,13 @@ pub struct UnicodeCmap {
     buf: Vec<u8>,
     mappings: Vec<u8>,
     count: i32,
+    /// Are the glyphs IDs represented using one byte only?
+    byte_gids: bool,
 }
 
 impl UnicodeCmap {
     /// Create a new, empty unicode character map.
-    pub fn new(name: Name, info: SystemInfo) -> Self {
+    pub fn new(name: Name, info: SystemInfo, byte_gids: bool) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
         let mut buf = Vec::new();
@@ -710,10 +712,14 @@ impl UnicodeCmap {
 
         // We just cover the whole unicode codespace.
         buf.extend(b"1 begincodespacerange\n");
-        buf.extend(b"<0000> <ffff>\n");
+        if byte_gids {
+            buf.extend(b"<00> <ff>\n");
+        } else {
+            buf.extend(b"<0000> <ffff>\n");
+        }
         buf.extend(b"endcodespacerange\n");
 
-        Self { buf, mappings: vec![], count: 0 }
+        Self { buf, mappings: vec![], count: 0, byte_gids }
     }
 
     /// Add a mapping from a glyph ID to a codepoint.
@@ -728,7 +734,11 @@ impl UnicodeCmap {
         codepoints: impl IntoIterator<Item = char>,
     ) {
         self.mappings.push(b'<');
-        self.mappings.push_hex_u16(glyph);
+        if self.byte_gids {
+            self.mappings.push_hex(glyph as u8);
+        } else {
+            self.mappings.push_hex_u16(glyph);
+        }
         self.mappings.extend(b"> <");
 
         for c in codepoints {
