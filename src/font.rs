@@ -655,7 +655,7 @@ impl<'a> Cmap<'a> {
 deref!('a, Cmap<'a> => Stream<'a>, stream);
 
 /// A builder for a `/ToUnicode` character map stream.
-pub struct UnicodeCmap<G> {
+pub struct UnicodeCmap<G = u16> {
     buf: Vec<u8>,
     mappings: Vec<u8>,
     count: i32,
@@ -790,38 +790,43 @@ where
     }
 }
 
-/// Type3 fonts require (in Acrobat at least) IDs in CMaps to be encoded with one byte only, whereas other font types use two bytes.
+/// Type3 fonts require (in Acrobat at least) IDs in CMaps to be encoded with
+/// one byte only, whereas other font types use two bytes.
 ///
 /// This trait provides an abstraction to support both.
-pub trait GlyphId: private::Sealed {
-    const MIN: Self;
-    const MAX: Self;
-    fn push(self, buf: &mut Vec<u8>);
-}
+pub trait GlyphId: private::Sealed {}
 
-impl GlyphId for u8 {
-    const MIN: Self = u8::MIN;
-    const MAX: Self = u8::MAX;
+impl GlyphId for u8 {}
 
-    fn push(self, buf: &mut Vec<u8>) {
-        buf.push_hex(self);
-    }
-}
-
-impl GlyphId for u16 {
-    const MIN: Self = u16::MIN;
-    const MAX: Self = u16::MAX;
-
-    fn push(self, buf: &mut Vec<u8>) {
-        buf.push_hex_u16(self);
-    }
-}
+impl GlyphId for u16 {}
 
 /// Module to seal the `GlyphId` trait.
 mod private {
-    pub trait Sealed {}
-    impl Sealed for u8 {}
-    impl Sealed for u16 {}
+    use crate::buf::BufExt;
+
+    pub trait Sealed {
+        const MIN: Self;
+        const MAX: Self;
+        fn push(self, buf: &mut Vec<u8>);
+    }
+
+    impl Sealed for u8 {
+        const MIN: Self = u8::MIN;
+        const MAX: Self = u8::MAX;
+
+        fn push(self, buf: &mut Vec<u8>) {
+            buf.push_hex(self);
+        }
+    }
+
+    impl Sealed for u16 {
+        const MIN: Self = u16::MIN;
+        const MAX: Self = u16::MAX;
+
+        fn push(self, buf: &mut Vec<u8>) {
+            buf.push_hex_u16(self);
+        }
+    }
 }
 
 /// Specifics about a character collection.
