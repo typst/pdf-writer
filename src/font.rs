@@ -658,12 +658,22 @@ pub struct UnicodeCmap {
     mappings: Vec<u8>,
     count: i32,
     /// Are the glyphs IDs represented using one byte only?
-    byte_gids: bool,
+    one_byte_gids: bool,
 }
 
 impl UnicodeCmap {
     /// Create a new, empty unicode character map.
-    pub fn new(name: Name, info: SystemInfo, byte_gids: bool) -> Self {
+    pub fn new(name: Name, info: SystemInfo) -> Self {
+        Self::new_with_dimension(name, info, false)
+    }
+
+    /// Create a new, empty unicode character map, that supports either one-byte
+    /// or two-bytes glyph IDs.
+    ///
+    /// Most fonts will use two bytes, but for Type3 fonts (which can only contain
+    /// up to 256 glyphs) some readers (Adobe Acrobat) will only accept one-byte
+    /// glyph IDs.
+    pub fn new_with_dimension(name: Name, info: SystemInfo, one_byte_gids: bool) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
         let mut buf = Vec::new();
@@ -712,14 +722,14 @@ impl UnicodeCmap {
 
         // We just cover the whole unicode codespace.
         buf.extend(b"1 begincodespacerange\n");
-        if byte_gids {
+        if one_byte_gids {
             buf.extend(b"<00> <ff>\n");
         } else {
             buf.extend(b"<0000> <ffff>\n");
         }
         buf.extend(b"endcodespacerange\n");
 
-        Self { buf, mappings: vec![], count: 0, byte_gids }
+        Self { buf, mappings: vec![], count: 0, one_byte_gids }
     }
 
     /// Add a mapping from a glyph ID to a codepoint.
@@ -734,7 +744,7 @@ impl UnicodeCmap {
         codepoints: impl IntoIterator<Item = char>,
     ) {
         self.mappings.push(b'<');
-        if self.byte_gids {
+        if self.one_byte_gids {
             self.mappings.push_hex(glyph as u8);
         } else {
             self.mappings.push_hex_u16(glyph);
