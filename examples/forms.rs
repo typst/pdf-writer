@@ -51,9 +51,6 @@ fn main() -> std::io::Result<()> {
     annot.border_style().style(BorderType::Underline);
     annot.appearance_characteristics().border_color_rgb(0.0, 0.0, 0.5);
 
-    // TODO: test whether this is actually needed depending on the
-    // appearance stream
-
     // The reader will usually provide a default appearance and automatically
     // highlight form fields. The appearance is relevant for printing however.
     // While we don't provide an explicit appearnce here, if we did we likely
