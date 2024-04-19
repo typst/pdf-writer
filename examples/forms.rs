@@ -41,7 +41,7 @@ fn main() -> std::io::Result<()> {
     // appearance and position in the document, whereas the field defines its
     // semantic behavior for the document-wide form. The appearance is more
     // relevant to button fields, we'll see how to cofigure it below.
-    let mut annot = field.to_annotation();
+    let mut annot = field.into_annotation();
     annot.rect(Rect::new(108.0, 730.0, 208.0, 748.0));
 
     // We can pass some fairly simple appearances here, common things such
@@ -152,7 +152,7 @@ fn main() -> std::io::Result<()> {
         // Each button shares the single parent.
         field.parent(radio_group_id);
 
-        let mut annot = field.to_annotation();
+        let mut annot = field.into_annotation();
         annot.rect(rect).flags(AnnotationFlags::PRINT);
 
         // This is the state the button starts off with. `/Off` is the off state
@@ -196,7 +196,7 @@ fn main() -> std::io::Result<()> {
         TextStr("prefer not to say"),
     ]);
 
-    let mut annot = field.to_annotation();
+    let mut annot = field.into_annotation();
     annot
         .rect(Rect::new(108.0, 690.0, 208.0, 708.0))
         .flags(AnnotationFlags::PRINT);
@@ -216,7 +216,7 @@ fn main() -> std::io::Result<()> {
         .field_type(FieldType::Button)
         .field_flags(FieldFlags::PUSHBUTTON);
 
-    let mut annot = field.to_annotation();
+    let mut annot = field.into_annotation();
     annot
         .rect(Rect::new(108.0, 670.0, 138.0, 688.0))
         .flags(AnnotationFlags::PRINT);
