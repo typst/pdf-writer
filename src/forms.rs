@@ -79,7 +79,7 @@ bitflags::bitflags! {
     }
 }
 
-/// Writer for an _ form field dictionary_.
+/// Writer for an _form field dictionary_.
 ///
 /// This struct is created by [`Chunk::form_field`].
 pub struct Field<'a> {
