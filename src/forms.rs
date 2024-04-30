@@ -1,6 +1,85 @@
+use crate::types::AnnotationType;
+
 use super::*;
 
-/// A form field.
+/// Writer for an _interactive forms dictionary_. PDF 1.2+.
+///
+/// This struct is created by [`Catalog::form`].
+pub struct Form<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(Form: |obj| Self { dict: obj.dict() });
+
+impl<'a> Form<'a> {
+    /// Write the `/Fields` attribute to reference the root [form fields](Field)
+    /// (those who have no immediate parent) of this document.
+    pub fn fields(&mut self, fields: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.insert(Name(b"Fields")).array().items(fields);
+        self
+    }
+
+    /// Write the `/SigFlags` attribute to set various document-level
+    /// characteristics related to signature fields.
+    pub fn sig_flags(&mut self, flags: SigFlags) -> &mut Self {
+        self.pair(Name(b"SigFlags"), flags.bits() as i32);
+        self
+    }
+
+    /// Write the `/CO` attribute to set the field dictionaries with calculation
+    /// actions, defining the calculation order in which their values will be
+    /// recalculated when the value of any field changes.
+    pub fn calculation_order(
+        &mut self,
+        actions: impl IntoIterator<Item = Ref>,
+    ) -> &mut Self {
+        self.insert(Name(b"CO")).array().items(actions);
+        self
+    }
+
+    /// Start writing the `/DR` attribute to set the default resources
+    /// that shall be used by form field appearance streams. At a minimum, this
+    /// dictionary shall contain a font entry specifying the resource name and
+    /// font dictionary of the default font for displaying text.
+    pub fn default_resources(&mut self) -> Resources<'_> {
+        self.insert(Name(b"DR")).start()
+    }
+
+    /// Write the document-wide default value for the `/DA` attribute of
+    /// fields containing variable text. See
+    /// [`Field::vartext_default_appearance`].
+    pub fn default_appearance(&mut self, default: Str) -> &mut Self {
+        self.pair(Name(b"DA"), default);
+        self
+    }
+
+    /// Write the document-wide default value for the `/Q` attribute of
+    /// fields containing variable text. See [`Field::vartext_quadding`].
+    pub fn quadding(&mut self, default: Quadding) -> &mut Self {
+        self.pair(Name(b"Q"), default as i32);
+        self
+    }
+}
+
+deref!('a, Form<'a> => Dict<'a>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing various document-level characteristics related to
+    /// signature fields.
+    pub struct SigFlags: u32 {
+        /// The document contains at least one signature field.
+        const SIGNATURES_EXIST = 1;
+
+        /// The document contains signatures that may be invalidated if the
+        /// file is saved (written) in a way that alters its previous contents,
+        /// as opposed to an incremental update. Merely updating the file by
+        /// appending new information to the end of the previous version is
+        /// safe.
+        const APPEND_ONLY = 2;
+    }
+}
+
+/// Writer for an _form field dictionary_.
 ///
 /// This struct is created by [`Chunk::form_field`].
 pub struct Field<'a> {
@@ -13,22 +92,23 @@ writer!(Field: |obj| Self { dict: obj.dict() });
 impl<'a> Field<'a> {
     /// Write the `/FT` attribute to set the type of this field.
     pub fn field_type(&mut self, typ: FieldType) -> &mut Self {
-        self.dict.pair(Name(b"FT"), typ.to_name());
+        self.pair(Name(b"FT"), typ.to_name());
         self
     }
 
     /// Write the `/Parent` attribute to set the immediate parent of this
     /// field.
     pub fn parent(&mut self, id: Ref) -> &mut Self {
-        self.dict.pair(Name(b"Parent"), id);
+        self.pair(Name(b"Parent"), id);
         self
     }
 
-    /// Start writing the `/Kids` attribute to set the immediate children of
-    /// this field. These references shall refer to other [fields][Field], or
-    /// [widget](crate::types::AnnotationType::Widget) [annoations](Annotation).
-    pub fn children(&mut self) -> TypedArray<'_, Ref> {
-        self.dict.insert(Name(b"Kids")).array().typed()
+    /// Write the `/Kids` attribute to set the immediate children of this field.
+    /// These references shall refer to other [fields][Field], or
+    /// [widget](crate::types::AnnotationType::Widget) [annotations](Annotation).
+    pub fn children(&mut self, children: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.insert(Name(b"Kids")).array().items(children);
+        self
     }
 
     /// Write the `/T` attribute to set the partial field name.
@@ -42,7 +122,7 @@ impl<'a> Field<'a> {
     /// in properties that specify their visual appearance. In particular, they
     /// should have the same `/FT`, `/V` and `/DV` attribute values.
     pub fn partial_name(&mut self, name: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"T"), name);
+        self.pair(Name(b"T"), name);
         self
     }
 
@@ -53,7 +133,7 @@ impl<'a> Field<'a> {
     /// contents in support of accessibility to users with disabilities or for
     /// other purposes. PDF 1.3+.
     pub fn alternate_name(&mut self, alternate: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"TU"), alternate);
+        self.pair(Name(b"TU"), alternate);
         self
     }
 
@@ -61,21 +141,35 @@ impl<'a> Field<'a> {
     /// name shall be used when exporting interactive form field data from the
     /// document.
     pub fn mapping_name(&mut self, name: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"TM"), name);
+        self.pair(Name(b"TM"), name);
         self
     }
 
     /// Write the `/Ff` attribute to set various characteristics of this
     /// field.
     pub fn field_flags(&mut self, flags: FieldFlags) -> &mut Self {
-        self.dict.pair(Name(b"Tf"), flags.bits() as i32);
+        self.pair(Name(b"Ff"), flags.bits() as i32);
         self
     }
 
     /// Start writing the `/AA` dictionary to set the field's response to
     /// various trigger events.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
-        self.dict.insert(Name(b"AA")).start()
+        self.insert(Name(b"AA")).start()
+    }
+
+    /// Finish writing this field as a widget annotation. This is encouraged
+    /// for fields which are non-root and terminal (i.e. they have a parent and
+    /// no children).
+    ///
+    /// While the widget annotation could be a single child to a
+    /// terminal field, most readers will not correctly read the form
+    /// field, if it's not merged with its annotation.
+    pub fn into_annotation(mut self) -> Annotation<'a> {
+        self.dict.pair(Name(b"Type"), Name(b"Annot"));
+        let mut annot = Annotation { dict: self.dict };
+        annot.subtype(AnnotationType::Widget);
+        annot
     }
 }
 
@@ -109,11 +203,15 @@ impl FieldType {
 
 /// Only permissible on button fields.
 impl<'a> Field<'a> {
-    /// Start writing the `/Opt` array to set the export values of children of
-    /// this field. Only permissible on checkbox fields, or radio button fields.
+    /// Write the `/Opt` array to set the export values of children of this
+    /// field. Only permissible on checkbox fields, or radio button fields.
     /// PDF 1.4+.
-    pub fn button_options(&mut self) -> TypedArray<'_, TextStr> {
-        self.dict.insert(Name(b"Opt")).array().typed()
+    pub fn button_options<'b>(
+        &mut self,
+        options: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Opt")).array().items(options);
+        self
     }
 }
 
@@ -124,7 +222,7 @@ impl<'a> Field<'a> {
     /// dictionary](AppearanceCharacteristics) of this field's widget
     /// [annotation](Annotation). Only permissible on check box fields.
     pub fn checkbox_value(&mut self, state: CheckBoxState) -> &mut Self {
-        self.dict.pair(Name(b"V"), state.to_name());
+        self.pair(Name(b"V"), state.to_name());
         self
     }
 
@@ -133,7 +231,7 @@ impl<'a> Field<'a> {
     /// dictionary](AppearanceCharacteristics) of this field's widget
     /// [annotation](Annotation). Only permissible on check box fields.
     pub fn checkbox_default_value(&mut self, state: CheckBoxState) -> &mut Self {
-        self.dict.pair(Name(b"DV"), state.to_name());
+        self.pair(Name(b"DV"), state.to_name());
         self
     }
 }
@@ -157,67 +255,50 @@ impl CheckBoxState {
 
 /// Only permissible on radio button fields.
 impl<'a> Field<'a> {
-    /// Write the `/V` attribute to set the state of this check box field. The
-    /// state corresponds to an appearance stream in the
-    /// [appearance dictionary](AppearanceCharacteristics) of this field's
-    /// widget [annotation](Annotation). Only permissible on radio button
-    /// fields.
-    pub fn radio_value(&mut self, state: RadioState) -> &mut Self {
-        self.dict.pair(Name(b"V"), state.to_name());
+    /// Write the `/V` attribute to set the state of this radio button field.
+    /// The state corresponds to an appearance stream in the
+    /// [appearance subdictionary](Appearance) of this field's widget
+    /// [annotation](Annotation) and is either a custom name unique for
+    /// all unique fields, or `/Off`. Only permissible on radio button fields.
+    pub fn radio_value(&mut self, state: Name) -> &mut Self {
+        self.pair(Name(b"V"), state);
         self
     }
 
-    /// Write the `/DV` attribute to set the default state of this check box
+    /// Write the `/DV` attribute to set the default state of this radio button
     /// field. The state corresponds to an appearance stream in the
-    /// [appearance dictionary](AppearanceCharacteristics) of this field's
-    /// widget [annotation](Annotation). Only permissible on radio button
-    /// fields.
-    pub fn radio_default_value(&mut self, state: RadioState) -> &mut Self {
-        self.dict.pair(Name(b"DV"), state.to_name());
+    /// [appearance subdictionary](Appearance) of this field's widget
+    /// [annotation](Annotation) and is either a custom name unique for
+    /// all unique fields, or `/Off`. Only permissible on radio button fields.
+    pub fn radio_default_value(&mut self, state: Name) -> &mut Self {
+        self.pair(Name(b"DV"), state);
         self
-    }
-}
-
-/// The state of a radio button [`Field`].
-pub enum RadioState<'a> {
-    /// The radio button with the given name is selected.
-    Selected(Name<'a>),
-    /// No radio button is selected `/Off`.
-    Off,
-}
-
-impl<'a> RadioState<'a> {
-    pub(crate) fn to_name(self) -> Name<'a> {
-        match self {
-            Self::Selected(name) => name,
-            Self::Off => Name(b"Off"),
-        }
     }
 }
 
 /// Only permissible on text fields.
 impl<'a> Field<'a> {
-    // TODO: the spec likely means the equivalent of unicode graphemes here
-    //       for characters
-
-    /// Write the `/MaxLen` attribute to set the maximum length of the field's
+    /// Write the `/MaxLen` attribute to set the maximum length of the fields
     /// text in characters. Only permissible on text fields.
+    ///
+    /// The definition of a chracter depends on the encoding of the content of
+    /// `/V`. Which is either one byte for PDFDocEncoding or 2 for UTF16-BE.
     pub fn text_max_len(&mut self, len: i32) -> &mut Self {
-        self.dict.pair(Name(b"MaxLen"), len);
+        self.pair(Name(b"MaxLen"), len);
         self
     }
 
     /// Write the `/V` attribute to set the value of this text field.
     /// Only permissible on text fields.
     pub fn text_value(&mut self, value: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"V"), value);
+        self.pair(Name(b"V"), value);
         self
     }
 
     /// Start writing the `/DV` attribute to set the default value of this text
     /// field. Only permissible on text fields.
     pub fn text_default_value(&mut self, value: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"DV"), value);
+        self.pair(Name(b"DV"), value);
         self
     }
 }
@@ -229,7 +310,7 @@ impl<'a> Field<'a> {
     /// field's text size and colour. Only permissible on fields containing
     /// variable text.
     pub fn vartext_default_appearance(&mut self, appearance: Str) -> &mut Self {
-        self.dict.pair(Name(b"DA"), appearance);
+        self.pair(Name(b"DA"), appearance);
         self
     }
 
@@ -237,21 +318,21 @@ impl<'a> Field<'a> {
     /// be used in dispalying the text. Only permissible on fields containing
     /// variable text.
     pub fn vartext_quadding(&mut self, quadding: Quadding) -> &mut Self {
-        self.dict.pair(Name(b"Q"), quadding as i32);
+        self.pair(Name(b"Q"), quadding as i32);
         self
     }
 
     /// Write the `/DS` attribute to set the default style string. Only
     /// permissible on fields containing variable text. PDF 1.5+.
     pub fn vartext_default_style(&mut self, style: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"DS"), style);
+        self.pair(Name(b"DS"), style);
         self
     }
 
     /// Write the `/RV` attribute to set the value of this variable text field.
     /// Only permissible on fields containing variable text. PDF 1.5+.
     pub fn vartext_rich_value(&mut self, value: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"RV"), value);
+        self.pair(Name(b"RV"), value);
         self
     }
 }
@@ -272,20 +353,20 @@ impl<'a> Field<'a> {
     /// Start writing the `/Opt` array to set the options that shall be
     /// presented to the user.
     pub fn choice_options(&mut self) -> ChoiceOptions<'_> {
-        self.dict.insert(Name(b"Opt")).start()
+        self.insert(Name(b"Opt")).start()
     }
 
     /// Write the `/TI` attribute to set the index in the
     /// [`Field::choice_options`] array of the first visible option for
     /// scrollable lists.
     pub fn choice_top_index(&mut self, index: i32) -> &mut Self {
-        self.dict.pair(Name(b"TI"), index);
+        self.pair(Name(b"TI"), index);
         self
     }
 
-    /// Start writing the `/I` array to set the indices of the currently
-    /// selected options. The integers in this array must be sorted in ascending
-    /// order and correspond to 0-based indices in the [`Field::choice_options`]
+    /// Write the `/I` array to set the indices of the currently selected
+    /// options. The integers in this array must be sorted in ascending order
+    /// and correspond to 0-based indices in the [`Field::choice_options`]
     /// array.
     ///
     /// This entry shall be used for choice fields which allow multiple
@@ -294,8 +375,12 @@ impl<'a> Field<'a> {
     /// but export the same value or when the value fo the choice field is an
     /// array. This entry should not be used for choice fields that do not allow
     /// multiple selections. PDF 1.4+.
-    pub fn choice_indices(&mut self) -> TypedArray<'_, i32> {
-        self.dict.insert(Name(b"I")).array().typed()
+    pub fn choice_indices(
+        &mut self,
+        indices: impl IntoIterator<Item = i32>,
+    ) -> &mut Self {
+        self.insert(Name(b"I")).array().items(indices);
+        self
     }
 
     /// Write the `/V` attribute to set the currently selected values
@@ -304,8 +389,8 @@ impl<'a> Field<'a> {
     /// permissible on choice fields.
     pub fn choice_value(&mut self, option: Option<TextStr>) -> &mut Self {
         match option {
-            Some(value) => self.dict.pair(Name(b"V"), value),
-            None => self.dict.pair(Name(b"V"), Null),
+            Some(value) => self.pair(Name(b"V"), value),
+            None => self.pair(Name(b"V"), Null),
         };
         self
     }
@@ -317,7 +402,7 @@ impl<'a> Field<'a> {
         &mut self,
         options: impl IntoIterator<Item = TextStr<'b>>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"V")).array().items(options);
+        self.insert(Name(b"V")).array().items(options);
         self
     }
 
@@ -327,8 +412,8 @@ impl<'a> Field<'a> {
     /// permissible on choice fields.
     pub fn choice_default_value(&mut self, option: Option<TextStr>) -> &mut Self {
         match option {
-            Some(value) => self.dict.pair(Name(b"DV"), value),
-            None => self.dict.pair(Name(b"DV"), Null),
+            Some(value) => self.pair(Name(b"DV"), value),
+            None => self.pair(Name(b"DV"), Null),
         };
         self
     }
@@ -340,7 +425,7 @@ impl<'a> Field<'a> {
         &mut self,
         options: impl IntoIterator<Item = TextStr<'b>>,
     ) -> &mut Self {
-        self.dict.insert(Name(b"DV")).array().items(options);
+        self.insert(Name(b"DV")).array().items(options);
         self
     }
 }
@@ -361,9 +446,29 @@ impl<'a> ChoiceOptions<'a> {
         self
     }
 
+    /// Add options with the given values.
+    pub fn options<'b>(
+        &mut self,
+        values: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.array.items(values);
+        self
+    }
+
     /// Add an option with the given value and export value.
     pub fn export(&mut self, value: TextStr, export_value: TextStr) -> &mut Self {
         self.array.push().array().items([export_value, value]);
+        self
+    }
+
+    /// Add options with the given pairs of value and export value.
+    pub fn exports<'b>(
+        &mut self,
+        values: impl IntoIterator<Item = (TextStr<'b>, TextStr<'b>)>,
+    ) -> &mut Self {
+        for (value, export) in values {
+            self.export(value, export);
+        }
         self
     }
 }
@@ -384,10 +489,10 @@ bitflags::bitflags! {
         const REQUIRED = 2;
         /// The field shall not be exported by a
         /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
-        const NO_EXPORT = 1 << 3;
+        const NO_EXPORT = 1 << 2;
         /// The entered text shall not be spell-checked, can be used for text
         /// and choice fields.
-        const DO_NOT_SPELL_CHECK = 1 << 23;
+        const DO_NOT_SPELL_CHECK = 1 << 22;
 
         // Button specific flags
 
@@ -395,62 +500,63 @@ bitflags::bitflags! {
         /// the currently selected button has no effect. If unset, clicking
         /// the selected button deselects it, leaving no button selected. Only
         /// permissible for radio buttons.
-        const NO_TOGGLE_TO_OFF = 1 << 15;
+        const NO_TOGGLE_TO_OFF = 1 << 14;
         /// The field is a set of radio buttons; if clear, the field is a check
         /// box. This flag may be set only if the `PUSHBUTTON` flag is unset.
-        const RADIO = 1 << 16;
+        const RADIO = 1 << 15;
         /// The field is a push button that does not retain a permanent
         /// value.
-        const PUSHBUTTON = 1 << 17;
+        const PUSHBUTTON = 1 << 16;
         /// A group of radio buttons within a radio button field that use the
         /// same value for the on state will turn on and off in unison; that
         /// is if one is checked, they are all checked. If unset, the buttons
         /// are mutually exclusive (the same behavior as HTML radio buttons).
         /// PDF 1.5+.
-        const RADIOS_IN_UNISON = 1 << 26;
+        const RADIOS_IN_UNISON = 1 << 25;
 
         // Text field specific flags
 
         /// The text may contain multiple lines of text, otherwise the text is
         /// restricted to one line.
-        const MULTILINE = 1 << 13;
+        const MULTILINE = 1 << 12;
         /// The text contains a password and should not be echoed visibly to
         /// the screen.
-        const PASSWORD = 1 << 14;
+        const PASSWORD = 1 << 13;
         /// The entered text represents a path to a file who's contents shall be
         /// submitted as the value of the field. PDF 1.4+.
-        const FILE_SELECT = 1 << 21;
+        const FILE_SELECT = 1 << 20;
         /// The field shall not scroll horizontally (for single-line) or
         /// vertically (for multi-line) to accomodate more text. Once the field
         /// is full, no further text shall be accepted for interactive form
         /// filling; for non-interactive form filling, the filler should take
         /// care not to add more character than will visibly fit in the defined
         /// area. PDF 1.4+.
-        const DO_NOT_SCROLL = 1 << 24;
-        /// The field shall eb automatically divided into as many equally
-        /// spaced postions or _combs_ as the value of [`Field::max_len`]
+        const DO_NOT_SCROLL = 1 << 23;
+        /// The field shall be automatically divided into as many equally
+        /// spaced positions or _combs_ as the value of [`Field::max_len`]
         /// and the text is layed out into these combs. May only be set if
         /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
         /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
-        const COMB = 1 << 25;
+        const COMB = 1 << 24;
         /// The value of this field shall be a rich text string. If the field
         /// has a value, the [`TextField::rich_text_value`] shall specify the
         /// rich text string. PDF 1.5+.
-        const RICH_TEXT = 1 << 26;
+        const RICH_TEXT = 1 << 25;
 
         // Choice field specific flags
 
-        /// The field is a combo box if set, else it's a list box.
-        const COMBO = 1 << 18;
+        /// The field is a combo box if set, else it's a list box. A combo box
+        /// is often referred to as a dropdown menu.
+        const COMBO = 1 << 17;
         /// The combo box shall include an editable text box as well as a
         /// drop-down list. Shall only be used if [`COMBO`] is set.
-        const EDIT = 1 << 19;
+        const EDIT = 1 << 18;
         /// The field’s option items shall be sorted alphabetically. This
         /// flag is intended for use by writers, not by readers.
-        const SORT = 1 << 20;
+        const SORT = 1 << 19;
         /// More than one option of the choice field may be selected
         /// simultaneously. PDF 1.4+.
-        const MULTI_SELECT = 1 << 22;
+        const MULTI_SELECT = 1 << 21;
         /// The new value shall be committed as soon as a selection is made
         /// (commonly with the mouse). In this case, supplying a value for
         /// a field involves three actions: selecting the field for fill-in,
@@ -460,6 +566,6 @@ bitflags::bitflags! {
         ///
         /// If set, processing does not wait for leaving the field action to
         /// occur, but immediately proceeds to the third step. PDF 1.5+.
-        const COMMIT_ON_SEL_CHANGE = 1 << 27;
+        const COMMIT_ON_SEL_CHANGE = 1 << 26;
     }
 }

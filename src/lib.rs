@@ -130,7 +130,7 @@ pub mod writers {
         CidFont, Cmap, Differences, Encoding, FontDescriptor, Type0Font, Type1Font,
         Type3Font, Widths,
     };
-    pub use forms::Field;
+    pub use forms::{Field, Form};
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
@@ -168,7 +168,7 @@ pub mod types {
     };
     pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo, UnicodeCmap};
     pub use forms::{
-        CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, RadioState,
+        CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, SigFlags,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use renditions::{MediaClipType, RenditionType, TempFileType};

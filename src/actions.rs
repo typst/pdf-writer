@@ -154,9 +154,24 @@ impl<'a> Fields<'a> {
         self
     }
 
+    /// The indirect references to the fields.
+    pub fn ids(&mut self, ids: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.array.items(ids);
+        self
+    }
+
     /// The fully qualified name of the field. PDF 1.3+.
     pub fn name(&mut self, name: TextStr) -> &mut Self {
         self.array.item(name);
+        self
+    }
+
+    /// The fully qualified names of the fields. PDF 1.3+.
+    pub fn names<'b>(
+        &mut self,
+        names: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.array.items(names);
         self
     }
 }
@@ -219,46 +234,46 @@ bitflags::bitflags! {
         const INCLUDE_NO_VALUE_FIELDS = 2;
         /// Export the fields as HTML instead of submitting as FDF. Ignored if
         /// `SUBMIT_PDF` or `XFDF` are set.
-        const EXPORT_FORMAT = 1 << 3;
+        const EXPORT_FORMAT = 1 << 2;
         /// Field name should be submitted using an HTTP GET request, otherwise
         /// POST. Should only be if `EXPORT_FORMAT` is also set.
-        const GET_METHOD = 1 << 4;
+        const GET_METHOD = 1 << 3;
         /// Include the coordinates of the mouse when submit was pressed. Should
         /// only be if `EXPORT_FORMAT` is also set.
-        const SUBMIT_COORDINATES = 1 << 5;
+        const SUBMIT_COORDINATES = 1 << 4;
         /// Submit field names and values as XFDF instead of submitting an FDF.
         /// Should not be set if `SUBMIT_PDF` is set. PDF1.4+.
-        const XFDF = 1 << 6;
+        const XFDF = 1 << 5;
         /// Include all updates done to the PDF document in the submission FDF
         /// file. Should only be used when `XFDF` and `EXPORT_FORMAT` are not
         /// set. PDF 1.4+.
-        const INCLUDE_APPEND_SAVES = 1 << 7;
+        const INCLUDE_APPEND_SAVES = 1 << 6;
         /// Include all markup annotations of the PDF dcoument in the submission
         /// FDF file. Should only be used when `XFDF` and `EXPORT_FORMAT` are
         /// not set. PDF 1.4+.
-        const INCLUDE_ANNOTATIONS = 1 << 8;
+        const INCLUDE_ANNOTATIONS = 1 << 7;
         /// Submit the PDF file instead of an FDF file. All other flags other
         /// than `GET_METHOD` are ignored if this is set. PDF 1.4+.
-        const SUBMIT_PDF = 1 << 9;
+        const SUBMIT_PDF = 1 << 8;
         /// Convert fields which represent dates into the
         /// [canonical date format](crate::types::Date). The interpretation of
         /// a form field as a date is is not specified in the field but the
         /// JavaScript code that processes it. PDF 1.4+.
-        const CANONICAL_FORMAT = 1 << 10;
+        const CANONICAL_FORMAT = 1 << 9;
         /// Include only the markup annotations made by the current user (the
         /// `/T` entry of the annotation) as determined by the remote server
         /// the form will be submitted to. Should only be used when `XFDF` and
         /// `EXPORT_FORMAT` are not set and `INCLUDE_ANNOTATIONS` is set. PDF
         /// 1.4+.
-        const EXCLUDE_NON_USER_ANNOTS = 1 << 11;
+        const EXCLUDE_NON_USER_ANNOTS = 1 << 10;
         /// Include the F entry in the FDF file.
         /// Should only be used when `XFDF` and `EXPORT_FORMAT` are not set.
         /// PDF 1.4+
-        const EXCLUDE_F_KEY = 1 << 12;
+        const EXCLUDE_F_KEY = 1 << 11;
         /// Include the PDF file as a stream in the FDF file that will be submitted.
         /// Should only be used when `XFDF` and `EXPORT_FORMAT` are not set.
         /// PDF 1.5+.
-        const EMBED_FORM = 1 << 14;
+        const EMBED_FORM = 1 << 13;
     }
 }
 

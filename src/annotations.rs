@@ -4,7 +4,7 @@ use super::*;
 ///
 /// An array of this struct is created by [`Chunk::annotation`].
 pub struct Annotation<'a> {
-    dict: Dict<'a>,
+    pub(crate) dict: Dict<'a>,
 }
 
 writer!(Annotation: |obj| {
@@ -211,7 +211,7 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/MK` dictionary. Only permissible for the subtype
     /// `Widget`.
     pub fn appearance_characteristics(&mut self) -> AppearanceCharacteristics<'_> {
-        self.dict.insert(Name(b"MK")).start()
+        self.insert(Name(b"MK")).start()
     }
 
     /// Write the `/Parent` attribute. Only permissible for the subtype
