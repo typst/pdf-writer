@@ -77,7 +77,7 @@ valid PDFs.
 [image]: writers::ImageXObject
 [`filter()`]: Stream::filter
 [examples folder]: https://github.com/typst/pdf-writer/tree/main/examples
-[PDF specification]: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
+[PDF specification]: https://opensource.adobe.com/dc-acrobat-sdk-docs/pdfstandards/PDF32000_2008.pdf
 */
 
 #![forbid(unsafe_code)]
