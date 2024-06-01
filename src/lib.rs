@@ -134,6 +134,7 @@ pub mod writers {
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
+    pub use object::DecodeParms;
     pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
     pub use renditions::{MediaClip, MediaPermissions, MediaPlayParams, Rendition};
     pub use structure::{
@@ -171,6 +172,7 @@ pub mod types {
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, SigFlags,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
+    pub use object::Predictor;
     pub use renditions::{MediaClipType, RenditionType, TempFileType};
     pub use structure::{
         Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
@@ -183,8 +185,8 @@ pub mod types {
 pub use self::chunk::Chunk;
 pub use self::content::Content;
 pub use self::object::{
-    Array, Date, DecodeParms, Dict, Filter, Finish, Name, Null, Obj, Predictor,
-    Primitive, Rect, Ref, Rewrite, Str, Stream, TextStr, TypedArray, TypedDict, Writer,
+    Array, Date, Dict, Filter, Finish, Name, Null, Obj, Primitive, Rect, Ref, Rewrite,
+    Str, Stream, TextStr, TypedArray, TypedDict, Writer,
 };
 
 use std::fmt::{self, Debug, Formatter};
