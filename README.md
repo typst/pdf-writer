@@ -6,7 +6,7 @@ A step-by-step PDF writer.
 
 ```toml
 [dependencies]
-pdf-writer = "0.9"
+pdf-writer = "0.10"
 ```
 
 The entry point into the API is the main `Pdf`, which constructs the document
