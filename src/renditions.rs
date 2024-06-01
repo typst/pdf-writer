@@ -150,7 +150,7 @@ deref!('a, MediaPlayParams<'a> => Dict<'a>, dict);
 
 /// Writer for an _media permissions dictionary_.
 ///
-/// This struct is created by [`Rendition::permissions`].
+/// This struct is created by [`MediaClip::permissions`].
 pub struct MediaPermissions<'a> {
     dict: Dict<'a>,
 }

@@ -3,7 +3,7 @@ use super::*;
 /// Writer for a _file specification dictionary_.
 ///
 /// This struct is created by [`Annotation::file_spec`],
-/// [`Reference::file_spec`], [`Rendition::data`], and [`Action::file_spec`].
+/// [`Reference::file_spec`], [`MediaClip::data`], and [`Action::file_spec`].
 pub struct FileSpec<'a> {
     dict: Dict<'a>,
 }
