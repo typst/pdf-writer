@@ -1,3 +1,5 @@
+use std::str::Utf8Error;
+
 use crate::color::SeparationInfo;
 
 use super::*;
@@ -141,9 +143,9 @@ impl<'a> Catalog<'a> {
     ///
     /// Each entry in the array is an [output intent
     /// dictionary.](writers::OutputIntent)
-    pub fn output_intents(&mut self) -> TypedArray<'_, Dict> {
     ///
     /// Must be present in PDF/X documents, encouraged in PDF/A documents.
+    pub fn output_intents(&mut self) -> TypedArray<'_, OutputIntent> {
         self.insert(Name(b"OutputIntents")).array().typed()
     }
 }
@@ -1570,3 +1572,91 @@ impl<'a> Metadata<'a> {
 }
 
 deref!('a, Metadata<'a> => Stream<'a>, stream);
+
+/// A result type for operations that check for PDF/A compliance.
+pub type PdfaResult<T> = Result<T, PdfaError>;
+
+/// Errors that pdf-writer can automatically detect when writing PDF/A files.
+///
+/// Please note that these errors only enforce provisions of clauses 6.1.8,
+/// 6.1.13, 6.1.3, and 6.2.11.7.2 of the PDF/A-2 spec. They do not enforce the
+/// entire spec, so additional attention needs to be paid to write compliant
+/// files.
+///
+/// Integer and float implementation limits are not checked since they are
+/// already enforced by the `i32` and `f32` types, respectively.
+#[derive(Debug, Clone, PartialEq)]
+pub enum PdfaError {
+    /// A string contained more than 32767 bytes.
+    OverlongString(usize),
+    /// A name object contained more than 127 bytes.
+    OverlongName(usize),
+    /// A name object was not UTF-8 decodable.
+    NameNotUtf8(Utf8Error),
+    /// The file has more than 8388607 indirect objects.
+    TooManyIndirectObjects(usize),
+    /// The graphics state was nested more than 28 levels deep.
+    OverlyNestedGraphicsState,
+    /// A DeviceN color space had more than 8 colorants.
+    TooManyColorants(usize),
+    /// The DeviceN array does not comply with clause 8.6.6.5 of ISO
+    /// 32000-1:2008.
+    MalformedDeviceNArray,
+    /// The file trailer is missing a file ID.
+    ///
+    /// Call [`crate::Pdf::set_file_id`] before finishing the file.
+    MissingFileID,
+    /// The CMap maps to a codepoint 0, U+FFFE, or U+FEFF.
+    ///
+    /// Only applicable to PDF/A-2u, PDF/A-2a, and similar profiles in other
+    /// parts.
+    InvalidCMapCodepoint,
+    /// The page width is out of range.
+    PageWidthOutOfRange(f32),
+    /// The page height is out of range.
+    PageHeightOutOfRange(f32),
+}
+
+impl std::fmt::Display for PdfaError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OverlongString(len) => {
+                write!(f, "string contained {} bytes but must not exceed 32767", len)
+            }
+            Self::OverlongName(len) => {
+                write!(f, "name contained {} bytes but must not exceed 127", len)
+            }
+            Self::NameNotUtf8(e) => write!(f, "name was not UTF-8 decodable ({})", e),
+            Self::TooManyIndirectObjects(count) => write!(
+                f,
+                "file has {} indirect objects but must not exceed 8388607",
+                count
+            ),
+            Self::OverlyNestedGraphicsState => {
+                f.write_str("graphics state (q) was nested more than 28 levels deep")
+            }
+            Self::TooManyColorants(count) => write!(
+                f,
+                "DeviceN color space had {} colorants but must not exceed 8",
+                count
+            ),
+            Self::MalformedDeviceNArray => f.write_str("DeviceN array is malformed"),
+            Self::MissingFileID => f.write_str("file trailer is missing a file ID"),
+            Self::InvalidCMapCodepoint => {
+                f.write_str("CMap maps to a forbidden codepoint")
+            }
+            Self::PageWidthOutOfRange(w) if *w < 3.0 => {
+                write!(f, "page width {} is too small (must be at least 3)", w)
+            }
+            Self::PageWidthOutOfRange(w) => {
+                write!(f, "page width {} is too large (must be at most 14400)", w)
+            }
+            Self::PageHeightOutOfRange(h) if *h < 3.0 => {
+                write!(f, "page height {} is too small (must be at least 3)", h)
+            }
+            Self::PageHeightOutOfRange(h) => {
+                write!(f, "page height {} is too large (must be at most 14400)", h)
+            }
+        }
+    }
+}

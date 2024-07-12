@@ -3,6 +3,7 @@ use super::*;
 /// A builder for a content stream.
 pub struct Content {
     buf: Vec<u8>,
+    q_nesting: usize,
 }
 
 /// Core methods.
@@ -16,7 +17,7 @@ impl Content {
 
     /// Create a new content stream with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity) }
+        Self { buf: Vec::with_capacity(capacity), q_nesting: 0 }
     }
 
     /// Start writing an arbitrary operation.
@@ -243,13 +244,30 @@ impl Content {
     #[inline]
     pub fn save_state(&mut self) -> &mut Self {
         self.op("q");
+
+        // Saturating is okay here since we would have returned an error way
+        // before if the nesting was checked.
+        self.q_nesting = self.q_nesting.saturating_add(1);
         self
+    }
+
+    /// `q`: Save the graphics state on the stack while checking that the
+    /// nesting limit in PDF/A-2 clause 6.1.13 is respected.
+    #[inline]
+    pub fn save_state_checked(&mut self) -> PdfaResult<&mut Self> {
+        if self.q_nesting >= 28 {
+            return Err(PdfaError::OverlyNestedGraphicsState);
+        }
+
+        Ok(self.save_state())
     }
 
     /// `Q`: Restore the graphics state from the stack.
     #[inline]
     pub fn restore_state(&mut self) -> &mut Self {
         self.op("Q");
+
+        self.q_nesting = self.q_nesting.saturating_sub(1);
         self
     }
 

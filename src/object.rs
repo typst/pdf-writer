@@ -3,6 +3,8 @@ use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
 
+use structure::{PdfaError, PdfaResult};
+
 use super::*;
 
 /// A primitive PDF object.
@@ -52,7 +54,18 @@ impl Primitive for f32 {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Str<'a>(pub &'a [u8]);
 
-impl Str<'_> {
+impl<'a> Str<'a> {
+    /// Construct a new string and check that it is no longer than 32767 bytes.
+    ///
+    /// This helps to ensure compliance with Section 6.1.8 in the PDF/A-2 spec.
+    pub fn pdfa(bytes: &'a [u8]) -> PdfaResult<Self> {
+        if bytes.len() > 32767 {
+            return Err(PdfaError::OverlongString(bytes.len()));
+        }
+
+        Ok(Self(bytes))
+    }
+
     /// Whether the parentheses in the byte string are balanced.
     fn is_balanced(self) -> bool {
         let mut depth = 0;
@@ -148,6 +161,22 @@ impl Primitive for TextStr<'_> {
 /// Written as `/Thing`.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Name<'a>(pub &'a [u8]);
+
+impl<'a> Name<'a> {
+    /// Create a new name from a byte string and check that it is valid UTF-8
+    /// and no longer than 127 bytes.
+    ///
+    /// This helps to ensure compliance with Section 6.1.8 in the PDF/A
+    /// specifications PDF/A-2, PDF/A-3, and PDF/A-4.
+    pub fn pdfa(bytes: &'a [u8]) -> PdfaResult<Self> {
+        if bytes.len() > 127 {
+            return Err(PdfaError::OverlongName(bytes.len()));
+        }
+
+        std::str::from_utf8(bytes).map_err(PdfaError::NameNotUtf8)?;
+        Ok(Self(bytes))
+    }
+}
 
 impl Primitive for Name<'_> {
     fn write(self, buf: &mut Vec<u8>) {
@@ -269,6 +298,24 @@ impl Rect {
     #[inline]
     pub fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Self {
         Self { x1, y1, x2, y2 }
+    }
+
+    /// Create a new rectangle that complies with the implementation limits for
+    /// page sizes.
+    #[inline]
+    pub fn page(x1: f32, y1: f32, x2: f32, y2: f32) -> PdfaResult<Self> {
+        let width = (x2 - x1).abs();
+        let height = (y2 - y1).abs();
+
+        if !(3.0..=14400.0).contains(&width) {
+            return Err(PdfaError::PageWidthOutOfRange(width));
+        }
+
+        if !(3.0..=14400.0).contains(&height) {
+            return Err(PdfaError::PageHeightOutOfRange(height));
+        }
+
+        Ok(Self { x1, y1, x2, y2 })
     }
 
     /// Convert this rectangle into 8 floats describing the four corners of the

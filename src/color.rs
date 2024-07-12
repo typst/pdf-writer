@@ -632,6 +632,21 @@ impl<'a> DeviceN<'a> {
 
         DeviceNAttrs::start(self.array.push())
     }
+
+    /// Finish writing the `DeviceN` color space array while checking some
+    /// provisions of PDF/A-2 clause 6.2.4.4 and 6.1.13.
+    pub fn finish_pdfa(self) -> PdfaResult<()> {
+        if self.array.len() > 8 {
+            return Err(PdfaError::TooManyColorants(self.array.len() as usize));
+        }
+
+        if !self.has_alternate || !self.has_tint {
+            return Err(PdfaError::MalformedDeviceNArray);
+        }
+
+        self.finish();
+        Ok(())
+    }
 }
 
 /// Writer for a _DeviceN attributes dictionary_. PDF 1.6+.

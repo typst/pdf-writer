@@ -939,17 +939,46 @@ where
         self.pair_with_multiple(glyph, [codepoint]);
     }
 
+    /// Add a mapping from a glyph ID to a codepoint, checking for codepoints
+    /// that are invalid in some PDF/A profiles.
+    pub fn pair_pdfa(&mut self, glyph: G, codepoint: char) -> PdfaResult<()> {
+        self.pair_with_multiple_pdfa(glyph, [codepoint])
+    }
+
     /// Add a mapping from a glyph ID to multiple codepoints.
     pub fn pair_with_multiple(
         &mut self,
         glyph: G,
         codepoints: impl IntoIterator<Item = char>,
     ) {
+        self.pair_with_multiple_impl(glyph, codepoints, false).unwrap();
+    }
+
+    /// Add a mapping from a glyph ID to multiple codepoints, checking for
+    /// codepoints that are invalid in some PDF/A profiles.
+    pub fn pair_with_multiple_pdfa(
+        &mut self,
+        glyph: G,
+        codepoints: impl IntoIterator<Item = char>,
+    ) -> PdfaResult<()> {
+        self.pair_with_multiple_impl(glyph, codepoints, true)
+    }
+
+    fn pair_with_multiple_impl(
+        &mut self,
+        glyph: G,
+        codepoints: impl IntoIterator<Item = char>,
+        check_pdfa: bool,
+    ) -> PdfaResult<()> {
         self.mappings.push(b'<');
         glyph.push(&mut self.mappings);
         self.mappings.extend(b"> <");
 
         for c in codepoints {
+            if check_pdfa && (c == '\u{0}' || c == '\u{feff}' || c == '\u{fffe}') {
+                return Err(PdfaError::InvalidCMapCodepoint);
+            }
+
             for &mut part in c.encode_utf16(&mut [0; 2]) {
                 self.mappings.push_hex_u16(part);
             }
@@ -962,6 +991,8 @@ where
         if self.count >= 100 {
             self.flush_range();
         }
+
+        Ok(())
     }
 
     /// Finish building the character map.
