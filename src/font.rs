@@ -27,6 +27,9 @@ impl<'a> Type1Font<'a> {
 
     /// Write the `/BaseFont` attribute. This is the PostScript name of the
     /// font. Required.
+    ///
+    /// In PDF/A files, the standard 14 fonts are unavailable, so you must
+    /// embed the font data.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"BaseFont"), name);
         self
@@ -180,6 +183,10 @@ impl<'a> Type3Font<'a> {
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
     ///
     /// A suitable character map can be built with [`UnicodeCmap`].
+    ///
+    /// This attribute is required in some profiles of PDF/A-2, PDF/A-3, and
+    /// PDF/A-4 for some fonts. When present, these standards require that no
+    /// character may be mapped to `0`, `U+FEFF`, or `U+FFFE`.
     pub fn to_unicode(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"ToUnicode"), id);
         self
@@ -350,6 +357,10 @@ impl<'a> CidFont<'a> {
     }
 
     /// Write the `/CIDToGIDMap` attribute as a predefined name.
+    ///
+    /// The attribute must be present for PDF/A. The only permissible predefined
+    /// name is `Identity`, otherwise [`Self::cid_to_gid_map_stream`] must be
+    /// used.
     pub fn cid_to_gid_map_predefined(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"CIDToGIDMap"), name);
         self
@@ -357,6 +368,8 @@ impl<'a> CidFont<'a> {
 
     /// Write the `/CIDToGIDMap` attribute as a reference to a stream, whose
     /// bytes directly map from CIDs to glyph indices.
+    ///
+    /// The attribute must be present for PDF/A.
     pub fn cid_to_gid_map_stream(&mut self, stream: Ref) -> &mut Self {
         self.pair(Name(b"CIDToGIDMap"), stream);
         self
@@ -559,6 +572,9 @@ impl<'a> FontDescriptor<'a> {
 
     /// Write the `/CharSet` attribute, encoding the character names of a font
     /// subset as a string. This is only relevant for Type 1 fonts. PDF 1.1+.
+    ///
+    /// If present in PDF/A, this must include all characters in the subset,
+    /// even if they are not used in the document.
     pub fn char_set(&mut self, names: Str) -> &mut Self {
         self.pair(Name(b"CharSet"), names);
         self
@@ -589,6 +605,9 @@ impl FontDescriptor<'_> {
     }
 
     /// Write the `/CIDSet` attribute.
+    ///     
+    /// If present in PDF/A, this must include all characters in the subset,
+    /// even if they are not used in the document.
     pub fn cid_set(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"CIDSet"), id);
         self
@@ -778,6 +797,9 @@ impl<'a> Cmap<'a> {
     ///
     /// This describes whether the CMap applies to a font with horizontal or
     /// vertical writing mode. The default is whatever is specified in the CMap.
+    ///
+    /// This is required in PDF/A and must match the writing mode of the
+    /// embedded CMap.
     pub fn writing_mode(&mut self, mode: WMode) -> &mut Self {
         self.pair(Name(b"WMode"), mode.to_int());
         self
@@ -786,6 +808,10 @@ impl<'a> Cmap<'a> {
     /// Write the `/UseCMap` attribute using a stream reference. Optional.
     ///
     /// This allows specifying a base CMap to extend.
+    ///
+    /// Note that this attribute is restricted in PDF/A and may only be used
+    /// with the well-known CMap names from the PDF standard. Use
+    /// [`Self::use_cmap_predefined`] to specify a predefined name.
     pub fn use_cmap_stream(&mut self, cmap: Ref) -> &mut Self {
         self.pair(Name(b"UseCMap"), cmap);
         self
@@ -794,6 +820,8 @@ impl<'a> Cmap<'a> {
     /// Write the `/UseCMap` attribute using a predefined name. Optional.
     ///
     /// This allows specifying a base CMap to extend.
+    ///
+    /// Note that this attribute is restricted in PDF/A.
     pub fn use_cmap_predefined(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"UseCMap"), name);
         self

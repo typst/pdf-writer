@@ -93,6 +93,8 @@ impl<'a> ImageXObject<'a> {
     }
 
     /// Write the `/Interpolate` attribute.
+    ///
+    /// Must be false or unset for PDF/A files.
     pub fn interpolate(&mut self, interpolate: bool) -> &mut Self {
         self.pair(Name(b"Interpolate"), interpolate);
         self
@@ -101,6 +103,8 @@ impl<'a> ImageXObject<'a> {
     /// Write the `/Alternates` attribute. PDF 1.3+.
     ///
     /// Images that may replace this image. The order is not relevant.
+    ///
+    /// Note that this key is forbidden in PDF/A.
     pub fn alternates(&mut self, alternates: impl IntoIterator<Item = Ref>) -> &mut Self {
         self.insert(Name(b"Alternates")).array().items(alternates);
         self
@@ -109,10 +113,14 @@ impl<'a> ImageXObject<'a> {
     /// Start writing the `/SMask` attribute. PDF 1.4+.
     ///
     /// Must not be used if this image already is an image soft mask.
+    ///
+    /// Note that this key is forbidden in PDF/A-1.
     pub fn s_mask(&mut self, x_object: Ref) -> &mut Self {
         self.pair(Name(b"SMask"), x_object);
         self
     }
+    ///
+    /// Note that this key is forbidden in PDF/A-1.
 
     /// Write the `/SMaskInData` attribute. PDF 1.5+.
     ///
@@ -235,6 +243,8 @@ impl<'a> FormXObject<'a> {
 
     /// Start writing the `/Ref` dictionary to identify the page from an
     /// external document that the XObject is a reference to. PDF 1.4+.
+    ///
+    /// Note that this key is forbidden in PDF/A.
     pub fn reference(&mut self) -> Reference<'_> {
         self.insert(Name(b"Ref")).start()
     }
@@ -282,6 +292,8 @@ impl<'a> Group<'a> {
     ///
     /// This is optional for isolated groups and required for groups where the
     /// color space cannot be derived from the parent.
+    ///
+    /// Required in PDF/A-2 through PDF/A-4 if there is no OutputIntent.
     pub fn color_space(&mut self) -> ColorSpace<'_> {
         self.insert(Name(b"CS")).start()
     }
@@ -312,6 +324,8 @@ deref!('a, Group<'a> => Dict<'a>, dict);
 /// Writer for an _external XObject reference dictionary_. PDF 1.4+.
 ///
 /// This struct is created by [`FormXObject::reference`].
+///
+/// Reference XObjects are forbidden in PDF/A.
 pub struct Reference<'a> {
     dict: Dict<'a>,
 }

@@ -154,6 +154,8 @@ impl<'a> Field<'a> {
 
     /// Start writing the `/AA` dictionary to set the field's response to
     /// various trigger events.
+    ///
+    /// Note that this attribute is forbidden in PDF/A.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
         self.insert(Name(b"AA")).start()
     }

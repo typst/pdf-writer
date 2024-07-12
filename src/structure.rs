@@ -67,18 +67,24 @@ impl<'a> Catalog<'a> {
 
     /// Start writing the `/StructTreeRoot` attribute to specify the root of the
     /// document's structure tree. PDF 1.3+.
+    ///
+    /// Must be present in some PDF/A profiles like PDF/A-2a.
     pub fn struct_tree_root(&mut self) -> StructTreeRoot<'_> {
         self.insert(Name(b"StructTreeRoot")).start()
     }
 
     /// Start writing the `/MarkInfo` dictionary to specify this document's
     /// conformance with the tagged PDF specification. PDF 1.4+.
+    ///
+    /// Must be present in some PDF/A profiles like PDF/A-2a.
     pub fn mark_info(&mut self) -> MarkInfo<'_> {
         self.insert(Name(b"MarkInfo")).start()
     }
 
     /// Write the `/Lang` attribute to specify the language of the document as a
     /// RFC 3066 language tag. PDF 1.4+.
+    ///
+    /// Required in some PDF/A profiles like PDF/A-2a.
     pub fn lang(&mut self, lang: TextStr) -> &mut Self {
         self.pair(Name(b"Lang"), lang);
         self
@@ -93,6 +99,8 @@ impl<'a> Catalog<'a> {
 
     /// Start writing the `/AA` dictionary. This sets the additional actions for
     /// the whole document. PDF 1.4+.
+    ///
+    /// Note that this attribute is forbidden in PDF/A.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
         self.insert(Name(b"AA")).start()
     }
@@ -134,6 +142,8 @@ impl<'a> Catalog<'a> {
     /// Each entry in the array is an [output intent
     /// dictionary.](writers::OutputIntent)
     pub fn output_intents(&mut self) -> TypedArray<'_, Dict> {
+    ///
+    /// Must be present in PDF/X documents, encouraged in PDF/A documents.
         self.insert(Name(b"OutputIntents")).array().typed()
     }
 }
@@ -377,6 +387,9 @@ impl<'a> StructElement<'a> {
     /// Write the `/S` attribute to specify the role of this structure element
     /// as a custom name. Required if no standard type is specified with
     /// [`Self::kind`].
+    ///
+    /// In some PDF/A profiles like PDF/A-2a, custom kinds must be mapped to
+    /// their closest standard type in the role map.
     pub fn custom_kind(&mut self, name: Name) -> &mut Self {
         self.dict.pair(Name(b"S"), name);
         self
@@ -802,6 +815,8 @@ writer!(MarkInfo: |obj| Self { dict: obj.dict() });
 impl<'a> MarkInfo<'a> {
     /// Write the `/Marked` attribute to indicate whether the document conforms
     /// to the Tagged PDF specification.
+    ///
+    /// Must be `true` in some PDF/A profiles like PDF/A-2a.
     pub fn marked(&mut self, conformant: bool) -> &mut Self {
         self.pair(Name(b"Marked"), conformant);
         self
@@ -1148,6 +1163,9 @@ impl<'a> Page<'a> {
 
     /// Start writing the `/Group` dictionary to set the transparency settings
     /// for the page. PDF 1.4+.
+    ///
+    /// Required for pages with transparency in PDF/A if no output intent is
+    /// present.
     pub fn group(&mut self) -> Group<'_> {
         self.insert(Name(b"Group")).start()
     }
@@ -1202,6 +1220,8 @@ impl<'a> Page<'a> {
 
     /// Start writing the `/AA` dictionary. This sets the actions to perform
     /// when a page is opened or closed. PDF 1.2+.
+    ///
+    /// Note that this attribute is forbidden in PDF/A.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
         self.insert(Name(b"AA")).start()
     }
@@ -1210,6 +1230,8 @@ impl<'a> Page<'a> {
     /// 1.4+.
     ///
     /// The reference shall point to a [metadata stream](Metadata).
+    ///
+    /// Required in PDF/A.
     pub fn metadata(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Metadata"), id);
         self
@@ -1410,12 +1432,17 @@ impl Names<'_> {
 
     /// Start writing the `/EmbeddedFiles` attribute to name [embedded
     /// files](EmbeddedFile). PDF 1.4+.
+    ///
+    /// Note that this key is forbidden in PDF/A-1, and restricted in PDF/A-2
+    /// and PDF/A-4.
     pub fn embedded_files(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"EmbeddedFiles")).start()
     }
 
     /// Start writing the `/AlternatePresentations` attribute to name alternate
     /// presentations. PDF 1.4+.
+    ///
+    /// Note that this key is forbidden in PDF/A.
     pub fn alternate_presentations(&mut self) -> NameTree<'_, Ref> {
         self.dict.insert(Name(b"AlternatePresentations")).start()
     }

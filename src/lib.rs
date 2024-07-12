@@ -252,7 +252,7 @@ impl Pdf {
     /// The file identifier is a pair of two byte strings that shall be used to
     /// uniquely identify a particular file. The first string should always stay
     /// the same for a document, the second should change for each revision. It
-    /// is optional, but recommended. PDF 1.1+.
+    /// is optional, but recommended. In PDF/A, this is required. PDF 1.1+.
     pub fn set_file_id(&mut self, id: (Vec<u8>, Vec<u8>)) {
         self.file_id = Some(id);
     }

@@ -54,7 +54,10 @@ impl<'a> FileSpec<'a> {
     ///
     /// This only sets an embedded file for the `F` attribute corresponding to
     /// the [`path`](Self::path) method. You will need to write this dictionary
-    /// manually if you need to set `UF`.
+    /// manually if you need to set `UF` which is required in PDF/A-3.
+    ///
+    /// Note that this key is forbidden in PDF/A-1 and restricted in PDF/A-2 and
+    /// PDF/A-4.
     pub fn embedded_file(&mut self, id: Ref) -> &mut Self {
         self.insert(Name(b"EF")).dict().pair(Name(b"F"), id);
         self

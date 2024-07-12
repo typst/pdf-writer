@@ -186,22 +186,32 @@ pub enum ActionType {
     /// Go to a destination in another document.
     RemoteGoTo,
     /// Launch an application.
+    ///
+    /// This action type is forbidden in PDF/A.
     Launch,
     /// Open a URI.
     Uri,
     /// Set an annotation's hidden flag. PDF 1.2+.
     SubmitForm,
     /// Set form fields to their default values. PDF 1.2+.
+    ///
+    /// This action type is forbidden in PDF/A.
     ResetForm,
     /// Import form field values from a file. PDF 1.2+.
+    ///
+    /// This action type is forbidden in PDF/A.
     ImportData,
     /// Execute a JavaScript action. PDF 1.2+.
     ///
     /// See Adobe's
     /// [JavaScript for Acrobat API Reference](https://opensource.adobe.com/dc-acrobat-sdk-docs/acrobatsdk/pdfs/acrobatsdk_jsapiref.pdf)
     /// and ISO 21757.
+    ///
+    /// This action type is forbidden in PDF/A.
     JavaScript,
     /// A rendition action to control the playing of multimedia content. PDF 1.5+.
+    ///
+    /// This action type is forbidden in PDF/A.
     Rendition,
 }
 
