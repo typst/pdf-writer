@@ -127,8 +127,8 @@ pub mod writers {
     };
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
-        CidFont, Cmap, Differences, Encoding, FontDescriptor, Type0Font, Type1Font,
-        Type3Font, Widths,
+        CidFont, Cmap, Differences, Encoding, FontDescriptor, FontDescriptorOverride,
+        Type0Font, Type1Font, Type3Font, Widths,
     };
     pub use forms::{Field, Form};
     pub use functions::{
@@ -167,7 +167,9 @@ pub mod types {
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
         TextRenderingMode,
     };
-    pub use font::{CidFontType, FontFlags, FontStretch, SystemInfo, UnicodeCmap};
+    pub use font::{
+        CidFontType, CjkClass, FontFlags, FontStretch, SystemInfo, UnicodeCmap,
+    };
     pub use forms::{
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, SigFlags,
     };
