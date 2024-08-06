@@ -133,7 +133,7 @@ impl<'a> Catalog<'a> {
     ///
     /// Each entry in the array is an [output intent
     /// dictionary.](writers::OutputIntent)
-    pub fn output_intents(&mut self) -> TypedArray<'_, Dict> {
+    pub fn output_intents(&mut self) -> TypedArray<'_, OutputIntent> {
         self.insert(Name(b"OutputIntents")).array().typed()
     }
 }
