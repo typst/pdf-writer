@@ -230,6 +230,11 @@ impl Pdf {
         }
     }
 
+    /// Set the binary marker of the PDF.
+    pub fn set_binary_marker(&mut self, marker: &[u8; 4]) {
+        self.chunk.buf[10..14].copy_from_slice(marker);
+    }
+
     /// Set the PDF version.
     ///
     /// The version is not semantically important to the crate, but must be
