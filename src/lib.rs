@@ -182,13 +182,13 @@ pub mod types {
     pub use xobject::SMaskInData;
 }
 
-/// Dummy
+/// A number of utility traits that can be used by a consumer.
 pub mod traits {
     use crate::writers::{FormXObject, Page, Pages, Resources, TilingPattern, Type3Font};
 
-    /// Dummy
+    /// A trait for getting the resource dictionary of an object.
     pub trait ResourcesExt {
-        /// Dummy
+        /// Return the resources dictionary of the object.
         fn resources(&mut self) -> Resources<'_>;
     }
 
