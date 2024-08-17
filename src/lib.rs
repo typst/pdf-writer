@@ -182,6 +182,47 @@ pub mod types {
     pub use xobject::SMaskInData;
 }
 
+/// Dummy
+pub mod traits {
+    use crate::writers::{FormXObject, Page, Pages, Resources, TilingPattern, Type3Font};
+
+    /// Dummy
+    pub trait ResourcesExt {
+        /// Dummy
+        fn resources(&mut self) -> Resources<'_>;
+    }
+
+    impl ResourcesExt for FormXObject<'_> {
+        fn resources(&mut self) -> Resources<'_> {
+            self.resources()
+        }
+    }
+
+    impl ResourcesExt for TilingPattern<'_> {
+        fn resources(&mut self) -> Resources<'_> {
+            self.resources()
+        }
+    }
+
+    impl ResourcesExt for Type3Font<'_> {
+        fn resources(&mut self) -> Resources<'_> {
+            self.resources()
+        }
+    }
+
+    impl ResourcesExt for Pages<'_> {
+        fn resources(&mut self) -> Resources<'_> {
+            self.resources()
+        }
+    }
+
+    impl ResourcesExt for Page<'_> {
+        fn resources(&mut self) -> Resources<'_> {
+            self.resources()
+        }
+    }
+}
+
 pub use self::chunk::Chunk;
 pub use self::content::Content;
 pub use self::object::{
