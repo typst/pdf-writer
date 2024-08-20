@@ -1,6 +1,5 @@
-use crate::color::SeparationInfo;
-
 use super::*;
+use crate::color::SeparationInfo;
 
 /// Writer for a _document catalog dictionary_.
 ///
@@ -135,6 +134,15 @@ impl<'a> Catalog<'a> {
     /// dictionary.](writers::OutputIntent)
     pub fn output_intents(&mut self) -> TypedArray<'_, Dict> {
         self.insert(Name(b"OutputIntents")).array().typed()
+    }
+
+    /// Start writing the `/AF` array to specify the
+    /// associated files of the document. PDF 2.0+.
+    ///
+    /// Each entry in the array is a reference to a [file specification
+    /// dictionary.](writers::FileSpec)
+    pub fn associated_files(&mut self) -> TypedArray<'_, Ref> {
+        self.insert(Name(b"AF")).array().typed()
     }
 }
 
