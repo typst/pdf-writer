@@ -49,8 +49,8 @@ impl Chunk {
 
     /// An iterator over the references of the top-level objects
     /// of the chunk, in the order they appear in the chunk.
-    pub fn object_refs(&self) -> impl IntoIterator<Item = Ref> + '_ {
-        self.offsets.iter().map(|o| o.0)
+    pub fn refs(&self) -> impl IntoIterator<Item = Ref> + '_ {
+        self.offsets.iter().map(|&(id, _)| id)
     }
 
     /// Renumbers the IDs of indirect objects and all indirect references in the
