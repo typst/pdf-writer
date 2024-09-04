@@ -58,6 +58,8 @@ impl<'a> Annotation<'a> {
     }
 
     /// Write the `/F` attribute.
+    ///
+    /// Required for all annotations in PDF/A except for `Popup`.
     pub fn flags(&mut self, flags: AnnotationFlags) -> &mut Self {
         self.pair(Name(b"F"), flags.bits() as i32);
         self
@@ -66,6 +68,8 @@ impl<'a> Annotation<'a> {
     /// Start writing the `/AP` dictionary to set how the annotation shall
     /// be presented visually. If this dictionary contains sub dictionaries,
     /// [`Self::appearance_state`] must be set. PDF 1.2+.
+    ///
+    /// Required for many annotations in PDF/A.
     pub fn appearance(&mut self) -> Appearance<'_> {
         self.insert(Name(b"AP")).start()
     }
@@ -147,12 +151,16 @@ impl<'a> Annotation<'a> {
 
     /// Start writing the `/A` dictionary. Only permissible for the subtypes
     /// `Link` and `Widget`.
+    ///
+    /// Note that this attribute is forbidden in PDF/A.
     pub fn action(&mut self) -> Action<'_> {
         self.insert(Name(b"A")).start()
     }
 
     /// Start writing the `/AA` dictionary. Only permissible for the subtype
     /// `Widget`. PDF 1.3+.
+    ///
+    /// Note that this attribute is forbidden in PDF/A.
     pub fn additional_actions(&mut self) -> AdditionalActions<'_> {
         self.insert(Name(b"AA")).start()
     }
@@ -246,10 +254,15 @@ pub enum AnnotationType {
     /// Strike out the text on the page. PDF 1.3+.
     StrikeOut,
     /// A reference to another file. PDF 1.3+.
+    ///
+    /// Note that this annotation type is forbidden in PDF/A-1 and restricted in
+    /// other PDF/A parts.
     FileAttachment,
     /// A widget annotation. PDF 1.2+.
     Widget,
     /// A screen annotation. PDF 1.5+.
+    ///
+    /// Note that this annotation type is forbidden in PDF/A.
     Screen,
 }
 
@@ -326,20 +339,32 @@ bitflags::bitflags! {
         /// This will hide the annotation if the viewer does not recognize its
         /// subtype. Otherwise, it will be rendered as specified in its appearance
         /// stream.
+        ///
+        /// Must not be set for PDF/A.
         const INVISIBLE = 1 << 0;
         /// This hides the annotation from view and disallows interaction. PDF 1.2+.
+        ///
+        /// Must not be set for PDF/A.
         const HIDDEN = 1 << 1;
         /// Print the annotation. If not set, it will be always hidden on print.
         /// PDF 1.2+.
+        ///
+        /// Must be set for PDF/A.
         const PRINT = 1 << 2;
         /// Do not zoom the annotation appearance if the document is zoomed in.
         /// PDF 1.3+.
+        ///
+        /// Must be set for text annotations in PDF/A.
         const NO_ZOOM = 1 << 3;
         /// Do not rotate the annotation appearance if the document is zoomed in.
         /// PDF 1.3+.
+        ///
+        /// Must be set for text annotations in PDF/A.
         const NO_ROTATE = 1 << 4;
         /// Do not view the annotation on screen. It may still show on print.
         /// PDF 1.3+.
+        ///
+        /// Must not be set for PDF/A.
         const NO_VIEW = 1 << 5;
         /// Do not allow interactions. PDF 1.3+.
         const READ_ONLY = 1 << 6;
@@ -348,6 +373,8 @@ bitflags::bitflags! {
         const LOCKED = 1 << 7;
         /// Invert the interpretation of the `no_view` flag for certain events.
         /// PDF 1.5+.
+        ///
+        /// Must not be set for PDF/A.
         const TOGGLE_NO_VIEW = 1 << 8;
         /// Do not allow content changes. PDF 1.7+.
         const LOCKED_CONTENTS = 1 << 9;

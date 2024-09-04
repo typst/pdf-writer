@@ -876,7 +876,7 @@ impl Content {
     }
 }
 
-// TODO: Inline images.
+// TODO: Inline images. Also check clause 6.1.10 of PDF/A-2 spec.
 
 /// XObjects.
 impl Content {
@@ -992,6 +992,8 @@ impl<'a> PropertyList<'a> {
 deref!('a, PropertyList<'a> => Dict<'a>, dict);
 
 /// Writer for an _actifact property list dictionary_. PDF 1.4+.
+///
+/// Required for marking up pagination artifacts in some PDF/A profiles.
 pub struct Artifact<'a> {
     dict: Dict<'a>,
 }
@@ -1342,6 +1344,8 @@ impl<'a> ExtGraphicsState<'a> {
 
     /// Write the `OPM` attribute to set the overprint mode for components that
     /// have been zeroed out. PDF 1.3+.
+    ///
+    /// Note that this attribute is restricted by PDF/A.
     pub fn overprint_mode(&mut self, mode: OverprintMode) -> &mut Self {
         self.pair(Name(b"OPM"), mode.to_int());
         self
@@ -1385,6 +1389,8 @@ impl<'a> ExtGraphicsState<'a> {
     }
 
     /// Write the `TR` attribute to set the transfer function.
+    ///
+    /// Note that this key is illegal in PDF/A.
     pub fn transfer(&mut self, func: Ref) -> &mut Self {
         self.pair(Name(b"TR"), func);
         self
@@ -1398,6 +1404,8 @@ impl<'a> ExtGraphicsState<'a> {
     }
 
     /// Write the `HT` attribute to set the halftone.
+    ///
+    /// Note that this value may be ignored in PDF/A.
     pub fn halftone(&mut self, ht: Ref) -> &mut Self {
         self.pair(Name(b"HT"), ht);
         self
@@ -1411,6 +1419,8 @@ impl<'a> ExtGraphicsState<'a> {
     }
 
     /// Write the `FL` attribute to set the flatness tolerance. PDF 1.3+.
+    ///
+    /// Note that this key may be ignored in PDF/A.
     pub fn flatness(&mut self, tolerance: f32) -> &mut Self {
         self.pair(Name(b"FL"), tolerance);
         self
@@ -1429,23 +1439,31 @@ impl<'a> ExtGraphicsState<'a> {
     }
 
     /// Write the `BM` attribute to set the blend mode. PDF 1.4+.
+    ///
+    /// Note that this key is restricted in PDF/A-1.
     pub fn blend_mode(&mut self, mode: BlendMode) -> &mut Self {
         self.pair(Name(b"BM"), mode.to_name());
         self
     }
 
     /// Start writing the `SMask` attribute. PDF 1.4+.
+    ///
+    /// Note that this key is forbidden in PDF/A-1.
     pub fn soft_mask(&mut self) -> SoftMask<'_> {
         self.insert(Name(b"SMask")).start()
     }
 
     /// Write the `SMask` attribute using a name. PDF 1.4+.
+    ///
+    /// Note that this key is forbidden in PDF/A-1.
     pub fn soft_mask_name(&mut self, mask: Name) -> &mut Self {
         self.pair(Name(b"SMask"), mask);
         self
     }
 
     /// Write the `CA` attribute to set the stroking alpha constant. PDF 1.4+.
+    ///
+    /// Note that this key is restricted in PDF/A-1.
     pub fn stroking_alpha(&mut self, alpha: f32) -> &mut Self {
         self.pair(Name(b"CA"), alpha);
         self
@@ -1453,6 +1471,8 @@ impl<'a> ExtGraphicsState<'a> {
 
     /// Write the `ca` attribute to set the non-stroking alpha constant. PDF
     /// 1.4+.
+    ///
+    /// Note that this key is restricted in PDF/A-1.
     pub fn non_stroking_alpha(&mut self, alpha: f32) -> &mut Self {
         self.pair(Name(b"ca"), alpha);
         self
@@ -1529,6 +1549,9 @@ pub enum OverprintMode {
     /// An overprint operation will only discard the underlying colorant
     /// component (e.g. cyan in CMYK) if the new corresponding colorant is
     /// non-zero.
+    ///
+    /// Note that this value is forbidden by PDF/A for ICCBased color spaces
+    /// when overprinting is enabled.
     IgnoreZeroChannel,
 }
 

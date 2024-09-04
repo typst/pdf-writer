@@ -27,6 +27,9 @@ impl<'a> Type1Font<'a> {
 
     /// Write the `/BaseFont` attribute. This is the PostScript name of the
     /// font. Required.
+    ///
+    /// In PDF/A files, the standard 14 fonts are unavailable, so you must
+    /// embed the font data.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"BaseFont"), name);
         self
@@ -180,6 +183,10 @@ impl<'a> Type3Font<'a> {
     /// Write the `/ToUnicode` attribute. PDF 1.2+.
     ///
     /// A suitable character map can be built with [`UnicodeCmap`].
+    ///
+    /// This attribute is required in some profiles of PDF/A-2, PDF/A-3, and
+    /// PDF/A-4 for some fonts. When present, these standards require that no
+    /// character may be mapped to `0`, `U+FEFF`, or `U+FFFE`.
     pub fn to_unicode(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"ToUnicode"), id);
         self
@@ -350,6 +357,10 @@ impl<'a> CidFont<'a> {
     }
 
     /// Write the `/CIDToGIDMap` attribute as a predefined name.
+    ///
+    /// The attribute must be present for PDF/A. The only permissible predefined
+    /// name is `Identity`, otherwise [`Self::cid_to_gid_map_stream`] must be
+    /// used.
     pub fn cid_to_gid_map_predefined(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"CIDToGIDMap"), name);
         self
@@ -357,6 +368,8 @@ impl<'a> CidFont<'a> {
 
     /// Write the `/CIDToGIDMap` attribute as a reference to a stream, whose
     /// bytes directly map from CIDs to glyph indices.
+    ///
+    /// The attribute must be present for PDF/A.
     pub fn cid_to_gid_map_stream(&mut self, stream: Ref) -> &mut Self {
         self.pair(Name(b"CIDToGIDMap"), stream);
         self
@@ -559,13 +572,142 @@ impl<'a> FontDescriptor<'a> {
 
     /// Write the `/CharSet` attribute, encoding the character names of a font
     /// subset as a string. This is only relevant for Type 1 fonts. PDF 1.1+.
+    ///
+    /// If present in PDF/A, this must include all characters in the subset,
+    /// even if they are not used in the document.
     pub fn char_set(&mut self, names: Str) -> &mut Self {
         self.pair(Name(b"CharSet"), names);
         self
     }
 }
 
+/// Additional `FontDescriptor` attributes for CIDFonts.
+impl FontDescriptor<'_> {
+    /// Write the `/Style` attribute. Optional.
+    ///
+    /// The class and subclass values should be extracted from the
+    /// `sFamilyClass` field of the OS/2 table. The `panose` array should be
+    /// extracted from the `panose` field of the OS/2 table.
+    pub fn style(&mut self, class: u8, subclass: u8, panose: [u8; 10]) -> &mut Self {
+        let mut bytes = [0; 12];
+        bytes[0] = class;
+        bytes[1] = subclass;
+        bytes[2..].copy_from_slice(&panose);
+        self.insert(Name(b"Style")).dict().pair(Name(b"Panose"), Str(&bytes));
+        self
+    }
+
+    /// Start writing the `/FD` attribute. Optional.
+    ///
+    /// Overrides the global font descriptor for specific glyphs.
+    pub fn descriptor_override(&mut self) -> FontDescriptorOverride<'_> {
+        self.insert(Name(b"FD")).start()
+    }
+
+    /// Write the `/CIDSet` attribute.
+    ///
+    /// If present in PDF/A, this must include all characters in the subset,
+    /// even if they are not used in the document.
+    pub fn cid_set(&mut self, id: Ref) -> &mut Self {
+        self.pair(Name(b"CIDSet"), id);
+        self
+    }
+}
+
 deref!('a, FontDescriptor<'a> => Dict<'a>, dict);
+
+/// Writer for a _font descriptor override dictionary_.
+///
+/// This struct is created by [`FontDescriptor::descriptor_override`].
+///
+/// The font descriptor dictionaries within can only contain metrics data.
+pub struct FontDescriptorOverride<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(FontDescriptorOverride: |obj| {
+    Self { dict: obj.dict() }
+});
+
+impl FontDescriptorOverride<'_> {
+    /// Start writing a `FontDescriptor` dictionary for a custom character
+    /// class.
+    pub fn custom_class(&mut self, class: Name) -> FontDescriptor<'_> {
+        self.insert(class).start()
+    }
+
+    /// Write a class override referencing a `FontDescriptor` dictionary
+    /// indirectly.
+    pub fn custom_class_ref(&mut self, class: Name, id: Ref) -> &mut Self {
+        self.pair(class, id);
+        self
+    }
+
+    /// Start writing a `FontDescriptor` dictionary for a predefined CJK class.
+    pub fn cjk_class(&mut self, class: CjkClass) -> FontDescriptor<'_> {
+        self.insert(class.to_name()).start()
+    }
+
+    /// Write a class override for a predefined CJK class referencing a
+    /// `FontDescriptor` dictionary indirectly.
+    pub fn cjk_class_ref(&mut self, class: CjkClass, id: Ref) -> &mut Self {
+        self.pair(class.to_name(), id);
+        self
+    }
+}
+
+deref!('a, FontDescriptorOverride<'a> => Dict<'a>, dict);
+
+/// Glyph classes for CJK fonts as defined in ISO 32000-1:2008.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum CjkClass {
+    Alphabetic,
+    AlphaNum,
+    Dingbats,
+    DingbatsRot,
+    Generic,
+    GenericRot,
+    Hangul,
+    Hanja,
+    Hanzi,
+    HRoman,
+    HRomanRot,
+    HKana,
+    HKanaRot,
+    HojoKanji,
+    Kana,
+    Kanji,
+    Proportional,
+    ProportionalRot,
+    Ruby,
+}
+
+impl CjkClass {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Alphabetic => Name(b"Alphabetic"),
+            Self::AlphaNum => Name(b"AlphaNum"),
+            Self::Dingbats => Name(b"Dingbats"),
+            Self::DingbatsRot => Name(b"DingbatsRot"),
+            Self::Generic => Name(b"Generic"),
+            Self::GenericRot => Name(b"GenericRot"),
+            Self::Hangul => Name(b"Hangul"),
+            Self::Hanja => Name(b"Hanja"),
+            Self::Hanzi => Name(b"Hanzi"),
+            Self::HRoman => Name(b"HRoman"),
+            Self::HRomanRot => Name(b"HRomanRot"),
+            Self::HKana => Name(b"HKana"),
+            Self::HKanaRot => Name(b"HKanaRot"),
+            Self::HojoKanji => Name(b"HojoKanji"),
+            Self::Kana => Name(b"Kana"),
+            Self::Kanji => Name(b"Kanji"),
+            Self::Proportional => Name(b"Proportional"),
+            Self::ProportionalRot => Name(b"ProportionalRot"),
+            Self::Ruby => Name(b"Ruby"),
+        }
+    }
+}
 
 /// The width of a font's glyphs.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -650,9 +792,60 @@ impl<'a> Cmap<'a> {
         info.write(self.insert(Name(b"CIDSystemInfo")));
         self
     }
+
+    /// Write the `/WMode` attribute. Optional.
+    ///
+    /// This describes whether the CMap applies to a font with horizontal or
+    /// vertical writing mode. The default is whatever is specified in the CMap.
+    ///
+    /// This is required in PDF/A and must match the writing mode of the
+    /// embedded CMap.
+    pub fn writing_mode(&mut self, mode: WMode) -> &mut Self {
+        self.pair(Name(b"WMode"), mode.to_int());
+        self
+    }
+
+    /// Write the `/UseCMap` attribute using a stream reference. Optional.
+    ///
+    /// This allows specifying a base CMap to extend.
+    ///
+    /// Note that this attribute is restricted in PDF/A and may only be used
+    /// with the well-known CMap names from the PDF standard. Use
+    /// [`Self::use_cmap_predefined`] to specify a predefined name.
+    pub fn use_cmap_stream(&mut self, cmap: Ref) -> &mut Self {
+        self.pair(Name(b"UseCMap"), cmap);
+        self
+    }
+
+    /// Write the `/UseCMap` attribute using a predefined name. Optional.
+    ///
+    /// This allows specifying a base CMap to extend.
+    ///
+    /// Note that this attribute is restricted in PDF/A.
+    pub fn use_cmap_predefined(&mut self, name: Name) -> &mut Self {
+        self.pair(Name(b"UseCMap"), name);
+        self
+    }
 }
 
 deref!('a, Cmap<'a> => Stream<'a>, stream);
+
+/// The writing mode of a character map.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[allow(missing_docs)]
+pub enum WMode {
+    Horizontal,
+    Vertical,
+}
+
+impl WMode {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Horizontal => 0,
+            Self::Vertical => 1,
+        }
+    }
+}
 
 /// A builder for a `/ToUnicode` character map stream.
 pub struct UnicodeCmap<G = u16> {
@@ -666,8 +859,15 @@ impl<G> UnicodeCmap<G>
 where
     G: GlyphId,
 {
-    /// Create a new, empty unicode character map.
+    /// Create a new, empty unicode character map for a horizontal writing mode
+    /// font.
     pub fn new(name: Name, info: SystemInfo) -> Self {
+        Self::with_writing_mode(name, info, WMode::Horizontal)
+    }
+
+    /// Create a new, empty unicode character map while specifying the writing
+    /// mode.
+    pub fn with_writing_mode(name: Name, info: SystemInfo, mode: WMode) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
         let mut buf = Vec::new();
@@ -713,6 +913,9 @@ where
         buf.extend(b" def\n");
         buf.extend(b"/CMapVersion 1 def\n");
         buf.extend(b"/CMapType 0 def\n");
+        buf.extend(b"/WMode ");
+        buf.push_int(mode.to_int());
+        buf.extend(b" def\n");
 
         // We just cover the whole unicode codespace.
         buf.extend(b"1 begincodespacerange\n");

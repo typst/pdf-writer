@@ -353,6 +353,11 @@ impl ColorSpace<'_> {
 }
 
 /// Device color spaces.
+///
+/// Please note that the use of the device color spaces is restricted by several
+/// PDF standards such as PDF/A, PDF/X, et cetera. Their appearance will be
+/// governed by any applicable [output intent](crate::writers::OutputIntent) and
+/// default color spaces.
 impl ColorSpace<'_> {
     /// Write a `DeviceRGB` color space.
     pub fn device_rgb(self) {
@@ -647,7 +652,8 @@ impl DeviceNAttrs<'_> {
     /// Start writing the `/Colorants` dictionary. Its keys are the colorant
     /// names and its values are separation color space arrays.
     ///
-    /// Required if the `/Subtype` attribute is `NChannel`.
+    /// Required if the `/Subtype` attribute is `NChannel`. Required for spot
+    /// colors in PDF/A-2, PDF/A-3, and PDF/A-4.
     pub fn colorants(&mut self) -> TypedDict<'_, Dict> {
         self.dict.insert(Name(b"Colorants")).dict().typed()
     }
@@ -1234,7 +1240,7 @@ impl SeparationInfo<'_> {
 /// Writer for an _output intent dictionary_. PDF 1.4+.
 ///
 /// This describes the output conditions under which the document may be
-/// rendered.
+/// rendered. Encouraged by PDF/A.
 pub struct OutputIntent<'a> {
     dict: Dict<'a>,
 }
@@ -1289,6 +1295,8 @@ impl OutputIntent<'_> {
     /// Required if `/OutputConditionIdentifier` does not contain a well-known
     /// identifier for the output condition.
     /// Must reference an [ICC profile](IccProfile) stream.
+    ///
+    /// Required for PDF/A. The profile must have the `prtr` or `mntr` tag.
     pub fn dest_output_profile(&mut self, profile: Ref) -> &mut Self {
         self.dict.pair(Name(b"DestOutputProfile"), profile);
         self
@@ -1300,6 +1308,8 @@ pub enum OutputIntentSubtype<'a> {
     /// `GTS_PDFX`
     PDFX,
     /// `GTS_PDFA1`
+    ///
+    /// This is the right value for PDF/A-1 through PDF/A-4.
     PDFA,
     /// `ISO_PDFE1`
     PDFE,

@@ -863,13 +863,25 @@ deref!('a, Stream<'a> => Dict<'a>, dict);
 pub enum Filter {
     AsciiHexDecode,
     Ascii85Decode,
+    /// Lempel-Ziv-Welch (LZW) compression.
+    ///
+    /// Note that this filter is forbidden in PDF/A.
     LzwDecode,
     FlateDecode,
     RunLengthDecode,
     CcittFaxDecode,
     Jbig2Decode,
+    /// Decodes JPEG/JFIF files with a SOF0, SOF1, or (PDF 1.3+) SOF2 marker.
+    ///
+    /// See ISO 32000-1:2008, Section 7.4.8 and Adobe Technical Note #5116.
     DctDecode,
+    /// Decodes JPEG2000 files with a JPX baseline marker.
+    ///
+    /// Note that additional restrictions are imposed by PDF/A and PDF/X.
     JpxDecode,
+    /// Encrypt the stream.
+    ///
+    /// Note that this filter is restricted in PDF/A.
     Crypt,
 }
 
