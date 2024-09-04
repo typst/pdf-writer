@@ -128,7 +128,7 @@ pub mod writers {
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
         CidFont, Cmap, Differences, Encoding, FontDescriptor, FontDescriptorOverride,
-        Type0Font, Type1Font, Type3Font, Widths,
+        Type0Font, Type1Font, Type3Font, WMode, Widths,
     };
     pub use forms::{Field, Form};
     pub use functions::{
