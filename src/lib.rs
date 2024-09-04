@@ -177,14 +177,12 @@ pub mod types {
     pub use object::Predictor;
     pub use renditions::{MediaClipType, RenditionType, TempFileType};
     pub use structure::{
-        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, PdfaError,
-        PdfaResult, StructRole, TabOrder, TrappingStatus,
+        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
+        TabOrder, TrappingStatus,
     };
     pub use transitions::{TransitionAngle, TransitionStyle};
     pub use xobject::SMaskInData;
 }
-
-use structure::{PdfaError, PdfaResult};
 
 pub use self::chunk::Chunk;
 pub use self::content::Content;
@@ -276,23 +274,6 @@ impl Pdf {
     pub fn document_info(&mut self, id: Ref) -> DocumentInfo<'_> {
         self.info_id = Some(id);
         self.indirect(id).start()
-    }
-
-    /// Write the cross-reference table and file trailer and return the
-    /// underlying buffer while checking the number of indirect objects and
-    /// whether a file ID was written for compliance with PDF/A.
-    ///
-    /// Panics if any indirect reference id was used twice.
-    pub fn finish_pdfa(self) -> PdfaResult<Vec<u8>> {
-        if self.chunk.offsets.len() > 8388607 {
-            return Err(PdfaError::TooManyIndirectObjects(self.chunk.offsets.len()));
-        }
-
-        if self.file_id.is_none() {
-            return Err(PdfaError::MissingFileID);
-        }
-
-        Ok(self.finish())
     }
 
     /// Write the cross-reference table and file trailer and return the

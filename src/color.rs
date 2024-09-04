@@ -354,7 +354,6 @@ impl ColorSpace<'_> {
 
 /// Device color spaces.
 ///
-///
 /// Please note that the use of the device color spaces is restricted by several
 /// PDF standards such as PDF/A, PDF/X, et cetera. Their appearance will be
 /// governed by any applicable [output intent](crate::writers::OutputIntent) and
@@ -631,21 +630,6 @@ impl<'a> DeviceN<'a> {
         }
 
         DeviceNAttrs::start(self.array.push())
-    }
-
-    /// Finish writing the `DeviceN` color space array while checking some
-    /// provisions of PDF/A-2 clause 6.2.4.4 and 6.1.13.
-    pub fn finish_pdfa(self) -> PdfaResult<()> {
-        if self.array.len() > 8 {
-            return Err(PdfaError::TooManyColorants(self.array.len() as usize));
-        }
-
-        if !self.has_alternate || !self.has_tint {
-            return Err(PdfaError::MalformedDeviceNArray);
-        }
-
-        self.finish();
-        Ok(())
     }
 }
 

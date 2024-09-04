@@ -1,6 +1,5 @@
-use crate::types::AnnotationType;
-
 use super::*;
+use crate::types::AnnotationType;
 
 /// Writer for an _interactive forms dictionary_. PDF 1.2+.
 ///
