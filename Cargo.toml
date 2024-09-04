@@ -18,7 +18,7 @@ ryu = "1"
 
 [dev-dependencies]
 iai = "0.1"
-miniz_oxide = "0.7"
+miniz_oxide = "0.8"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 jpeg-decoder = "0.3.1"
 jpeg-encoder = "0.6.0"
