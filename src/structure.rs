@@ -145,6 +145,12 @@ impl<'a> Catalog<'a> {
     pub fn output_intents(&mut self) -> TypedArray<'_, OutputIntent> {
         self.insert(Name(b"OutputIntents")).array().typed()
     }
+
+    /// Start writing the `/AF` array to specify the associated files of the
+    /// document. PDF 2.0+.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.insert(Name(b"AF")).array().typed()
+    }
 }
 
 deref!('a, Catalog<'a> => Dict<'a>, dict);

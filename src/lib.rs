@@ -232,6 +232,16 @@ impl Pdf {
         }
     }
 
+    /// Set the binary marker in the header of the PDF.
+    ///
+    /// This can be useful if you want to ensure that your PDF consists of only
+    /// ASCII characters, as this is not the case by default.
+    ///
+    /// _Default value_: \x80\x80\x80\x80
+    pub fn set_binary_marker(&mut self, marker: &[u8; 4]) {
+        self.chunk.buf[10..14].copy_from_slice(marker);
+    }
+
     /// Set the PDF version.
     ///
     /// The version is not semantically important to the crate, but must be
@@ -486,5 +496,18 @@ mod tests {
         w.indirect(Ref::new(3)).primitive(1);
         w.indirect(Ref::new(6)).primitive(2);
         w.finish();
+    }
+
+    #[test]
+    fn test_binary_marker() {
+        let mut w = Pdf::new();
+        w.set_binary_marker(&[b'A', b'B', b'C', b'D']);
+        test!(
+            w.finish(),
+            b"%PDF-1.7\n%ABCD\n",
+            b"xref\n0 1\n0000000000 65535 f\r",
+            b"trailer\n<<\n  /Size 1\n>>",
+            b"startxref\n16\n%%EOF",
+        );
     }
 }
