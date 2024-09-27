@@ -53,13 +53,28 @@ impl<'a> FileSpec<'a> {
     /// PDF 1.3+.
     ///
     /// This only sets an embedded file for the `F` attribute corresponding to
-    /// the [`path`](Self::path) method. You will need to write this dictionary
-    /// manually if you need to set `UF` which is required in PDF/A-3.
+    /// the [`path`](Self::path) method. If you want to set the same embedded
+    /// file for the `UF` attribute, also call [`Self::embedded_file_with_unicode`]
+    /// instead.
     ///
     /// Note that this key is forbidden in PDF/A-1 and restricted in PDF/A-2 and
     /// PDF/A-4.
     pub fn embedded_file(&mut self, id: Ref) -> &mut Self {
         self.insert(Name(b"EF")).dict().pair(Name(b"F"), id);
+        self
+    }
+
+    /// Write the `/EF` attribute to reference an [embedded file](EmbeddedFile)
+    /// for the legacy and Unicode-compatible file path. PDF 1.7+.
+    ///
+    /// Note that this key is forbidden in PDF/A-1 and restricted in PDF/A-2 an
+    /// PDF/A-4.
+    pub fn embedded_file_with_unicode(&mut self, id: Ref) -> &mut Self {
+        let mut path_array = self.insert(Name(b"EF")).dict();
+        path_array.pair(Name(b"F"), id);
+        path_array.pair(Name(b"UF"), id);
+        path_array.finish();
+
         self
     }
 

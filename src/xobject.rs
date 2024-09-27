@@ -155,6 +155,12 @@ impl<'a> ImageXObject<'a> {
         self.pair(Name(b"Metadata"), id);
         self
     }
+
+    /// Start writing the `/AF` array to specify the associated files of the
+    /// image. PDF 2.0+ or PDF/A-3.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.insert(Name(b"AF")).array().typed()
+    }
 }
 
 deref!('a, ImageXObject<'a> => Stream<'a>, stream);
@@ -262,6 +268,12 @@ impl<'a> FormXObject<'a> {
     pub fn last_modified(&mut self, last_modified: Date) -> &mut Self {
         self.pair(Name(b"LastModified"), last_modified);
         self
+    }
+
+    /// Start writing the `/AF` array to specify the associated files of the
+    /// Form XObject. PDF 2.0+ or PDF/A-3.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.insert(Name(b"AF")).array().typed()
     }
 }
 

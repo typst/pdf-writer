@@ -147,7 +147,7 @@ impl<'a> Catalog<'a> {
     }
 
     /// Start writing the `/AF` array to specify the associated files of the
-    /// document. PDF 2.0+.
+    /// document. PDF 2.0+ or PDF/A-3.
     pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
         self.insert(Name(b"AF")).array().typed()
     }
@@ -494,6 +494,12 @@ impl<'a> StructElement<'a> {
     pub fn actual_text(&mut self, actual_text: TextStr) -> &mut Self {
         self.dict.pair(Name(b"ActualText"), actual_text);
         self
+    }
+
+    /// Start writing the `/AF` array to specify the associated files of the
+    /// element. PDF 2.0+ or PDF/A-3.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.insert(Name(b"AF")).array().typed()
     }
 }
 
@@ -1246,6 +1252,12 @@ impl<'a> Page<'a> {
     pub fn metadata(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Metadata"), id);
         self
+    }
+
+    /// Start writing the `/AF` array to specify the associated files of the
+    /// page. PDF 2.0+ or PDF/A-3.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.insert(Name(b"AF")).array().typed()
     }
 }
 
