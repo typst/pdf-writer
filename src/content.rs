@@ -3,6 +3,7 @@ use super::*;
 /// A builder for a content stream.
 pub struct Content {
     buf: Vec<u8>,
+    q_depth: usize,
 }
 
 /// Core methods.
@@ -16,7 +17,7 @@ impl Content {
 
     /// Create a new content stream with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity) }
+        Self { buf: Vec::with_capacity(capacity), q_depth: 0 }
     }
 
     /// Start writing an arbitrary operation.
@@ -243,6 +244,7 @@ impl Content {
     #[inline]
     pub fn save_state(&mut self) -> &mut Self {
         self.op("q");
+        self.q_depth = self.q_depth.saturating_add(1);
         self
     }
 
@@ -250,7 +252,14 @@ impl Content {
     #[inline]
     pub fn restore_state(&mut self) -> &mut Self {
         self.op("Q");
+        self.q_depth = self.q_depth.saturating_sub(1);
         self
+    }
+
+    /// The current `q` nesting depth.
+    #[inline]
+    pub fn state_nesting_depth(&self) -> usize {
+        self.q_depth
     }
 
     /// `cm`: Pre-concatenate the `matrix` with the current transformation
