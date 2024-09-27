@@ -49,7 +49,7 @@ impl Chunk {
 
     /// An iterator over the references of the top-level objects
     /// of the chunk, in the order they appear in the chunk.
-    pub fn refs(&self) -> impl IntoIterator<Item = Ref> + '_ {
+    pub fn refs(&self) -> impl ExactSizeIterator<Item = Ref> + '_ {
         self.offsets.iter().map(|&(id, _)| id)
     }
 
