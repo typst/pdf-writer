@@ -62,6 +62,13 @@ impl<'a> FileSpec<'a> {
         self.insert(Name(b"EF")).dict().pair(Name(b"F"), id);
         self
     }
+
+    /// How this file relates to the PDF document it is embedded in.
+    /// PDF/A-3 and PDF/A-4f.
+    pub fn association_kind(&mut self, kind: AssociationKind) -> &mut Self {
+        self.pair(Name(b"AFRelationship"), kind.to_name());
+        self
+    }
 }
 
 deref!('a, FileSpec<'a> => Dict<'a>, dict);
@@ -137,3 +144,31 @@ impl<'a> EmbeddingParams<'a> {
 }
 
 deref!('a, EmbeddingParams<'a> => Dict<'a>, dict);
+
+/// How an embedded file relates to the PDF document it is embedded in.
+/// PDF/A-3 and PDF/A-4f.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum AssociationKind {
+    /// The PDF document was created from this source file.
+    Source,
+    /// This file was used to derive a visual presentation in the PDF.
+    Data,
+    /// An alternative representation of this document.
+    Alternative,
+    /// Additional resources for this document.
+    Supplement,
+    /// There is no clear relationship or it is not known.
+    Unspecified,
+}
+
+impl AssociationKind {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Source => Name(b"Source"),
+            Self::Data => Name(b"Data"),
+            Self::Alternative => Name(b"Alternative"),
+            Self::Supplement => Name(b"Supplement"),
+            Self::Unspecified => Name(b"Unspecified"),
+        }
+    }
+}
