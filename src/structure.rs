@@ -202,6 +202,10 @@ pub enum PageMode {
     UseThumbs,
     /// Show the document page in full screen mode, with no chrome.
     FullScreen,
+    /// Show the optional content group panel. PDF 1.5+.
+    UseOC,
+    /// Show the attachments panel. PDF 1.6+.
+    UseAttachments,
 }
 
 impl PageMode {
@@ -211,6 +215,8 @@ impl PageMode {
             Self::UseOutlines => Name(b"UseOutlines"),
             Self::UseThumbs => Name(b"UseThumbs"),
             Self::FullScreen => Name(b"FullScreen"),
+            Self::UseOC => Name(b"UseOC"),
+            Self::UseAttachments => Name(b"UseAttachments"),
         }
     }
 }
