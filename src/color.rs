@@ -1304,6 +1304,7 @@ impl OutputIntent<'_> {
 }
 
 /// The output intent subtype.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum OutputIntentSubtype<'a> {
     /// `GTS_PDFX`
     PDFX,
