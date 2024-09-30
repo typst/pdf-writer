@@ -134,8 +134,9 @@ pub mod writers {
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
-    pub use object::DecodeParms;
-    pub use object::{NameTree, NameTreeEntries, NumberTree, NumberTreeEntries};
+    pub use object::{
+        DecodeParms, NameTree, NameTreeEntries, NumberTree, NumberTreeEntries,
+    };
     pub use renditions::{MediaClip, MediaPermissions, MediaPlayParams, Rendition};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
@@ -167,6 +168,7 @@ pub mod types {
         LineCapStyle, LineJoinStyle, MaskType, OverprintMode, ProcSet, RenderingIntent,
         TextRenderingMode,
     };
+    pub use files::AssociationKind;
     pub use font::{
         CidFontType, CjkClass, FontFlags, FontStretch, SystemInfo, UnicodeCmap,
     };
