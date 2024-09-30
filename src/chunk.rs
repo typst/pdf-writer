@@ -10,7 +10,7 @@ use super::*;
 /// able to write two things at the same time (which isn't possible with a
 /// single chunk because of the streaming nature --- only one writer can borrow
 /// it at a time).
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct Chunk {
     pub(crate) buf: Vec<u8>,
     pub(crate) offsets: Vec<(Ref, usize)>,
