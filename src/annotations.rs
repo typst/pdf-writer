@@ -228,6 +228,12 @@ impl<'a> Annotation<'a> {
         self.pair(Name(b"Parent"), id);
         self
     }
+
+    /// Start writing the `/AF` array to specify the associated files of the
+    /// annotation. PDF 2.0+ or PDF/A-3.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.insert(Name(b"AF")).array().typed()
+    }
 }
 
 deref!('a, Annotation<'a> => Dict<'a>, dict);
