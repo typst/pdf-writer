@@ -70,11 +70,10 @@ impl<'a> FileSpec<'a> {
     /// Note that this key is forbidden in PDF/A-1 and restricted in PDF/A-2 an
     /// PDF/A-4.
     pub fn embedded_file_with_unicode(&mut self, id: Ref) -> &mut Self {
-        let mut path_array = self.insert(Name(b"EF")).dict();
-        path_array.pair(Name(b"F"), id);
-        path_array.pair(Name(b"UF"), id);
-        path_array.finish();
-
+        self.insert(Name(b"EF"))
+            .dict()
+            .pair(Name(b"F"), id)
+            .pair(Name(b"UF"), id);
         self
     }
 
