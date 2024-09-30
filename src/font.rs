@@ -105,8 +105,8 @@ writer!(Type3Font: |obj| {
 
 impl<'a> Type3Font<'a> {
     /// Write the `/Name` attribute, which is the name of the font in the
-    /// current resource dictionary. Required in PDF 1.0, discouraged in PDF
-    /// 1.1+.
+    /// current resource dictionary. Always required in PDF 1.0, required if
+    /// `FontName` is set in child font descriptor.
     pub fn name(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"Name"), name);
         self
@@ -443,7 +443,7 @@ writer!(FontDescriptor: |obj| {
 });
 
 impl<'a> FontDescriptor<'a> {
-    /// Write the `/FontName` attribute. Required.
+    /// Write the `/FontName` attribute. Required, except for Type 3 fonts.
     pub fn name(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"FontName"), name);
         self
