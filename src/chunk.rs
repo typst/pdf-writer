@@ -1,5 +1,5 @@
-use crate::buf::Buf;
 use super::*;
+use crate::buf::Buf;
 
 /// A builder for a collection of indirect PDF objects.
 ///
@@ -44,7 +44,7 @@ impl Chunk {
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
-        self.buf.extend(&other.buf.as_slice());
+        self.buf.extend(&other.buf);
         self.offsets
             .extend(other.offsets.iter().map(|&(id, offset)| (id, base + offset)));
     }
@@ -253,7 +253,7 @@ impl Chunk {
     /// file.
     ///
     /// You can create the content bytes using a [`Content`] builder.
-    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject<'a> {
+    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a Buf) -> FormXObject {
         FormXObject::start(self.stream(id, content))
     }
 
@@ -315,7 +315,7 @@ impl Chunk {
     pub fn stream_shading<'a>(
         &'a mut self,
         id: Ref,
-        content: &'a [u8],
+        content: &'a Buf,
     ) -> StreamShading<'a> {
         StreamShading::start(self.stream(id, content))
     }
@@ -326,7 +326,7 @@ impl Chunk {
     pub fn tiling_pattern<'a>(
         &'a mut self,
         id: Ref,
-        content: &'a [u8],
+        content: &'a Buf,
     ) -> TilingPattern<'a> {
         TilingPattern::start_with_stream(self.stream(id, content))
     }

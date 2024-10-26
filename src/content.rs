@@ -1,5 +1,5 @@
-use crate::buf::Buf;
 use super::*;
+use crate::buf::Buf;
 
 /// A builder for a content stream.
 pub struct Content {
@@ -88,7 +88,7 @@ impl Drop for Operation<'_> {
         if !self.first {
             self.buf.push(b' ');
         }
-        self.buf.extend(self.op.as_bytes());
+        self.buf.extend_slice(self.op.as_bytes());
         self.buf.push(b'\n');
     }
 }
@@ -1676,6 +1676,9 @@ mod tests {
             .show(Str(b"CD"));
         content.end_text();
 
-        assert_eq!(content.finish().finish(), b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
+        assert_eq!(
+            content.finish().finish(),
+            b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
+        );
     }
 }

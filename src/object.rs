@@ -1,9 +1,9 @@
+use super::*;
+use crate::buf::Buf;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
-use crate::buf::Buf;
-use super::*;
 
 /// A primitive PDF object.
 pub trait Primitive {
@@ -25,9 +25,9 @@ impl Primitive for bool {
     #[inline]
     fn write(self, buf: &mut Buf) {
         if self {
-            buf.extend(b"true");
+            buf.extend_slice(b"true");
         } else {
-            buf.extend(b"false");
+            buf.extend_slice(b"false");
         }
     }
 }
@@ -70,7 +70,8 @@ impl Str<'_> {
 
 impl Primitive for Str<'_> {
     fn write(self, buf: &mut Buf) {
-        // We use:
+        buf.limits.register_str_len(self.0.len());
+
         // - Literal strings for ASCII with nice escape sequences to make it
         //   also be represented fully in visible ASCII. We also escape
         //   parentheses because they are delimiters.
@@ -90,13 +91,13 @@ impl Primitive for Str<'_> {
                         }
                         buf.push(byte);
                     }
-                    b'\\' => buf.extend(br"\\"),
+                    b'\\' => buf.extend_slice(br"\\"),
                     b' '..=b'~' => buf.push(byte),
-                    b'\n' => buf.extend(br"\n"),
-                    b'\r' => buf.extend(br"\r"),
-                    b'\t' => buf.extend(br"\t"),
-                    b'\x08' => buf.extend(br"\b"),
-                    b'\x0c' => buf.extend(br"\f"),
+                    b'\n' => buf.extend_slice(br"\n"),
+                    b'\r' => buf.extend_slice(br"\r"),
+                    b'\t' => buf.extend_slice(br"\t"),
+                    b'\x08' => buf.extend_slice(br"\b"),
+                    b'\x0c' => buf.extend_slice(br"\f"),
                     _ => {
                         buf.push(b'\\');
                         buf.push_octal(byte);
@@ -127,6 +128,8 @@ pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
     fn write(self, buf: &mut Buf) {
+        buf.limits.register_str_len(self.0.as_bytes().len());
+
         // ASCII and PDFDocEncoding match for 32 up to 126.
         if self.0.bytes().all(|b| matches!(b, 32..=126)) {
             Str(self.0.as_bytes()).write(buf);
@@ -151,6 +154,8 @@ pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
     fn write(self, buf: &mut Buf) {
+        buf.limits.register_name_len(self.0.len());
+
         buf.reserve(1 + self.0.len());
         buf.push(b'/');
         for &byte in self.0 {
@@ -197,7 +202,7 @@ pub struct Null;
 impl Primitive for Null {
     #[inline]
     fn write(self, buf: &mut Buf) {
-        buf.extend(b"null");
+        buf.extend_slice(b"null");
     }
 }
 
@@ -247,7 +252,7 @@ impl Primitive for Ref {
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_int(self.0.get());
-        buf.extend(b" 0 R");
+        buf.extend_slice(b" 0 R");
     }
 }
 
@@ -394,7 +399,7 @@ impl Date {
 
 impl Primitive for Date {
     fn write(self, buf: &mut Buf) {
-        buf.extend(b"(D:");
+        buf.extend_slice(b"(D:");
 
         (|| {
             write!(buf, "{:04}", self.year).unwrap();
@@ -436,7 +441,7 @@ impl<'a> Obj<'a> {
     #[inline]
     pub(crate) fn indirect(buf: &'a mut Buf, id: Ref) -> Self {
         buf.push_int(id.get());
-        buf.extend(b" 0 obj\n");
+        buf.extend_slice(b" 0 obj\n");
         Self { buf, indirect: true, indent: 0 }
     }
 
@@ -445,7 +450,7 @@ impl<'a> Obj<'a> {
     pub fn primitive<T: Primitive>(self, value: T) {
         value.write(self.buf);
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend_slice(b"\nendobj\n\n");
         }
     }
 
@@ -570,9 +575,10 @@ impl<'a> Array<'a> {
 impl Drop for Array<'_> {
     #[inline]
     fn drop(&mut self) {
+        self.buf.limits.register_array_len(self.len() as usize);
         self.buf.push(b']');
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend_slice(b"\nendobj\n\n");
         }
     }
 }
@@ -653,7 +659,7 @@ pub struct Dict<'a> {
 }
 
 writer!(Dict: |obj| {
-    obj.buf.extend(b"<<");
+    obj.buf.extend_slice(b"<<");
     Self {
         buf: obj.buf,
         indirect: obj.indirect,
@@ -721,15 +727,17 @@ impl<'a> Dict<'a> {
 impl Drop for Dict<'_> {
     #[inline]
     fn drop(&mut self) {
+        self.buf.limits.register_dict_entries(self.len as usize);
+
         if self.len != 0 {
             self.buf.push(b'\n');
             for _ in 0..self.indent - 2 {
                 self.buf.push(b' ');
             }
         }
-        self.buf.extend(b">>");
+        self.buf.extend_slice(b">>");
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend_slice(b"\nendobj\n\n");
         }
     }
 }
@@ -847,11 +855,11 @@ impl<'a> Stream<'a> {
 
 impl Drop for Stream<'_> {
     fn drop(&mut self) {
-        self.dict.buf.extend(b"\n>>");
-        self.dict.buf.extend(b"\nstream\n");
-        self.dict.buf.extend(self.data.as_ref());
-        self.dict.buf.extend(b"\nendstream");
-        self.dict.buf.extend(b"\nendobj\n\n");
+        self.dict.buf.extend_slice(b"\n>>");
+        self.dict.buf.extend_slice(b"\nstream\n");
+        self.dict.buf.extend_slice(self.data.as_ref());
+        self.dict.buf.extend_slice(b"\nendstream");
+        self.dict.buf.extend_slice(b"\nendobj\n\n");
     }
 }
 

@@ -1,9 +1,58 @@
-use std::ops::{Deref, DerefMut};
 use super::Primitive;
+use std::ops::{Deref, DerefMut};
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug, Default)]
+pub struct Limits {
+    int: i32,
+    real: f32,
+    name_len: usize,
+    str_len: usize,
+    array_len: usize,
+    dict_entries: usize,
+}
+
+impl Limits {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn register_int(&mut self, val: i32) {
+        self.int = self.int.max(val.abs());
+    }
+
+    pub(crate) fn register_real(&mut self, val: f32) {
+        self.real = self.real.max(val.abs());
+    }
+
+    pub(crate) fn register_name_len(&mut self, len: usize) {
+        self.name_len = self.name_len.max(len);
+    }
+
+    pub(crate) fn register_str_len(&mut self, len: usize) {
+        self.str_len = self.str_len.max(len);
+    }
+
+    pub(crate) fn register_array_len(&mut self, len: usize) {
+        self.array_len = self.array_len.max(len);
+    }
+
+    pub(crate) fn register_dict_entries(&mut self, len: usize) {
+        self.dict_entries = self.dict_entries.max(len);
+    }
+
+    pub fn merge(&mut self, other: &Limits) {
+        self.register_int(other.int);
+        self.register_real(other.real);
+        self.register_name_len(other.name_len);
+        self.register_array_len(other.array_len);
+        self.register_dict_entries(other.dict_entries);
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
 pub struct Buf {
-    buf: Vec<u8>
+    buf: Vec<u8>,
+    pub(crate) limits: Limits,
 }
 
 impl Deref for Buf {
@@ -22,14 +71,13 @@ impl DerefMut for Buf {
 
 impl Buf {
     pub(crate) fn new() -> Self {
-        Self {
-            buf: Vec::new()
-        }
+        Self { buf: Vec::new(), limits: Limits::new() }
     }
 
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
-            buf: Vec::with_capacity(capacity)
+            buf: Vec::with_capacity(capacity),
+            limits: Limits::new(),
         }
     }
 
@@ -44,7 +92,8 @@ impl Buf {
 
     #[inline]
     pub(crate) fn push_int(&mut self, value: i32) {
-        self.extend(itoa::Buffer::new().format(value).as_bytes());
+        self.limits.register_int(value);
+        self.extend_slice(itoa::Buffer::new().format(value).as_bytes());
     }
 
     #[inline]
@@ -61,8 +110,10 @@ impl Buf {
     /// Like `push_float`, but forces the decimal point.
     #[inline]
     pub(crate) fn push_decimal(&mut self, value: f32) {
+        self.limits.register_real(value);
+
         if value == 0.0 || (value.abs() > 1e-6 && value.abs() < 1e12) {
-            self.extend(ryu::Buffer::new().format(value).as_bytes());
+            self.extend_slice(ryu::Buffer::new().format(value).as_bytes());
         } else {
             #[inline(never)]
             fn write_extreme(buf: &mut Buf, value: f32) {
@@ -75,8 +126,14 @@ impl Buf {
     }
 
     #[inline]
-    pub(crate) fn extend(&mut self, other: &[u8]) {
+    pub(crate) fn extend_slice(&mut self, other: &[u8]) {
         self.buf.extend(other);
+    }
+
+    #[inline]
+    pub(crate) fn extend(&mut self, other: &Buf) {
+        self.limits.merge(&other.limits);
+        self.buf.extend(&other.buf);
     }
 
     #[inline]

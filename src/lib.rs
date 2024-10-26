@@ -224,7 +224,7 @@ impl Pdf {
     /// Create a new PDF with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         let mut chunk = Chunk::with_capacity(capacity);
-        chunk.buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
+        chunk.buf.extend_slice(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self {
             chunk,
             catalog_id: None,
@@ -299,7 +299,7 @@ impl Pdf {
         let xref_len = 1 + offsets.last().map_or(0, |p| p.0.get());
         let xref_offset = buf.len();
 
-        buf.extend(b"xref\n0 ");
+        buf.extend_slice(b"xref\n0 ");
         buf.push_int(xref_len);
         buf.push(b'\n');
 
@@ -338,7 +338,7 @@ impl Pdf {
         }
 
         // Write the trailer dictionary.
-        buf.extend(b"trailer\n");
+        buf.extend_slice(b"trailer\n");
 
         let mut trailer = Obj::direct(&mut buf, 0).dict();
         trailer.pair(Name(b"Size"), xref_len);
@@ -360,11 +360,11 @@ impl Pdf {
         trailer.finish();
 
         // Write where the cross-reference table starts.
-        buf.extend(b"\nstartxref\n");
+        buf.extend_slice(b"\nstartxref\n");
         write!(buf, "{}", xref_offset).unwrap();
 
         // Write the end of file marker.
-        buf.extend(b"\n%%EOF");
+        buf.extend_slice(b"\n%%EOF");
         buf.finish()
     }
 }

@@ -1,5 +1,5 @@
-use crate::buf::Buf;
 use super::*;
+use crate::buf::Buf;
 
 /// Way the function is defined in.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -364,16 +364,16 @@ impl<'a> PostScriptOp<'a> {
             Self::If(ops) => {
                 Self::write_slice(ops, buf);
                 buf.push(b'\n');
-                buf.extend(self.operator());
+                buf.extend_slice(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
                 Self::write_slice(ops1, buf);
                 buf.push(b'\n');
                 Self::write_slice(ops2, buf);
                 buf.push(b'\n');
-                buf.extend(self.operator());
+                buf.extend_slice(self.operator());
             }
-            _ => buf.extend(self.operator()),
+            _ => buf.extend_slice(self.operator()),
         }
     }
 
