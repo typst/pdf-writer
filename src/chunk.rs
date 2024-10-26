@@ -253,7 +253,7 @@ impl Chunk {
     /// file.
     ///
     /// You can create the content bytes using a [`Content`] builder.
-    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a Buf) -> FormXObject {
+    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject {
         FormXObject::start(self.stream(id, content))
     }
 
@@ -326,7 +326,7 @@ impl Chunk {
     pub fn tiling_pattern<'a>(
         &'a mut self,
         id: Ref,
-        content: &'a Buf,
+        content: &'a [u8],
     ) -> TilingPattern<'a> {
         TilingPattern::start_with_stream(self.stream(id, content))
     }
