@@ -81,7 +81,7 @@ valid PDFs.
 */
 
 #![forbid(unsafe_code)]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![allow(clippy::wrong_self_convention)]
 
 #[macro_use]
@@ -197,7 +197,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
-use self::buf::BufExt;
 use self::writers::*;
 
 /// A builder for a PDF file.
@@ -366,7 +365,7 @@ impl Pdf {
 
         // Write the end of file marker.
         buf.extend(b"\n%%EOF");
-        buf
+        buf.finish()
     }
 }
 

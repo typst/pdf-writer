@@ -1,3 +1,4 @@
+use crate::buf::Buf;
 use super::*;
 
 /// Way the function is defined in.
@@ -336,12 +337,12 @@ pub enum PostScriptOp<'a> {
 impl<'a> PostScriptOp<'a> {
     /// Encode a slice of operations into a byte stream.
     pub fn encode(ops: &[Self]) -> Vec<u8> {
-        let mut buf = Vec::new();
+        let mut buf = Buf::new();
         Self::write_slice(ops, &mut buf);
-        buf
+        buf.finish()
     }
 
-    fn write_slice(ops: &[Self], buf: &mut Vec<u8>) {
+    fn write_slice(ops: &[Self], buf: &mut Buf) {
         buf.push(b'{');
         if ops.len() > 1 {
             buf.push(b'\n');
@@ -356,7 +357,7 @@ impl<'a> PostScriptOp<'a> {
         buf.push(b'}');
     }
 
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Buf) {
         match *self {
             Self::Real(r) => buf.push_decimal(r),
             Self::Integer(i) => buf.push_val(i),

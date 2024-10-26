@@ -1,29 +1,54 @@
+use std::ops::{Deref, DerefMut};
 use super::Primitive;
 
-/// Additional methods for byte buffers.
-pub trait BufExt {
-    fn push_val<T: Primitive>(&mut self, value: T);
-    fn push_int(&mut self, value: i32);
-    fn push_float(&mut self, value: f32);
-    fn push_decimal(&mut self, value: f32);
-    fn push_hex(&mut self, value: u8);
-    fn push_hex_u16(&mut self, value: u16);
-    fn push_octal(&mut self, value: u8);
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Buf {
+    buf: Vec<u8>
 }
 
-impl BufExt for Vec<u8> {
+impl Deref for Buf {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.buf
+    }
+}
+
+impl DerefMut for Buf {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.buf
+    }
+}
+
+impl Buf {
+    pub(crate) fn new() -> Self {
+        Self {
+            buf: Vec::new()
+        }
+    }
+
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
+        Self {
+            buf: Vec::with_capacity(capacity)
+        }
+    }
+
+    pub(crate) fn finish(self) -> Vec<u8> {
+        self.buf
+    }
+
     #[inline]
-    fn push_val<T: Primitive>(&mut self, value: T) {
+    pub(crate) fn push_val<T: Primitive>(&mut self, value: T) {
         value.write(self);
     }
 
     #[inline]
-    fn push_int(&mut self, value: i32) {
+    pub(crate) fn push_int(&mut self, value: i32) {
         self.extend(itoa::Buffer::new().format(value).as_bytes());
     }
 
     #[inline]
-    fn push_float(&mut self, value: f32) {
+    pub(crate) fn push_float(&mut self, value: f32) {
         // Don't write the decimal point if we don't need it.
         // Also, integer formatting is way faster.
         if value as i32 as f32 == value {
@@ -35,12 +60,12 @@ impl BufExt for Vec<u8> {
 
     /// Like `push_float`, but forces the decimal point.
     #[inline]
-    fn push_decimal(&mut self, value: f32) {
+    pub(crate) fn push_decimal(&mut self, value: f32) {
         if value == 0.0 || (value.abs() > 1e-6 && value.abs() < 1e12) {
             self.extend(ryu::Buffer::new().format(value).as_bytes());
         } else {
             #[inline(never)]
-            fn write_extreme(buf: &mut Vec<u8>, value: f32) {
+            fn write_extreme(buf: &mut Buf, value: f32) {
                 use std::io::Write;
                 write!(buf, "{}", value).unwrap();
             }
@@ -50,7 +75,17 @@ impl BufExt for Vec<u8> {
     }
 
     #[inline]
-    fn push_hex(&mut self, value: u8) {
+    pub(crate) fn extend(&mut self, other: &[u8]) {
+        self.buf.extend(other);
+    }
+
+    #[inline]
+    pub(crate) fn push(&mut self, b: u8) {
+        self.buf.push(b);
+    }
+
+    #[inline]
+    pub(crate) fn push_hex(&mut self, value: u8) {
         fn hex(b: u8) -> u8 {
             if b < 10 {
                 b'0' + b
@@ -64,13 +99,13 @@ impl BufExt for Vec<u8> {
     }
 
     #[inline]
-    fn push_hex_u16(&mut self, value: u16) {
+    pub(crate) fn push_hex_u16(&mut self, value: u16) {
         self.push_hex((value >> 8) as u8);
         self.push_hex(value as u8);
     }
 
     #[inline]
-    fn push_octal(&mut self, value: u8) {
+    pub(crate) fn push_octal(&mut self, value: u8) {
         fn octal(b: u8) -> u8 {
             b'0' + b
         }

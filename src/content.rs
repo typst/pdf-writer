@@ -1,8 +1,9 @@
+use crate::buf::Buf;
 use super::*;
 
 /// A builder for a content stream.
 pub struct Content {
-    buf: Vec<u8>,
+    buf: Buf,
     q_depth: usize,
 }
 
@@ -17,7 +18,7 @@ impl Content {
 
     /// Create a new content stream with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity), q_depth: 0 }
+        Self { buf: Buf::with_capacity(capacity), q_depth: 0 }
     }
 
     /// Start writing an arbitrary operation.
@@ -31,7 +32,7 @@ impl Content {
         if self.buf.last() == Some(&b'\n') {
             self.buf.pop();
         }
-        self.buf
+        self.buf.finish()
     }
 }
 
@@ -39,14 +40,14 @@ impl Content {
 ///
 /// This struct is created by [`Content::op`].
 pub struct Operation<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     op: &'a str,
     first: bool,
 }
 
 impl<'a> Operation<'a> {
     #[inline]
-    pub(crate) fn start(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
+    pub(crate) fn start(buf: &'a mut Buf, op: &'a str) -> Self {
         Self { buf, op, first: true }
     }
 

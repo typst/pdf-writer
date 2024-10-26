@@ -2,13 +2,13 @@ use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
-
+use crate::buf::Buf;
 use super::*;
 
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
-    fn write(self, buf: &mut Vec<u8>);
+    fn write(self, buf: &mut Buf);
 }
 
 impl<T: Primitive> Primitive for &T
@@ -16,14 +16,14 @@ where
     T: Copy,
 {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         (*self).write(buf);
     }
 }
 
 impl Primitive for bool {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         if self {
             buf.extend(b"true");
         } else {
@@ -34,14 +34,14 @@ impl Primitive for bool {
 
 impl Primitive for i32 {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push_int(self);
     }
 }
 
 impl Primitive for f32 {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push_float(self);
     }
 }
@@ -69,7 +69,7 @@ impl Str<'_> {
 }
 
 impl Primitive for Str<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         // We use:
         // - Literal strings for ASCII with nice escape sequences to make it
         //   also be represented fully in visible ASCII. We also escape
@@ -126,7 +126,7 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         // ASCII and PDFDocEncoding match for 32 up to 126.
         if self.0.bytes().all(|b| matches!(b, 32..=126)) {
             Str(self.0.as_bytes()).write(buf);
@@ -150,7 +150,7 @@ impl Primitive for TextStr<'_> {
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.reserve(1 + self.0.len());
         buf.push(b'/');
         for &byte in self.0 {
@@ -196,7 +196,7 @@ pub struct Null;
 
 impl Primitive for Null {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.extend(b"null");
     }
 }
@@ -245,7 +245,7 @@ impl Ref {
 
 impl Primitive for Ref {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push_int(self.0.get());
         buf.extend(b" 0 R");
     }
@@ -281,7 +281,7 @@ impl Rect {
 
 impl Primitive for Rect {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push(b'[');
         buf.push_val(self.x1);
         buf.push(b' ');
@@ -393,7 +393,7 @@ impl Date {
 }
 
 impl Primitive for Date {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.extend(b"(D:");
 
         (|| {
@@ -420,7 +420,7 @@ impl Primitive for Date {
 /// Writer for an arbitrary object.
 #[must_use = "not consuming this leaves the writer in an inconsistent state"]
 pub struct Obj<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
 }
@@ -428,13 +428,13 @@ pub struct Obj<'a> {
 impl<'a> Obj<'a> {
     /// Start a new direct object.
     #[inline]
-    pub(crate) fn direct(buf: &'a mut Vec<u8>, indent: u8) -> Self {
+    pub(crate) fn direct(buf: &'a mut Buf, indent: u8) -> Self {
         Self { buf, indirect: false, indent }
     }
 
     /// Start a new indirect object.
     #[inline]
-    pub(crate) fn indirect(buf: &'a mut Vec<u8>, id: Ref) -> Self {
+    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref) -> Self {
         buf.push_int(id.get());
         buf.extend(b" 0 obj\n");
         Self { buf, indirect: true, indent: 0 }
@@ -500,7 +500,7 @@ pub trait Rewrite<'a> {
 
 /// Writer for an array.
 pub struct Array<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
     len: i32,
@@ -646,7 +646,7 @@ impl<'a, T> TypedArray<'a, T> {
 
 /// Writer for a dictionary.
 pub struct Dict<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
     len: i32,

@@ -1,4 +1,5 @@
-use crate::{BufExt, Chunk, Ref};
+use crate::{Chunk, Ref};
+use crate::buf::Buf;
 
 /// Renumbers a chunk of objects.
 ///
@@ -43,7 +44,7 @@ fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
 
 /// Processes the interior of an indirect object and patches all indirect
 /// references.
-fn patch_object(slice: &[u8], buf: &mut Vec<u8>, mapping: &mut dyn FnMut(Ref) -> Ref) {
+fn patch_object(slice: &[u8], buf: &mut Buf, mapping: &mut dyn FnMut(Ref) -> Ref) {
     // Find the next point of interest:
     // - 'R' is interesting because it could be an indirect reference
     // - Anything that could contain indirect-reference-like things that are not
@@ -202,7 +203,7 @@ mod tests {
         });
 
         test!(
-            r.buf,
+            r.buf.finish(),
             b"1 0 obj",
             b"<<",
             b"  /Nested <<",

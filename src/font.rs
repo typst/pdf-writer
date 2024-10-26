@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-
+use crate::buf::Buf;
 use super::*;
 
 /// Writer for a _Type-1 font dictionary_.
@@ -849,8 +849,8 @@ impl WMode {
 
 /// A builder for a `/ToUnicode` character map stream.
 pub struct UnicodeCmap<G = u16> {
-    buf: Vec<u8>,
-    mappings: Vec<u8>,
+    buf: Buf,
+    mappings: Buf,
     count: i32,
     glyph_id: PhantomData<G>,
 }
@@ -870,7 +870,7 @@ where
     pub fn with_writing_mode(name: Name, info: SystemInfo, mode: WMode) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
-        let mut buf = Vec::new();
+        let mut buf = Buf::new();
 
         // Static header.
         buf.extend(b"%!PS-Adobe-3.0 Resource-CMap\n");
@@ -928,7 +928,7 @@ where
 
         Self {
             buf,
-            mappings: vec![],
+            mappings: Buf::new(),
             count: 0,
             glyph_id: PhantomData,
         }
@@ -977,7 +977,7 @@ where
         self.buf.extend(b"%%EndResource\n");
         self.buf.extend(b"%%EOF");
 
-        self.buf
+        self.buf.finish()
     }
 
     fn flush_range(&mut self) {
@@ -1005,19 +1005,19 @@ impl GlyphId for u16 {}
 
 /// Module to seal the `GlyphId` trait.
 mod private {
-    use crate::buf::BufExt;
+    use crate::buf::Buf;
 
     pub trait Sealed {
         const MIN: Self;
         const MAX: Self;
-        fn push(self, buf: &mut Vec<u8>);
+        fn push(self, buf: &mut Buf);
     }
 
     impl Sealed for u8 {
         const MIN: Self = u8::MIN;
         const MAX: Self = u8::MAX;
 
-        fn push(self, buf: &mut Vec<u8>) {
+        fn push(self, buf: &mut Buf) {
             buf.push_hex(self);
         }
     }
@@ -1026,7 +1026,7 @@ mod private {
         const MIN: Self = u16::MIN;
         const MAX: Self = u16::MAX;
 
-        fn push(self, buf: &mut Vec<u8>) {
+        fn push(self, buf: &mut Buf) {
             buf.push_hex_u16(self);
         }
     }

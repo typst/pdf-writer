@@ -1,3 +1,4 @@
+use crate::buf::Buf;
 use super::*;
 
 /// A builder for a collection of indirect PDF objects.
@@ -12,7 +13,7 @@ use super::*;
 /// it at a time).
 #[derive(Clone)]
 pub struct Chunk {
-    pub(crate) buf: Vec<u8>,
+    pub(crate) buf: Buf,
     pub(crate) offsets: Vec<(Ref, usize)>,
 }
 
@@ -25,7 +26,7 @@ impl Chunk {
 
     /// Create a new chunk with the specified initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity), offsets: vec![] }
+        Self { buf: Buf::with_capacity(capacity), offsets: vec![] }
     }
 
     /// The number of bytes that were written so far.
@@ -43,7 +44,7 @@ impl Chunk {
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
-        self.buf.extend_from_slice(&other.buf);
+        self.buf.extend(&other.buf.as_slice());
         self.offsets
             .extend(other.offsets.iter().map(|&(id, offset)| (id, base + offset)));
     }
