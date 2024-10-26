@@ -60,10 +60,15 @@ impl Limits {
         self.dict_entries
     }
 
+    pub fn str_len(&self) -> usize {
+        self.str_len
+    }
+
     pub fn merge(&mut self, other: &Limits) {
         self.register_int(other.int);
         self.register_real(other.real);
         self.register_name_len(other.name_len);
+        self.register_str_len(other.str_len);
         self.register_array_len(other.array_len);
         self.register_dict_entries(other.dict_entries);
     }
