@@ -447,7 +447,7 @@ mod tests {
         ];
 
         assert_eq!(
-            PostScriptOp::encode(&ops).finish(),
+            PostScriptOp::encode(&ops).to_bytes(),
             b"{\n3.0\n2.0\nmul\nexch\ndup\n0.0\nge\n{\n1.0\nadd\n}\n{neg}\nifelse\nadd\n}"
         );
     }

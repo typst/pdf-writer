@@ -81,7 +81,7 @@ impl Buf {
         }
     }
 
-    pub(crate) fn finish(self) -> Vec<u8> {
+    pub fn to_bytes(self) -> Vec<u8> {
         self.buf
     }
 
