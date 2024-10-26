@@ -40,6 +40,26 @@ impl Limits {
         self.dict_entries = self.dict_entries.max(len);
     }
 
+    pub fn int(&self) -> i32 {
+        self.int
+    }
+
+    pub fn real(&self) -> f32 {
+        self.real
+    }
+
+    pub fn name_len(&self) -> usize {
+        self.name_len
+    }
+
+    pub fn array_len(&self) -> usize {
+        self.array_len
+    }
+
+    pub fn dict_entries(&self) -> usize {
+        self.dict_entries
+    }
+
     pub fn merge(&mut self, other: &Limits) {
         self.register_int(other.int);
         self.register_real(other.real);
