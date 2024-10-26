@@ -336,10 +336,10 @@ pub enum PostScriptOp<'a> {
 
 impl<'a> PostScriptOp<'a> {
     /// Encode a slice of operations into a byte stream.
-    pub fn encode(ops: &[Self]) -> Vec<u8> {
+    pub fn encode(ops: &[Self]) -> Buf {
         let mut buf = Buf::new();
         Self::write_slice(ops, &mut buf);
-        buf.finish()
+        buf
     }
 
     fn write_slice(ops: &[Self], buf: &mut Buf) {
@@ -447,7 +447,7 @@ mod tests {
         ];
 
         assert_eq!(
-            PostScriptOp::encode(&ops),
+            PostScriptOp::encode(&ops).finish(),
             b"{\n3.0\n2.0\nmul\nexch\ndup\n0.0\nge\n{\n1.0\nadd\n}\n{neg}\nifelse\nadd\n}"
         );
     }

@@ -965,7 +965,7 @@ where
     }
 
     /// Finish building the character map.
-    pub fn finish(mut self) -> Vec<u8> {
+    pub fn finish(mut self) -> Buf {
         // Flush the in-progress range.
         self.flush_range();
 
@@ -977,7 +977,7 @@ where
         self.buf.extend(b"%%EndResource\n");
         self.buf.extend(b"%%EOF");
 
-        self.buf.finish()
+        self.buf
     }
 
     fn flush_range(&mut self) {

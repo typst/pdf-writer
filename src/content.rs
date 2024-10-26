@@ -28,11 +28,11 @@ impl Content {
     }
 
     /// Return the raw constructed byte stream.
-    pub fn finish(mut self) -> Vec<u8> {
+    pub fn finish(mut self) -> Buf {
         if self.buf.last() == Some(&b'\n') {
             self.buf.pop();
         }
-        self.buf.finish()
+        self.buf
     }
 }
 
@@ -1656,7 +1656,7 @@ mod tests {
             .restore_state();
 
         assert_eq!(
-            content.finish(),
+            content.finish().finish(),
             b"q\n1 2 3 4 re\nf\n[7 2] 4 d\n/MyImage Do\n2 3.5 /MyPattern scn\nQ"
         );
     }
@@ -1676,6 +1676,6 @@ mod tests {
             .show(Str(b"CD"));
         content.end_text();
 
-        assert_eq!(content.finish(), b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
+        assert_eq!(content.finish().finish(), b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
     }
 }
