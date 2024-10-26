@@ -85,6 +85,10 @@ impl Buf {
         self.buf
     }
 
+    pub fn limits(&self) -> &Limits {
+        &self.limits
+    }
+
     #[inline]
     pub(crate) fn push_val<T: Primitive>(&mut self, value: T) {
         value.write(self);
