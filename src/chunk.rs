@@ -41,6 +41,10 @@ impl Chunk {
         self.buf.as_slice()
     }
 
+    pub fn limits(&self) -> &Limits {
+        self.buf.limits()
+    }
+
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
