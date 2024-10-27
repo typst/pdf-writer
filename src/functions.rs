@@ -358,7 +358,7 @@ impl PostScriptOp {
 
     fn write(&self, buf: &mut Buf) {
         match self {
-            Self::Real(r) => buf.push_float(*r),
+            Self::Real(r) => buf.push_decimal(*r),
             Self::Integer(i) => buf.push_val(*i),
             Self::If(ops) => {
                 Self::write_slice(&ops, buf);
