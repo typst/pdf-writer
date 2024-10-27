@@ -344,11 +344,11 @@ impl PostScriptOp {
     fn write_slice(ops: &[Self], buf: &mut Buf) {
         buf.push(b'{');
         if ops.len() > 1 {
-            buf.push(b'\n');
+            buf.push(b' ');
         }
         for op in ops {
             op.write(buf);
-            buf.push(b'\n');
+            buf.push(b' ');
         }
         if ops.len() == 1 {
             buf.pop();
@@ -358,18 +358,18 @@ impl PostScriptOp {
 
     fn write(&self, buf: &mut Buf) {
         match self {
-            Self::Real(r) => buf.push_decimal(*r),
+            Self::Real(r) => buf.push_float(*r),
             Self::Integer(i) => buf.push_val(*i),
             Self::If(ops) => {
                 Self::write_slice(&ops, buf);
-                buf.push(b'\n');
+                buf.push(b' ');
                 buf.extend_slice(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
                 Self::write_slice(&ops1, buf);
-                buf.push(b'\n');
+                buf.push(b' ');
                 Self::write_slice(&ops2, buf);
-                buf.push(b'\n');
+                buf.push(b' ');
                 buf.extend_slice(self.operator());
             }
             _ => buf.extend_slice(self.operator()),
