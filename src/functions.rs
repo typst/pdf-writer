@@ -333,7 +333,7 @@ pub enum PostScriptOp<'a> {
     Roll,
 }
 
-impl PostScriptOp<'_> {
+impl<'a> PostScriptOp<'a> {
     /// Encode a slice of operations into a byte stream.
     pub fn encode(ops: &[Self]) -> Vec<u8> {
         let mut buf = Vec::new();
@@ -357,18 +357,18 @@ impl PostScriptOp<'_> {
     }
 
     fn write(&self, buf: &mut Vec<u8>) {
-        match self {
-            Self::Real(r) => buf.push_decimal(*r),
-            Self::Integer(i) => buf.push_val(*i),
+        match *self {
+            Self::Real(r) => buf.push_decimal(r),
+            Self::Integer(i) => buf.push_val(i),
             Self::If(ops) => {
                 Self::write_slice(&ops, buf);
                 buf.push(b' ');
                 buf.extend(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
-                Self::write_slice(&ops1, buf);
+                Self::write_slice(ops1, buf);
                 buf.push(b' ');
-                Self::write_slice(&ops2, buf);
+                Self::write_slice(ops2, buf);
                 buf.push(b' ');
                 buf.extend(self.operator());
             }
