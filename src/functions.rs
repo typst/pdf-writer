@@ -237,7 +237,7 @@ impl<'a> PostScriptFunction<'a> {
 deref!('a, PostScriptFunction<'a> => Stream<'a>, stream);
 
 /// PostScript operators for use in Type 4 functions.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PostScriptOp<'a> {
     /// Push a real number.
     Real(f32),
