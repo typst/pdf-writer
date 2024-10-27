@@ -237,8 +237,8 @@ impl<'a> PostScriptFunction<'a> {
 deref!('a, PostScriptFunction<'a> => Stream<'a>, stream);
 
 /// PostScript operators for use in Type 4 functions.
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub enum PostScriptOp<'a> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum PostScriptOp {
     /// Push a real number.
     Real(f32),
     /// Push an integer number.
@@ -315,9 +315,9 @@ pub enum PostScriptOp<'a> {
     Xor,
 
     /// Conditional. Runs if boolean argument is true.
-    If(&'a [Self]),
+    If(Vec<Self>),
     /// Conditional. Decides which branch to run depending on boolean argument.
-    IfElse(&'a [Self], &'a [Self]),
+    IfElse(Vec<Self>, Vec<Self>),
 
     /// Copy the top elements. One integer argument.
     Copy,
@@ -333,7 +333,7 @@ pub enum PostScriptOp<'a> {
     Roll,
 }
 
-impl<'a> PostScriptOp<'a> {
+impl PostScriptOp {
     /// Encode a slice of operations into a byte stream.
     pub fn encode(ops: &[Self]) -> Vec<u8> {
         let mut buf = Vec::new();
@@ -357,18 +357,18 @@ impl<'a> PostScriptOp<'a> {
     }
 
     fn write(&self, buf: &mut Vec<u8>) {
-        match *self {
-            Self::Real(r) => buf.push_decimal(r),
-            Self::Integer(i) => buf.push_val(i),
+        match self {
+            Self::Real(r) => buf.push_decimal(*r),
+            Self::Integer(i) => buf.push_val(*i),
             Self::If(ops) => {
-                Self::write_slice(ops, buf);
+                Self::write_slice(&ops, buf);
                 buf.push(b'\n');
                 buf.extend(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
-                Self::write_slice(ops1, buf);
+                Self::write_slice(&ops1, buf);
                 buf.push(b'\n');
-                Self::write_slice(ops2, buf);
+                Self::write_slice(&ops2, buf);
                 buf.push(b'\n');
                 buf.extend(self.operator());
             }
@@ -441,7 +441,7 @@ mod tests {
             Dup,
             Real(0.0),
             Ge,
-            IfElse(&[Real(1.0), Add], &[Neg]),
+            IfElse(vec![Real(1.0), Add], vec![Neg]),
             Add,
         ];
 
