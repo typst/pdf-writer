@@ -237,8 +237,8 @@ impl<'a> PostScriptFunction<'a> {
 deref!('a, PostScriptFunction<'a> => Stream<'a>, stream);
 
 /// PostScript operators for use in Type 4 functions.
-#[derive(Debug, Clone, PartialEq)]
-pub enum PostScriptOp {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PostScriptOp<'a> {
     /// Push a real number.
     Real(f32),
     /// Push an integer number.
@@ -315,9 +315,9 @@ pub enum PostScriptOp {
     Xor,
 
     /// Conditional. Runs if boolean argument is true.
-    If(Vec<Self>),
+    If(&'a [Self]),
     /// Conditional. Decides which branch to run depending on boolean argument.
-    IfElse(Vec<Self>, Vec<Self>),
+    IfElse(&'a [Self], &'a [Self]),
 
     /// Copy the top elements. One integer argument.
     Copy,
@@ -333,7 +333,7 @@ pub enum PostScriptOp {
     Roll,
 }
 
-impl PostScriptOp {
+impl PostScriptOp<'_> {
     /// Encode a slice of operations into a byte stream.
     pub fn encode(ops: &[Self]) -> Buf {
         let mut buf = Buf::new();
@@ -441,7 +441,7 @@ mod tests {
             Dup,
             Real(0.0),
             Ge,
-            IfElse(vec![Real(1.0), Add], vec![Neg]),
+            IfElse(&[Real(1.0), Add], &[Neg]),
             Add,
         ];
 
