@@ -1,5 +1,5 @@
-use std::marker::PhantomData;
 use crate::buf::Buf;
+use std::marker::PhantomData;
 
 use super::*;
 

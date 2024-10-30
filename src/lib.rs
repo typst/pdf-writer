@@ -187,7 +187,7 @@ pub mod types {
 }
 
 pub use self::buf::{Buf, Limits};
-pub use self::chunk::{Chunk};
+pub use self::chunk::Chunk;
 pub use self::content::Content;
 pub use self::object::{
     Array, Date, Dict, Filter, Finish, Name, Null, Obj, Primitive, Rect, Ref, Rewrite,

@@ -413,8 +413,12 @@ impl Primitive for Date {
             if utc_offset_hour == 0 && self.utc_offset_minute == 0 {
                 buf.push(b'Z');
             } else {
-                write!(buf.inner, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
-                    .unwrap();
+                write!(
+                    buf.inner,
+                    "{:+03}'{:02}",
+                    utc_offset_hour, self.utc_offset_minute
+                )
+                .unwrap();
             }
             Some(())
         })();
