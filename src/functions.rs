@@ -344,11 +344,11 @@ impl<'a> PostScriptOp<'a> {
     fn write_slice(ops: &[Self], buf: &mut Vec<u8>) {
         buf.push(b'{');
         if ops.len() > 1 {
-            buf.push(b'\n');
+            buf.push(b' ');
         }
         for op in ops {
             op.write(buf);
-            buf.push(b'\n');
+            buf.push(b' ');
         }
         if ops.len() == 1 {
             buf.pop();
@@ -362,14 +362,14 @@ impl<'a> PostScriptOp<'a> {
             Self::Integer(i) => buf.push_val(i),
             Self::If(ops) => {
                 Self::write_slice(ops, buf);
-                buf.push(b'\n');
+                buf.push(b' ');
                 buf.extend(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
                 Self::write_slice(ops1, buf);
-                buf.push(b'\n');
+                buf.push(b' ');
                 Self::write_slice(ops2, buf);
-                buf.push(b'\n');
+                buf.push(b' ');
                 buf.extend(self.operator());
             }
             _ => buf.extend(self.operator()),
@@ -447,7 +447,7 @@ mod tests {
 
         assert_eq!(
             PostScriptOp::encode(&ops),
-            b"{\n3.0\n2.0\nmul\nexch\ndup\n0.0\nge\n{\n1.0\nadd\n}\n{neg}\nifelse\nadd\n}"
+            b"{ 3.0 2.0 mul exch dup 0.0 ge { 1.0 add } {neg} ifelse add }"
         );
     }
 }
