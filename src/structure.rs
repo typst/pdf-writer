@@ -413,6 +413,13 @@ impl<'a> StructElement<'a> {
         self
     }
 
+    /// Write the `/ID` attribute to specify the element identifier of this
+    /// structure element.
+    pub fn id(&mut self, id: Str) -> &mut Self {
+        self.dict.pair(Name(b"ID"), id);
+        self
+    }
+
     /// Write the `/Pg` attribute to specify the page some or all of this
     /// structure element is located on.
     pub fn page(&mut self, page: Ref) -> &mut Self {
