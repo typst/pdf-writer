@@ -5,6 +5,8 @@ use crate::{Chunk, Ref};
 ///
 /// See [`Chunk::renumber`] for more details.
 pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref) -> Ref) {
+    target.buf.limits.merge(source.limits());
+
     let mut iter = source.offsets.iter().copied().peekable();
     while let Some((id, offset)) = iter.next() {
         let new = mapping(id);
