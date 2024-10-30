@@ -290,6 +290,14 @@ impl<'a> ViewerPreferences<'a> {
         self
     }
 
+    /// Write the `/DisplayDocTitle` attribute to set whether the viewer should
+    /// display the document's title from the `Title` entry as the window's title.
+    /// PDF 1.4+
+    pub fn display_doc_title(&mut self, display: bool) -> &mut Self {
+        self.pair(Name(b"DisplayDocTitle"), display);
+        self
+    }
+
     /// Write the `/NonFullScreenPageMode` attribute to set which chrome
     /// elements the viewer should show for a document which requests full
     /// screen rendering in its catalog when it is not shown in full screen
@@ -410,6 +418,13 @@ impl<'a> StructElement<'a> {
     /// element. Required.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.dict.pair(Name(b"P"), parent);
+        self
+    }
+
+    /// Write the `/ID` attribute to specify the element identifier of this
+    /// structure element.
+    pub fn id(&mut self, id: Str) -> &mut Self {
+        self.dict.pair(Name(b"ID"), id);
         self
     }
 

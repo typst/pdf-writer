@@ -237,7 +237,7 @@ impl<'a> PostScriptFunction<'a> {
 deref!('a, PostScriptFunction<'a> => Stream<'a>, stream);
 
 /// PostScript operators for use in Type 4 functions.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum PostScriptOp<'a> {
     /// Push a real number.
     Real(f32),
@@ -333,7 +333,7 @@ pub enum PostScriptOp<'a> {
     Roll,
 }
 
-impl PostScriptOp<'_> {
+impl<'a> PostScriptOp<'a> {
     /// Encode a slice of operations into a byte stream.
     pub fn encode(ops: &[Self]) -> Buf {
         let mut buf = Buf::new();
@@ -446,8 +446,8 @@ mod tests {
         ];
 
         assert_eq!(
-            PostScriptOp::encode(&ops).to_bytes(),
-            b"{\n3.0\n2.0\nmul\nexch\ndup\n0.0\nge\n{\n1.0\nadd\n}\n{neg}\nifelse\nadd\n}"
+            PostScriptOp::encode(&ops),
+            b"{ 3.0 2.0 mul exch dup 0.0 ge { 1.0 add } {neg} ifelse add }"
         );
     }
 }
