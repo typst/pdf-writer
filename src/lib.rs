@@ -81,7 +81,7 @@ valid PDFs.
 */
 
 #![forbid(unsafe_code)]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 #![allow(clippy::wrong_self_convention)]
 
 #[macro_use]

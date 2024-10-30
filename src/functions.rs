@@ -357,18 +357,18 @@ impl<'a> PostScriptOp<'a> {
     }
 
     fn write(&self, buf: &mut Buf) {
-        match self {
-            Self::Real(r) => buf.push_decimal(*r),
-            Self::Integer(i) => buf.push_val(*i),
+        match *self {
+            Self::Real(r) => buf.push_decimal(r),
+            Self::Integer(i) => buf.push_val(i),
             Self::If(ops) => {
                 Self::write_slice(&ops, buf);
                 buf.push(b' ');
                 buf.extend_slice(self.operator());
             }
             Self::IfElse(ops1, ops2) => {
-                Self::write_slice(&ops1, buf);
+                Self::write_slice(ops1, buf);
                 buf.push(b' ');
-                Self::write_slice(&ops2, buf);
+                Self::write_slice(ops2, buf);
                 buf.push(b' ');
                 buf.extend_slice(self.operator());
             }

@@ -1,9 +1,10 @@
-use super::*;
 use crate::buf::Buf;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
+
+use super::*;
 
 /// A primitive PDF object.
 pub trait Primitive {

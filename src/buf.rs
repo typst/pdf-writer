@@ -1,6 +1,7 @@
 use super::Primitive;
 use std::ops::{Deref, DerefMut};
 
+/// Track the limits of data types used in a buffer.
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Limits {
     int: i32,
@@ -12,6 +13,7 @@ pub struct Limits {
 }
 
 impl Limits {
+    /// Create a new `Limits` struct with all values initialized to zero.
     pub fn new() -> Self {
         Self::default()
     }
@@ -40,30 +42,38 @@ impl Limits {
         self.dict_entries = self.dict_entries.max(len);
     }
 
+    /// Get the absolute value of the largest positive/negative integer number.
     pub fn int(&self) -> i32 {
         self.int
     }
 
+    /// Get the absolute value of the largest positive/negative real number.
     pub fn real(&self) -> f32 {
         self.real
     }
 
+    /// Get the maximum length of any used name.
     pub fn name_len(&self) -> usize {
         self.name_len
     }
 
+    /// Get the maximum length of any used array.
     pub fn array_len(&self) -> usize {
         self.array_len
     }
 
+    /// Get the maximum number of entries in any dictionary.
     pub fn dict_entries(&self) -> usize {
         self.dict_entries
     }
 
+    /// Get the maximum length of any used string.
     pub fn str_len(&self) -> usize {
         self.str_len
     }
 
+    /// Merge two `Limits` with each other, taking the maximum
+    /// of each field from both.
     pub fn merge(&mut self, other: &Limits) {
         self.register_int(other.int);
         self.register_real(other.real);
@@ -74,6 +84,7 @@ impl Limits {
     }
 }
 
+/// A buffer of arbitrary PDF content.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Buf {
     buf: Vec<u8>,
@@ -106,10 +117,12 @@ impl Buf {
         }
     }
 
+    /// Get the underlying bytes of the buffer.
     pub fn to_bytes(self) -> Vec<u8> {
         self.buf
     }
 
+    /// Return the limits of the buffer.
     pub fn limits(&self) -> &Limits {
         &self.limits
     }

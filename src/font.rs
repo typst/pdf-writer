@@ -1,6 +1,7 @@
-use super::*;
-use crate::buf::Buf;
 use std::marker::PhantomData;
+use crate::buf::Buf;
+
+use super::*;
 
 /// Writer for a _Type-1 font dictionary_.
 ///

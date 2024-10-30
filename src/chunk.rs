@@ -41,6 +41,7 @@ impl Chunk {
         self.buf.as_slice()
     }
 
+    /// Return the limits of the chunk.
     pub fn limits(&self) -> &Limits {
         self.buf.limits()
     }
