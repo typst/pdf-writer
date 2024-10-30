@@ -361,7 +361,7 @@ impl<'a> PostScriptOp<'a> {
             Self::Real(r) => buf.push_decimal(r),
             Self::Integer(i) => buf.push_val(i),
             Self::If(ops) => {
-                Self::write_slice(&ops, buf);
+                Self::write_slice(ops, buf);
                 buf.push(b' ');
                 buf.extend_slice(self.operator());
             }
