@@ -991,7 +991,7 @@ where
         }
 
         self.count = 0;
-        self.mappings.clear();
+        self.mappings.inner.clear();
     }
 }
 

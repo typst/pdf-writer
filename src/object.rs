@@ -79,7 +79,7 @@ impl Primitive for Str<'_> {
         // - Hex strings for anything non-ASCII.
         if self.0.iter().all(|b| b.is_ascii()) {
             buf.reserve(self.0.len());
-            buf.push(b'(');
+            buf.inner.push(b'(');
 
             let mut balanced = None;
             for &byte in self.0 {
@@ -403,17 +403,17 @@ impl Primitive for Date {
         buf.extend_slice(b"(D:");
 
         (|| {
-            write!(buf, "{:04}", self.year).unwrap();
-            write!(buf, "{:02}", self.month?).unwrap();
-            write!(buf, "{:02}", self.day?).unwrap();
-            write!(buf, "{:02}", self.hour?).unwrap();
-            write!(buf, "{:02}", self.minute?).unwrap();
-            write!(buf, "{:02}", self.second?).unwrap();
+            write!(buf.inner, "{:04}", self.year).unwrap();
+            write!(buf.inner, "{:02}", self.month?).unwrap();
+            write!(buf.inner, "{:02}", self.day?).unwrap();
+            write!(buf.inner, "{:02}", self.hour?).unwrap();
+            write!(buf.inner, "{:02}", self.minute?).unwrap();
+            write!(buf.inner, "{:02}", self.second?).unwrap();
             let utc_offset_hour = self.utc_offset_hour?;
             if utc_offset_hour == 0 && self.utc_offset_minute == 0 {
                 buf.push(b'Z');
             } else {
-                write!(buf, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
+                write!(buf.inner, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
                     .unwrap();
             }
             Some(())

@@ -30,7 +30,7 @@ impl Content {
     /// Return the raw constructed byte stream.
     pub fn finish(mut self) -> Buf {
         if self.buf.last() == Some(&b'\n') {
-            self.buf.pop();
+            self.buf.inner.pop();
         }
         self.buf
     }

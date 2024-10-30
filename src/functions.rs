@@ -351,7 +351,7 @@ impl<'a> PostScriptOp<'a> {
             buf.push(b' ');
         }
         if ops.len() == 1 {
-            buf.pop();
+            buf.inner.pop();
         }
         buf.push(b'}');
     }

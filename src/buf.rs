@@ -1,5 +1,5 @@
 use super::Primitive;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 
 /// Track the limits of data types used in a buffer.
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -87,7 +87,7 @@ impl Limits {
 /// A buffer of arbitrary PDF content.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Buf {
-    buf: Vec<u8>,
+    pub(crate) inner: Vec<u8>,
     pub(crate) limits: Limits,
 }
 
@@ -95,31 +95,25 @@ impl Deref for Buf {
     type Target = Vec<u8>;
 
     fn deref(&self) -> &Self::Target {
-        &self.buf
-    }
-}
-
-impl DerefMut for Buf {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.buf
+        &self.inner
     }
 }
 
 impl Buf {
     pub(crate) fn new() -> Self {
-        Self { buf: Vec::new(), limits: Limits::new() }
+        Self { inner: Vec::new(), limits: Limits::new() }
     }
 
     pub(crate) fn with_capacity(capacity: usize) -> Self {
         Self {
-            buf: Vec::with_capacity(capacity),
+            inner: Vec::with_capacity(capacity),
             limits: Limits::new(),
         }
     }
 
     /// Get the underlying bytes of the buffer.
     pub fn to_bytes(self) -> Vec<u8> {
-        self.buf
+        self.inner
     }
 
     /// Return the limits of the buffer.
@@ -160,7 +154,7 @@ impl Buf {
             #[inline(never)]
             fn write_extreme(buf: &mut Buf, value: f32) {
                 use std::io::Write;
-                write!(buf, "{}", value).unwrap();
+                write!(buf.inner, "{}", value).unwrap();
             }
 
             write_extreme(self, value);
@@ -169,18 +163,18 @@ impl Buf {
 
     #[inline]
     pub(crate) fn extend_slice(&mut self, other: &[u8]) {
-        self.buf.extend(other);
+        self.inner.extend(other);
     }
 
     #[inline]
     pub(crate) fn extend(&mut self, other: &Buf) {
         self.limits.merge(&other.limits);
-        self.buf.extend(&other.buf);
+        self.inner.extend(&other.inner);
     }
 
     #[inline]
     pub(crate) fn push(&mut self, b: u8) {
-        self.buf.push(b);
+        self.inner.push(b);
     }
 
     #[inline]
@@ -212,5 +206,10 @@ impl Buf {
         self.push(octal(value >> 6));
         self.push(octal((value >> 3) & 7));
         self.push(octal(value & 7));
+    }
+
+    #[inline]
+    pub(crate) fn reserve(&mut self, additional: usize) {
+        self.inner.reserve(additional)
     }
 }
