@@ -927,10 +927,10 @@ impl DecodeParms<'_> {
     /// Defaults to 1.
     pub fn colors(&mut self, colors: i32) -> &mut Self {
         if colors <= 0 {
-            panic!("`Columns` must be greater than 0");
+            panic!("`Colors` must be greater than 0");
         }
 
-        self.pair(Name(b"Columns"), colors);
+        self.pair(Name(b"Colors"), colors);
         self
     }
 
