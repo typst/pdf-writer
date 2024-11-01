@@ -1,3 +1,4 @@
+use crate::buf::Buf;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
@@ -8,7 +9,7 @@ use super::*;
 /// A primitive PDF object.
 pub trait Primitive {
     /// Write the object into a buffer.
-    fn write(self, buf: &mut Vec<u8>);
+    fn write(self, buf: &mut Buf);
 }
 
 impl<T: Primitive> Primitive for &T
@@ -16,32 +17,32 @@ where
     T: Copy,
 {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         (*self).write(buf);
     }
 }
 
 impl Primitive for bool {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         if self {
-            buf.extend(b"true");
+            buf.extend_slice(b"true");
         } else {
-            buf.extend(b"false");
+            buf.extend_slice(b"false");
         }
     }
 }
 
 impl Primitive for i32 {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push_int(self);
     }
 }
 
 impl Primitive for f32 {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push_float(self);
     }
 }
@@ -69,15 +70,16 @@ impl Str<'_> {
 }
 
 impl Primitive for Str<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
-        // We use:
+    fn write(self, buf: &mut Buf) {
+        buf.limits.register_str_len(self.0.len());
+
         // - Literal strings for ASCII with nice escape sequences to make it
         //   also be represented fully in visible ASCII. We also escape
         //   parentheses because they are delimiters.
         // - Hex strings for anything non-ASCII.
         if self.0.iter().all(|b| b.is_ascii()) {
             buf.reserve(self.0.len());
-            buf.push(b'(');
+            buf.inner.push(b'(');
 
             let mut balanced = None;
             for &byte in self.0 {
@@ -90,13 +92,13 @@ impl Primitive for Str<'_> {
                         }
                         buf.push(byte);
                     }
-                    b'\\' => buf.extend(br"\\"),
+                    b'\\' => buf.extend_slice(br"\\"),
                     b' '..=b'~' => buf.push(byte),
-                    b'\n' => buf.extend(br"\n"),
-                    b'\r' => buf.extend(br"\r"),
-                    b'\t' => buf.extend(br"\t"),
-                    b'\x08' => buf.extend(br"\b"),
-                    b'\x0c' => buf.extend(br"\f"),
+                    b'\n' => buf.extend_slice(br"\n"),
+                    b'\r' => buf.extend_slice(br"\r"),
+                    b'\t' => buf.extend_slice(br"\t"),
+                    b'\x08' => buf.extend_slice(br"\b"),
+                    b'\x0c' => buf.extend_slice(br"\f"),
                     _ => {
                         buf.push(b'\\');
                         buf.push_octal(byte);
@@ -126,7 +128,9 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
+        buf.limits.register_str_len(self.0.as_bytes().len());
+
         // ASCII and PDFDocEncoding match for 32 up to 126.
         if self.0.bytes().all(|b| matches!(b, 32..=126)) {
             Str(self.0.as_bytes()).write(buf);
@@ -150,7 +154,9 @@ impl Primitive for TextStr<'_> {
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
+        buf.limits.register_name_len(self.0.len());
+
         buf.reserve(1 + self.0.len());
         buf.push(b'/');
         for &byte in self.0 {
@@ -196,8 +202,8 @@ pub struct Null;
 
 impl Primitive for Null {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
-        buf.extend(b"null");
+    fn write(self, buf: &mut Buf) {
+        buf.extend_slice(b"null");
     }
 }
 
@@ -245,9 +251,9 @@ impl Ref {
 
 impl Primitive for Ref {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push_int(self.0.get());
-        buf.extend(b" 0 R");
+        buf.extend_slice(b" 0 R");
     }
 }
 
@@ -281,7 +287,7 @@ impl Rect {
 
 impl Primitive for Rect {
     #[inline]
-    fn write(self, buf: &mut Vec<u8>) {
+    fn write(self, buf: &mut Buf) {
         buf.push(b'[');
         buf.push_val(self.x1);
         buf.push(b' ');
@@ -393,22 +399,26 @@ impl Date {
 }
 
 impl Primitive for Date {
-    fn write(self, buf: &mut Vec<u8>) {
-        buf.extend(b"(D:");
+    fn write(self, buf: &mut Buf) {
+        buf.extend_slice(b"(D:");
 
         (|| {
-            write!(buf, "{:04}", self.year).unwrap();
-            write!(buf, "{:02}", self.month?).unwrap();
-            write!(buf, "{:02}", self.day?).unwrap();
-            write!(buf, "{:02}", self.hour?).unwrap();
-            write!(buf, "{:02}", self.minute?).unwrap();
-            write!(buf, "{:02}", self.second?).unwrap();
+            write!(buf.inner, "{:04}", self.year).unwrap();
+            write!(buf.inner, "{:02}", self.month?).unwrap();
+            write!(buf.inner, "{:02}", self.day?).unwrap();
+            write!(buf.inner, "{:02}", self.hour?).unwrap();
+            write!(buf.inner, "{:02}", self.minute?).unwrap();
+            write!(buf.inner, "{:02}", self.second?).unwrap();
             let utc_offset_hour = self.utc_offset_hour?;
             if utc_offset_hour == 0 && self.utc_offset_minute == 0 {
                 buf.push(b'Z');
             } else {
-                write!(buf, "{:+03}'{:02}", utc_offset_hour, self.utc_offset_minute)
-                    .unwrap();
+                write!(
+                    buf.inner,
+                    "{:+03}'{:02}",
+                    utc_offset_hour, self.utc_offset_minute
+                )
+                .unwrap();
             }
             Some(())
         })();
@@ -420,7 +430,7 @@ impl Primitive for Date {
 /// Writer for an arbitrary object.
 #[must_use = "not consuming this leaves the writer in an inconsistent state"]
 pub struct Obj<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
 }
@@ -428,15 +438,15 @@ pub struct Obj<'a> {
 impl<'a> Obj<'a> {
     /// Start a new direct object.
     #[inline]
-    pub(crate) fn direct(buf: &'a mut Vec<u8>, indent: u8) -> Self {
+    pub(crate) fn direct(buf: &'a mut Buf, indent: u8) -> Self {
         Self { buf, indirect: false, indent }
     }
 
     /// Start a new indirect object.
     #[inline]
-    pub(crate) fn indirect(buf: &'a mut Vec<u8>, id: Ref) -> Self {
+    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref) -> Self {
         buf.push_int(id.get());
-        buf.extend(b" 0 obj\n");
+        buf.extend_slice(b" 0 obj\n");
         Self { buf, indirect: true, indent: 0 }
     }
 
@@ -445,7 +455,7 @@ impl<'a> Obj<'a> {
     pub fn primitive<T: Primitive>(self, value: T) {
         value.write(self.buf);
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend_slice(b"\nendobj\n\n");
         }
     }
 
@@ -500,7 +510,7 @@ pub trait Rewrite<'a> {
 
 /// Writer for an array.
 pub struct Array<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
     len: i32,
@@ -570,9 +580,10 @@ impl<'a> Array<'a> {
 impl Drop for Array<'_> {
     #[inline]
     fn drop(&mut self) {
+        self.buf.limits.register_array_len(self.len() as usize);
         self.buf.push(b']');
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend_slice(b"\nendobj\n\n");
         }
     }
 }
@@ -646,14 +657,14 @@ impl<'a, T> TypedArray<'a, T> {
 
 /// Writer for a dictionary.
 pub struct Dict<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
     len: i32,
 }
 
 writer!(Dict: |obj| {
-    obj.buf.extend(b"<<");
+    obj.buf.extend_slice(b"<<");
     Self {
         buf: obj.buf,
         indirect: obj.indirect,
@@ -721,15 +732,17 @@ impl<'a> Dict<'a> {
 impl Drop for Dict<'_> {
     #[inline]
     fn drop(&mut self) {
+        self.buf.limits.register_dict_entries(self.len as usize);
+
         if self.len != 0 {
             self.buf.push(b'\n');
             for _ in 0..self.indent - 2 {
                 self.buf.push(b' ');
             }
         }
-        self.buf.extend(b">>");
+        self.buf.extend_slice(b">>");
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend_slice(b"\nendobj\n\n");
         }
     }
 }
@@ -847,11 +860,11 @@ impl<'a> Stream<'a> {
 
 impl Drop for Stream<'_> {
     fn drop(&mut self) {
-        self.dict.buf.extend(b"\n>>");
-        self.dict.buf.extend(b"\nstream\n");
-        self.dict.buf.extend(self.data.as_ref());
-        self.dict.buf.extend(b"\nendstream");
-        self.dict.buf.extend(b"\nendobj\n\n");
+        self.dict.buf.extend_slice(b"\n>>");
+        self.dict.buf.extend_slice(b"\nstream\n");
+        self.dict.buf.extend_slice(self.data.as_ref());
+        self.dict.buf.extend_slice(b"\nendstream");
+        self.dict.buf.extend_slice(b"\nendobj\n\n");
     }
 }
 

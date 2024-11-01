@@ -1,4 +1,5 @@
 use super::*;
+use crate::buf::Buf;
 
 /// A builder for a collection of indirect PDF objects.
 ///
@@ -12,7 +13,7 @@ use super::*;
 /// it at a time).
 #[derive(Clone)]
 pub struct Chunk {
-    pub(crate) buf: Vec<u8>,
+    pub(crate) buf: Buf,
     pub(crate) offsets: Vec<(Ref, usize)>,
 }
 
@@ -25,7 +26,7 @@ impl Chunk {
 
     /// Create a new chunk with the specified initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity), offsets: vec![] }
+        Self { buf: Buf::with_capacity(capacity), offsets: vec![] }
     }
 
     /// The number of bytes that were written so far.
@@ -40,10 +41,15 @@ impl Chunk {
         self.buf.as_slice()
     }
 
+    /// Return the limits of the chunk.
+    pub fn limits(&self) -> &Limits {
+        self.buf.limits()
+    }
+
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
-        self.buf.extend_from_slice(&other.buf);
+        self.buf.extend(&other.buf);
         self.offsets
             .extend(other.offsets.iter().map(|&(id, offset)| (id, base + offset)));
     }
@@ -252,7 +258,7 @@ impl Chunk {
     /// file.
     ///
     /// You can create the content bytes using a [`Content`] builder.
-    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject<'a> {
+    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject {
         FormXObject::start(self.stream(id, content))
     }
 
@@ -314,7 +320,7 @@ impl Chunk {
     pub fn stream_shading<'a>(
         &'a mut self,
         id: Ref,
-        content: &'a [u8],
+        content: &'a Buf,
     ) -> StreamShading<'a> {
         StreamShading::start(self.stream(id, content))
     }

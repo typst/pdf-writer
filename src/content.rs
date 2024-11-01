@@ -1,8 +1,9 @@
 use super::*;
+use crate::buf::Buf;
 
 /// A builder for a content stream.
 pub struct Content {
-    buf: Vec<u8>,
+    buf: Buf,
     q_depth: usize,
 }
 
@@ -17,7 +18,7 @@ impl Content {
 
     /// Create a new content stream with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity), q_depth: 0 }
+        Self { buf: Buf::with_capacity(capacity), q_depth: 0 }
     }
 
     /// Start writing an arbitrary operation.
@@ -27,9 +28,9 @@ impl Content {
     }
 
     /// Return the raw constructed byte stream.
-    pub fn finish(mut self) -> Vec<u8> {
+    pub fn finish(mut self) -> Buf {
         if self.buf.last() == Some(&b'\n') {
-            self.buf.pop();
+            self.buf.inner.pop();
         }
         self.buf
     }
@@ -39,14 +40,14 @@ impl Content {
 ///
 /// This struct is created by [`Content::op`].
 pub struct Operation<'a> {
-    buf: &'a mut Vec<u8>,
+    buf: &'a mut Buf,
     op: &'a str,
     first: bool,
 }
 
 impl<'a> Operation<'a> {
     #[inline]
-    pub(crate) fn start(buf: &'a mut Vec<u8>, op: &'a str) -> Self {
+    pub(crate) fn start(buf: &'a mut Buf, op: &'a str) -> Self {
         Self { buf, op, first: true }
     }
 
@@ -87,7 +88,7 @@ impl Drop for Operation<'_> {
         if !self.first {
             self.buf.push(b' ');
         }
-        self.buf.extend(self.op.as_bytes());
+        self.buf.extend_slice(self.op.as_bytes());
         self.buf.push(b'\n');
     }
 }
@@ -1655,7 +1656,7 @@ mod tests {
             .restore_state();
 
         assert_eq!(
-            content.finish(),
+            content.finish().to_bytes(),
             b"q\n1 2 3 4 re\nf\n[7 2] 4 d\n/MyImage Do\n2 3.5 /MyPattern scn\nQ"
         );
     }
@@ -1675,6 +1676,9 @@ mod tests {
             .show(Str(b"CD"));
         content.end_text();
 
-        assert_eq!(content.finish(), b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET");
+        assert_eq!(
+            content.finish().to_bytes(),
+            b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
+        );
     }
 }
