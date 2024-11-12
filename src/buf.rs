@@ -1,7 +1,8 @@
 use super::Primitive;
+
 use std::ops::Deref;
 
-/// Track the limits of data types used in a buffer.
+/// Tracks the limits of data types used in a buffer.
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct Limits {
     int: i32,
@@ -16,30 +17,6 @@ impl Limits {
     /// Create a new `Limits` struct with all values initialized to zero.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub(crate) fn register_int(&mut self, val: i32) {
-        self.int = self.int.max(val.abs());
-    }
-
-    pub(crate) fn register_real(&mut self, val: f32) {
-        self.real = self.real.max(val.abs());
-    }
-
-    pub(crate) fn register_name_len(&mut self, len: usize) {
-        self.name_len = self.name_len.max(len);
-    }
-
-    pub(crate) fn register_str_len(&mut self, len: usize) {
-        self.str_len = self.str_len.max(len);
-    }
-
-    pub(crate) fn register_array_len(&mut self, len: usize) {
-        self.array_len = self.array_len.max(len);
-    }
-
-    pub(crate) fn register_dict_entries(&mut self, len: usize) {
-        self.dict_entries = self.dict_entries.max(len);
     }
 
     /// Get the absolute value of the largest positive/negative integer number.
@@ -72,6 +49,30 @@ impl Limits {
         self.str_len
     }
 
+    pub(crate) fn register_int(&mut self, val: i32) {
+        self.int = self.int.max(val.abs());
+    }
+
+    pub(crate) fn register_real(&mut self, val: f32) {
+        self.real = self.real.max(val.abs());
+    }
+
+    pub(crate) fn register_name_len(&mut self, len: usize) {
+        self.name_len = self.name_len.max(len);
+    }
+
+    pub(crate) fn register_str_len(&mut self, len: usize) {
+        self.str_len = self.str_len.max(len);
+    }
+
+    pub(crate) fn register_array_len(&mut self, len: usize) {
+        self.array_len = self.array_len.max(len);
+    }
+
+    pub(crate) fn register_dict_entries(&mut self, len: usize) {
+        self.dict_entries = self.dict_entries.max(len);
+    }
+
     /// Merge two `Limits` with each other, taking the maximum
     /// of each field from both.
     pub fn merge(&mut self, other: &Limits) {
@@ -91,14 +92,6 @@ pub struct Buf {
     pub(crate) limits: Limits,
 }
 
-impl Deref for Buf {
-    type Target = Vec<u8>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
 impl Buf {
     pub(crate) fn new() -> Self {
         Self { inner: Vec::new(), limits: Limits::new() }
@@ -112,7 +105,7 @@ impl Buf {
     }
 
     /// Get the underlying bytes of the buffer.
-    pub fn to_bytes(self) -> Vec<u8> {
+    pub fn into_bytes(self) -> Vec<u8> {
         self.inner
     }
 
@@ -211,5 +204,13 @@ impl Buf {
     #[inline]
     pub(crate) fn reserve(&mut self, additional: usize) {
         self.inner.reserve(additional)
+    }
+}
+
+impl Deref for Buf {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }

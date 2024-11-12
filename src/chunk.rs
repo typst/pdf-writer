@@ -38,7 +38,7 @@ impl Chunk {
 
     /// The bytes already written so far.
     pub fn as_bytes(&self) -> &[u8] {
-        self.buf.as_slice()
+        self.buf.deref()
     }
 
     /// Return the limits of the chunk.
@@ -258,7 +258,7 @@ impl Chunk {
     /// file.
     ///
     /// You can create the content bytes using a [`Content`] builder.
-    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject {
+    pub fn form_xobject<'a>(&'a mut self, id: Ref, content: &'a [u8]) -> FormXObject<'a> {
         FormXObject::start(self.stream(id, content))
     }
 
@@ -320,7 +320,7 @@ impl Chunk {
     pub fn stream_shading<'a>(
         &'a mut self,
         id: Ref,
-        content: &'a Buf,
+        content: &'a [u8],
     ) -> StreamShading<'a> {
         StreamShading::start(self.stream(id, content))
     }

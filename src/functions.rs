@@ -446,7 +446,7 @@ mod tests {
         ];
 
         assert_eq!(
-            &PostScriptOp::encode(&ops).to_bytes(),
+            &PostScriptOp::encode(&ops).into_bytes(),
             b"{ 3.0 2.0 mul exch dup 0.0 ge { 1.0 add } {neg} ifelse add }"
         );
     }

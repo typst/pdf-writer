@@ -186,7 +186,6 @@ mod tests {
 
         // Manually write an untidy object.
         c.offsets.push((Ref::new(8), c.buf.len()));
-        // TODO: This won't update `limits` of `buf`.
         c.buf.extend_slice(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
         c.buf.extend_slice(b"/beginobj/endobj%4 0 R\n");
         c.buf
@@ -207,7 +206,7 @@ mod tests {
         });
 
         test!(
-            r.buf.to_bytes(),
+            r.buf.into_bytes(),
             b"1 0 obj",
             b"<<",
             b"  /Nested <<",

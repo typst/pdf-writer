@@ -366,7 +366,7 @@ impl Pdf {
 
         // Write the end of file marker.
         buf.extend_slice(b"\n%%EOF");
-        buf.to_bytes()
+        buf.into_bytes()
     }
 }
 
