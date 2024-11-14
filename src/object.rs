@@ -297,6 +297,8 @@ impl Primitive for Rect {
         buf.push(b' ');
         buf.push_val(self.y2);
         buf.push(b']');
+
+        buf.limits.register_array_len(4);
     }
 }
 
@@ -860,6 +862,9 @@ impl<'a> Stream<'a> {
 
 impl Drop for Stream<'_> {
     fn drop(&mut self) {
+        let dict_len = self.dict.len as usize;
+        self.dict.buf.limits.register_dict_entries(dict_len);
+
         self.dict.buf.extend_slice(b"\n>>");
         self.dict.buf.extend_slice(b"\nstream\n");
         self.dict.buf.extend_slice(self.data.as_ref());
