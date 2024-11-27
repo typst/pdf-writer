@@ -1,9 +1,12 @@
-use crate::{BufExt, Chunk, Ref};
+use crate::buf::Buf;
+use crate::{Chunk, Ref};
 
 /// Renumbers a chunk of objects.
 ///
 /// See [`Chunk::renumber`] for more details.
 pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref) -> Ref) {
+    target.buf.limits.merge(source.limits());
+
     let mut iter = source.offsets.iter().copied().peekable();
     while let Some((id, offset)) = iter.next() {
         let new = mapping(id);
@@ -14,9 +17,9 @@ pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref)
         target.buf.push_int(new.get());
         target.buf.push(b' ');
         target.buf.push_int(gen);
-        target.buf.extend(b" obj\n");
+        target.buf.extend_slice(b" obj\n");
         patch_object(slice, &mut target.buf, mapping);
-        target.buf.extend(b"\nendobj\n\n");
+        target.buf.extend_slice(b"\nendobj\n\n");
     }
 }
 
@@ -43,7 +46,7 @@ fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
 
 /// Processes the interior of an indirect object and patches all indirect
 /// references.
-fn patch_object(slice: &[u8], buf: &mut Vec<u8>, mapping: &mut dyn FnMut(Ref) -> Ref) {
+fn patch_object(slice: &[u8], buf: &mut Buf, mapping: &mut dyn FnMut(Ref) -> Ref) {
     // Find the next point of interest:
     // - 'R' is interesting because it could be an indirect reference
     // - Anything that could contain indirect-reference-like things that are not
@@ -62,7 +65,7 @@ fn patch_object(slice: &[u8], buf: &mut Vec<u8>, mapping: &mut dyn FnMut(Ref) ->
             b'R' => {
                 if let Some((head, id, gen)) = validate_ref(&slice[..seen]) {
                     let new = mapping(id);
-                    buf.extend(&slice[written..head]);
+                    buf.extend_slice(&slice[written..head]);
                     buf.push_int(new.get());
                     buf.push(b' ');
                     buf.push_int(gen);
@@ -112,7 +115,7 @@ fn patch_object(slice: &[u8], buf: &mut Vec<u8>, mapping: &mut dyn FnMut(Ref) ->
         seen += 1;
     }
 
-    buf.extend(&slice[written..]);
+    buf.extend_slice(&slice[written..]);
 }
 
 /// Validate a match for an indirect reference.
@@ -183,9 +186,10 @@ mod tests {
 
         // Manually write an untidy object.
         c.offsets.push((Ref::new(8), c.buf.len()));
-        c.buf.extend(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
-        c.buf.extend(b"/beginobj/endobj%4 0 R\n");
-        c.buf.extend(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>%\n\nendobj");
+        c.buf.extend_slice(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
+        c.buf.extend_slice(b"/beginobj/endobj%4 0 R\n");
+        c.buf
+            .extend_slice(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>%\n\nendobj");
 
         c.stream(Ref::new(17), b"1 0 R 2 0 R 3 0 R 4 0 R")
             .pair(Name(b"Ok"), TextStr(")4 0 R"))
@@ -202,7 +206,7 @@ mod tests {
         });
 
         test!(
-            r.buf,
+            r.buf.into_bytes(),
             b"1 0 obj",
             b"<<",
             b"  /Nested <<",

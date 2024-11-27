@@ -1,3 +1,4 @@
+use crate::buf::Buf;
 use std::marker::PhantomData;
 
 use super::*;
@@ -849,8 +850,8 @@ impl WMode {
 
 /// A builder for a `/ToUnicode` character map stream.
 pub struct UnicodeCmap<G = u16> {
-    buf: Vec<u8>,
-    mappings: Vec<u8>,
+    buf: Buf,
+    mappings: Buf,
     count: i32,
     glyph_id: PhantomData<G>,
 }
@@ -870,65 +871,65 @@ where
     pub fn with_writing_mode(name: Name, info: SystemInfo, mode: WMode) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
-        let mut buf = Vec::new();
+        let mut buf = Buf::new();
 
         // Static header.
-        buf.extend(b"%!PS-Adobe-3.0 Resource-CMap\n");
-        buf.extend(b"%%DocumentNeededResources: procset CIDInit\n");
-        buf.extend(b"%%IncludeResource: procset CIDInit\n");
+        buf.extend_slice(b"%!PS-Adobe-3.0 Resource-CMap\n");
+        buf.extend_slice(b"%%DocumentNeededResources: procset CIDInit\n");
+        buf.extend_slice(b"%%IncludeResource: procset CIDInit\n");
 
         // Dynamic header.
-        buf.extend(b"%%BeginResource: CMap ");
-        buf.extend(name.0);
+        buf.extend_slice(b"%%BeginResource: CMap ");
+        buf.extend_slice(name.0);
         buf.push(b'\n');
-        buf.extend(b"%%Title: (");
-        buf.extend(name.0);
+        buf.extend_slice(b"%%Title: (");
+        buf.extend_slice(name.0);
         buf.push(b' ');
-        buf.extend(info.registry.0);
+        buf.extend_slice(info.registry.0);
         buf.push(b' ');
-        buf.extend(info.ordering.0);
+        buf.extend_slice(info.ordering.0);
         buf.push(b' ');
         buf.push_int(info.supplement);
-        buf.extend(b")\n");
-        buf.extend(b"%%Version: 1\n");
-        buf.extend(b"%%EndComments\n");
+        buf.extend_slice(b")\n");
+        buf.extend_slice(b"%%Version: 1\n");
+        buf.extend_slice(b"%%EndComments\n");
 
         // General body.
-        buf.extend(b"/CIDInit /ProcSet findresource begin\n");
-        buf.extend(b"12 dict begin\n");
-        buf.extend(b"begincmap\n");
-        buf.extend(b"/CIDSystemInfo 3 dict dup begin\n");
-        buf.extend(b"    /Registry ");
+        buf.extend_slice(b"/CIDInit /ProcSet findresource begin\n");
+        buf.extend_slice(b"12 dict begin\n");
+        buf.extend_slice(b"begincmap\n");
+        buf.extend_slice(b"/CIDSystemInfo 3 dict dup begin\n");
+        buf.extend_slice(b"    /Registry ");
         buf.push_val(info.registry);
-        buf.extend(b" def\n");
-        buf.extend(b"    /Ordering ");
+        buf.extend_slice(b" def\n");
+        buf.extend_slice(b"    /Ordering ");
         buf.push_val(info.ordering);
-        buf.extend(b" def\n");
-        buf.extend(b"    /Supplement ");
+        buf.extend_slice(b" def\n");
+        buf.extend_slice(b"    /Supplement ");
         buf.push_val(info.supplement);
-        buf.extend(b" def\n");
-        buf.extend(b"end def\n");
-        buf.extend(b"/CMapName ");
+        buf.extend_slice(b" def\n");
+        buf.extend_slice(b"end def\n");
+        buf.extend_slice(b"/CMapName ");
         buf.push_val(name);
-        buf.extend(b" def\n");
-        buf.extend(b"/CMapVersion 1 def\n");
-        buf.extend(b"/CMapType 0 def\n");
-        buf.extend(b"/WMode ");
+        buf.extend_slice(b" def\n");
+        buf.extend_slice(b"/CMapVersion 1 def\n");
+        buf.extend_slice(b"/CMapType 0 def\n");
+        buf.extend_slice(b"/WMode ");
         buf.push_int(mode.to_int());
-        buf.extend(b" def\n");
+        buf.extend_slice(b" def\n");
 
         // We just cover the whole unicode codespace.
-        buf.extend(b"1 begincodespacerange\n");
+        buf.extend_slice(b"1 begincodespacerange\n");
         buf.push(b'<');
         G::MIN.push(&mut buf);
-        buf.extend(b"> <");
+        buf.extend_slice(b"> <");
         G::MAX.push(&mut buf);
-        buf.extend(b">\n");
-        buf.extend(b"endcodespacerange\n");
+        buf.extend_slice(b">\n");
+        buf.extend_slice(b"endcodespacerange\n");
 
         Self {
             buf,
-            mappings: vec![],
+            mappings: Buf::new(),
             count: 0,
             glyph_id: PhantomData,
         }
@@ -947,7 +948,7 @@ where
     ) {
         self.mappings.push(b'<');
         glyph.push(&mut self.mappings);
-        self.mappings.extend(b"> <");
+        self.mappings.extend_slice(b"> <");
 
         for c in codepoints {
             for &mut part in c.encode_utf16(&mut [0; 2]) {
@@ -955,7 +956,7 @@ where
             }
         }
 
-        self.mappings.extend(b">\n");
+        self.mappings.extend_slice(b">\n");
         self.count += 1;
 
         // At most 100 lines per range.
@@ -965,17 +966,18 @@ where
     }
 
     /// Finish building the character map.
-    pub fn finish(mut self) -> Vec<u8> {
+    pub fn finish(mut self) -> Buf {
         // Flush the in-progress range.
         self.flush_range();
 
         // End of body.
-        self.buf.extend(b"endcmap\n");
-        self.buf.extend(b"CMapName currentdict /CMap defineresource pop\n");
-        self.buf.extend(b"end\n");
-        self.buf.extend(b"end\n");
-        self.buf.extend(b"%%EndResource\n");
-        self.buf.extend(b"%%EOF");
+        self.buf.extend_slice(b"endcmap\n");
+        self.buf
+            .extend_slice(b"CMapName currentdict /CMap defineresource pop\n");
+        self.buf.extend_slice(b"end\n");
+        self.buf.extend_slice(b"end\n");
+        self.buf.extend_slice(b"%%EndResource\n");
+        self.buf.extend_slice(b"%%EOF");
 
         self.buf
     }
@@ -983,13 +985,13 @@ where
     fn flush_range(&mut self) {
         if self.count > 0 {
             self.buf.push_int(self.count);
-            self.buf.extend(b" beginbfchar\n");
-            self.buf.extend(&self.mappings);
-            self.buf.extend(b"endbfchar\n");
+            self.buf.extend_slice(b" beginbfchar\n");
+            self.buf.extend_slice(&self.mappings);
+            self.buf.extend_slice(b"endbfchar\n");
         }
 
         self.count = 0;
-        self.mappings.clear();
+        self.mappings.inner.clear();
     }
 }
 
@@ -1005,19 +1007,19 @@ impl GlyphId for u16 {}
 
 /// Module to seal the `GlyphId` trait.
 mod private {
-    use crate::buf::BufExt;
+    use crate::buf::Buf;
 
     pub trait Sealed {
         const MIN: Self;
         const MAX: Self;
-        fn push(self, buf: &mut Vec<u8>);
+        fn push(self, buf: &mut Buf);
     }
 
     impl Sealed for u8 {
         const MIN: Self = u8::MIN;
         const MAX: Self = u8::MAX;
 
-        fn push(self, buf: &mut Vec<u8>) {
+        fn push(self, buf: &mut Buf) {
             buf.push_hex(self);
         }
     }
@@ -1026,7 +1028,7 @@ mod private {
         const MIN: Self = u16::MIN;
         const MAX: Self = u16::MAX;
 
-        fn push(self, buf: &mut Vec<u8>) {
+        fn push(self, buf: &mut Buf) {
             buf.push_hex_u16(self);
         }
     }
