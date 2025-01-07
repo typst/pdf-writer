@@ -186,6 +186,7 @@ pub mod types {
     pub use xobject::SMaskInData;
 }
 
+pub use self::buf::{Buf, Limits};
 pub use self::chunk::Chunk;
 pub use self::content::Content;
 pub use self::object::{
@@ -197,7 +198,6 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
-use self::buf::BufExt;
 use self::writers::*;
 
 /// A builder for a PDF file.
@@ -225,7 +225,7 @@ impl Pdf {
     /// Create a new PDF with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         let mut chunk = Chunk::with_capacity(capacity);
-        chunk.buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
+        chunk.buf.extend_slice(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self {
             chunk,
             catalog_id: None,
@@ -241,7 +241,7 @@ impl Pdf {
     ///
     /// _Default value_: \x80\x80\x80\x80
     pub fn set_binary_marker(&mut self, marker: &[u8; 4]) {
-        self.chunk.buf[10..14].copy_from_slice(marker);
+        self.chunk.buf.inner[10..14].copy_from_slice(marker);
     }
 
     /// Set the PDF version.
@@ -252,10 +252,10 @@ impl Pdf {
     /// _Default value_: 1.7.
     pub fn set_version(&mut self, major: u8, minor: u8) {
         if major < 10 {
-            self.chunk.buf[5] = b'0' + major;
+            self.chunk.buf.inner[5] = b'0' + major;
         }
         if minor < 10 {
-            self.chunk.buf[7] = b'0' + minor;
+            self.chunk.buf.inner[7] = b'0' + minor;
         }
     }
 
@@ -300,12 +300,12 @@ impl Pdf {
         let xref_len = 1 + offsets.last().map_or(0, |p| p.0.get());
         let xref_offset = buf.len();
 
-        buf.extend(b"xref\n0 ");
+        buf.extend_slice(b"xref\n0 ");
         buf.push_int(xref_len);
         buf.push(b'\n');
 
         if offsets.is_empty() {
-            write!(buf, "0000000000 65535 f\r\n").unwrap();
+            write!(buf.inner, "0000000000 65535 f\r\n").unwrap();
         }
 
         let mut written = 0;
@@ -330,16 +330,16 @@ impl Pdf {
                 }
 
                 let gen = if free_id == 0 { "65535" } else { "00000" };
-                write!(buf, "{:010} {} f\r\n", next % xref_len, gen).unwrap();
+                write!(buf.inner, "{:010} {} f\r\n", next % xref_len, gen).unwrap();
                 written += 1;
             }
 
-            write!(buf, "{:010} 00000 n\r\n", offset).unwrap();
+            write!(buf.inner, "{:010} 00000 n\r\n", offset).unwrap();
             written += 1;
         }
 
         // Write the trailer dictionary.
-        buf.extend(b"trailer\n");
+        buf.extend_slice(b"trailer\n");
 
         let mut trailer = Obj::direct(&mut buf, 0).dict();
         trailer.pair(Name(b"Size"), xref_len);
@@ -361,12 +361,12 @@ impl Pdf {
         trailer.finish();
 
         // Write where the cross-reference table starts.
-        buf.extend(b"\nstartxref\n");
-        write!(buf, "{}", xref_offset).unwrap();
+        buf.extend_slice(b"\nstartxref\n");
+        write!(buf.inner, "{}", xref_offset).unwrap();
 
         // Write the end of file marker.
-        buf.extend(b"\n%%EOF");
-        buf
+        buf.extend_slice(b"\n%%EOF");
+        buf.into_bytes()
     }
 }
 
