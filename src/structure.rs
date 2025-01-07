@@ -230,7 +230,7 @@ pub struct DeveloperExtension<'a> {
 
 writer!(DeveloperExtension: |obj| {
     let mut dict = obj.dict();
-    dict.pair(Name(b"Type"), Name(b"DeveloperExtension"));
+    dict.pair(Name(b"Type"), Name(b"DeveloperExtensions"));
     Self { dict }
 });
 
