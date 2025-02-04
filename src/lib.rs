@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn test_binary_marker() {
         let mut w = Pdf::new();
-        w.set_binary_marker(&[b'A', b'B', b'C', b'D']);
+        w.set_binary_marker(b"ABCD");
         test!(
             w.finish(),
             b"%PDF-1.7\n%ABCD\n",

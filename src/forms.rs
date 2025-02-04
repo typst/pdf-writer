@@ -10,7 +10,7 @@ pub struct Form<'a> {
 
 writer!(Form: |obj| Self { dict: obj.dict() });
 
-impl<'a> Form<'a> {
+impl Form<'_> {
     /// Write the `/Fields` attribute to reference the root [form fields](Field)
     /// (those who have no immediate parent) of this document.
     pub fn fields(&mut self, fields: impl IntoIterator<Item = Ref>) -> &mut Self {
@@ -203,7 +203,7 @@ impl FieldType {
 }
 
 /// Only permissible on button fields.
-impl<'a> Field<'a> {
+impl Field<'_> {
     /// Write the `/Opt` array to set the export values of children of this
     /// field. Only permissible on checkbox fields, or radio button fields.
     /// PDF 1.4+.
@@ -217,7 +217,7 @@ impl<'a> Field<'a> {
 }
 
 /// Only permissible on check box fields.
-impl<'a> Field<'a> {
+impl Field<'_> {
     /// Write the `/V` attribute to set the state of this check box field. The
     /// state corresponds to an appearance stream in the [appearance
     /// dictionary](AppearanceCharacteristics) of this field's widget
@@ -255,7 +255,7 @@ impl CheckBoxState {
 }
 
 /// Only permissible on radio button fields.
-impl<'a> Field<'a> {
+impl Field<'_> {
     /// Write the `/V` attribute to set the state of this radio button field.
     /// The state corresponds to an appearance stream in the
     /// [appearance subdictionary](Appearance) of this field's widget
@@ -278,7 +278,7 @@ impl<'a> Field<'a> {
 }
 
 /// Only permissible on text fields.
-impl<'a> Field<'a> {
+impl Field<'_> {
     /// Write the `/MaxLen` attribute to set the maximum length of the fields
     /// text in characters. Only permissible on text fields.
     ///
@@ -305,7 +305,7 @@ impl<'a> Field<'a> {
 }
 
 /// Only permissible on fields containing variable text.
-impl<'a> Field<'a> {
+impl Field<'_> {
     /// Write the `/DA` attribute containing a sequence of valid page-content
     /// graphics or text state operators that define such properties as the
     /// field's text size and colour. Only permissible on fields containing
@@ -350,7 +350,7 @@ pub enum Quadding {
 }
 
 /// Only permissible on choice fields.
-impl<'a> Field<'a> {
+impl Field<'_> {
     /// Start writing the `/Opt` array to set the options that shall be
     /// presented to the user.
     pub fn choice_options(&mut self) -> ChoiceOptions<'_> {
@@ -440,7 +440,7 @@ pub struct ChoiceOptions<'a> {
 
 writer!(ChoiceOptions: |obj| Self { array: obj.array() });
 
-impl<'a> ChoiceOptions<'a> {
+impl ChoiceOptions<'_> {
     /// Add an option with the given value.
     pub fn option(&mut self, value: TextStr) -> &mut Self {
         self.array.item(value);

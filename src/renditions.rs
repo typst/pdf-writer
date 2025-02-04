@@ -13,7 +13,7 @@ writer!(Rendition: |obj| {
     Self { dict }
 });
 
-impl<'a> Rendition<'a> {
+impl Rendition<'_> {
     /// Write the `/S` attribute to set the rendition type.
     pub fn subtype(&mut self, kind: RenditionType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
@@ -75,7 +75,7 @@ writer!(MediaClip: |obj| {
     Self { dict }
 });
 
-impl<'a> MediaClip<'a> {
+impl MediaClip<'_> {
     /// Write the `/S` attribute to set the media clip type.
     pub fn subtype(&mut self, kind: MediaClipType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
@@ -133,7 +133,7 @@ writer!(MediaPlayParams: |obj| {
     Self { dict }
 });
 
-impl<'a> MediaPlayParams<'a> {
+impl MediaPlayParams<'_> {
     /// Write the `/C` attribute inside a `/BE` dictionary specifying whether to
     /// display a player-specific controls.
     ///
@@ -161,7 +161,7 @@ writer!(MediaPermissions: |obj| {
     Self { dict }
 });
 
-impl<'a> MediaPermissions<'a> {
+impl MediaPermissions<'_> {
     /// Write the `/TF` attribute to control permissions to write a temporary file.
     pub fn temp_file(&mut self, tf: TempFileType) -> &mut Self {
         self.pair(Name(b"TF"), tf.to_str());

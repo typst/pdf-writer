@@ -119,8 +119,6 @@ impl<'a> ImageXObject<'a> {
         self.pair(Name(b"SMask"), x_object);
         self
     }
-    ///
-    /// Note that this key is forbidden in PDF/A-1.
 
     /// Write the `/SMaskInData` attribute. PDF 1.5+.
     ///
@@ -292,7 +290,7 @@ writer!(Group: |obj| {
     Self { dict }
 });
 
-impl<'a> Group<'a> {
+impl Group<'_> {
     /// Set the `/S` attribute to `/Transparency`. Required to set the remaining
     /// transparency parameters.
     pub fn transparency(&mut self) -> &mut Self {
@@ -344,7 +342,7 @@ pub struct Reference<'a> {
 
 writer!(Reference: |obj| Self { dict: obj.dict() });
 
-impl<'a> Reference<'a> {
+impl Reference<'_> {
     /// Start writing the `/F` attribute to set a file specification dictionary.
     /// Required.
     pub fn file_spec(&mut self) -> FileSpec<'_> {
