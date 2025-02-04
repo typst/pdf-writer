@@ -60,7 +60,7 @@ pub struct UserProperty<'a> {
 
 writer!(UserProperty: |obj| Self { dict: obj.dict() });
 
-impl<'a> UserProperty<'a> {
+impl UserProperty<'_> {
     /// Write the `/N` attribute to set the name of the property.
     pub fn name(&mut self, name: TextStr) -> &mut Self {
         self.dict.pair(Name(b"N"), name);
@@ -400,7 +400,7 @@ impl BlockAlign {
 }
 
 /// Grouping elements.
-impl<'a> LayoutAttributes<'a> {
+impl LayoutAttributes<'_> {
     /// Write the `/ColumnCount` attribute. PDF 1.6+.
     pub fn column_count(&mut self, count: i32) -> &mut Self {
         self.dict.pair(Name(b"ColumnCount"), count);

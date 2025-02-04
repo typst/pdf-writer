@@ -13,7 +13,7 @@ writer!(Annotation: |obj| {
     Self { dict }
 });
 
-impl<'a> Annotation<'a> {
+impl Annotation<'_> {
     /// Write the `/Subtype` attribute to tell the viewer the type of this
     /// particular annotation.
     pub fn subtype(&mut self, kind: AnnotationType) -> &mut Self {
@@ -396,7 +396,7 @@ pub struct AppearanceCharacteristics<'a> {
 
 writer!(AppearanceCharacteristics: |obj| Self { dict: obj.dict() });
 
-impl<'a> AppearanceCharacteristics<'a> {
+impl AppearanceCharacteristics<'_> {
     /// Write the `/R` attribute. This is the number of degrees the widget
     /// annotation should be rotated by counterclockwise relative to its page
     /// when displayed. This should be a multiple of 90.
@@ -552,7 +552,7 @@ pub struct IconFit<'a> {
 
 writer!(IconFit: |obj| Self { dict: obj.dict() });
 
-impl<'a> IconFit<'a> {
+impl IconFit<'_> {
     /// Write the `/SW` attribute. This sets under which circumstances the icon
     /// of the widget annotation should be scaled.
     pub fn scale(&mut self, value: IconScale) -> &mut Self {
@@ -668,7 +668,7 @@ pub struct Appearance<'a> {
 
 writer!(Appearance: |obj| Self { dict: obj.dict() });
 
-impl<'a> Appearance<'a> {
+impl Appearance<'_> {
     /// Start writing the `/N` stream or dictionary to set the annotation's
     /// normal appearance.
     pub fn normal(&mut self) -> AppearanceEntry<'_> {
@@ -729,7 +729,7 @@ writer!(BorderStyle: |obj| {
     Self { dict }
 });
 
-impl<'a> BorderStyle<'a> {
+impl BorderStyle<'_> {
     /// Write the `/W` attribute. This is the width of the border in points.
     pub fn width(&mut self, points: f32) -> &mut Self {
         self.pair(Name(b"W"), points);

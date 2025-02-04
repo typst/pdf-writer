@@ -16,7 +16,7 @@ writer!(Type1Font: |obj| {
     Self { dict }
 });
 
-impl<'a> Type1Font<'a> {
+impl Type1Font<'_> {
     /// Write the `/Name` attribute, which is the name of the font in the
     /// current resource dictionary. Required in PDF 1.0, discouraged in PDF
     /// 1.1+.
@@ -103,7 +103,7 @@ writer!(Type3Font: |obj| {
     Self { dict }
 });
 
-impl<'a> Type3Font<'a> {
+impl Type3Font<'_> {
     /// Write the `/Name` attribute, which is the name of the font in the
     /// current resource dictionary. Always required in PDF 1.0, required if
     /// `FontName` is set in child font descriptor.
@@ -209,7 +209,7 @@ writer!(Encoding: |obj| {
     Self { dict }
 });
 
-impl<'a> Encoding<'a> {
+impl Encoding<'_> {
     /// Write the `BaseEncoding` attribute, from which this encoding is
     /// described through differences.
     pub fn base_encoding(&mut self, name: Name) -> &mut Self {
@@ -234,7 +234,7 @@ pub struct Differences<'a> {
 
 writer!(Differences: |obj| Self { array: obj.array() });
 
-impl<'a> Differences<'a> {
+impl Differences<'_> {
     /// Maps consecutive character codes starting at `start` to the given glyph
     /// names.
     pub fn consecutive<'n>(
@@ -266,7 +266,7 @@ writer!(Type0Font: |obj| {
     Self { dict }
 });
 
-impl<'a> Type0Font<'a> {
+impl Type0Font<'_> {
     /// Write the `/BaseFont` attribute. This is the PostScript name of the
     /// font. Required.
     pub fn base_font(&mut self, name: Name) -> &mut Self {
@@ -320,7 +320,7 @@ writer!(CidFont: |obj| {
     Self { dict }
 });
 
-impl<'a> CidFont<'a> {
+impl CidFont<'_> {
     /// Write the `/Subtype` attribute. Required.
     pub fn subtype(&mut self, subtype: CidFontType) -> &mut Self {
         self.pair(Name(b"Subtype"), subtype.to_name());
@@ -405,7 +405,7 @@ pub struct Widths<'a> {
 
 writer!(Widths: |obj| Self { array: obj.array() });
 
-impl<'a> Widths<'a> {
+impl Widths<'_> {
     /// Specifies individual widths for a range of consecutive CIDs starting at
     /// `start`.
     pub fn consecutive(
@@ -442,7 +442,7 @@ writer!(FontDescriptor: |obj| {
     Self { dict }
 });
 
-impl<'a> FontDescriptor<'a> {
+impl FontDescriptor<'_> {
     /// Write the `/FontName` attribute. Required, except for Type 3 fonts.
     pub fn name(&mut self, name: Name) -> &mut Self {
         self.pair(Name(b"FontName"), name);

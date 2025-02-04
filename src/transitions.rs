@@ -13,7 +13,7 @@ writer!(Transition: |obj| {
     Self { dict }
 });
 
-impl<'a> Transition<'a> {
+impl Transition<'_> {
     /// Write the `/S` attribute to set the transition style.
     pub fn style(&mut self, kind: TransitionStyle) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());

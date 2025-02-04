@@ -589,7 +589,7 @@ impl<'a, T> Writer<'a> for TypedArray<'a, T> {
     }
 }
 
-impl<'a, 'any, T> Rewrite<'a> for TypedArray<'any, T> {
+impl<'a, T> Rewrite<'a> for TypedArray<'_, T> {
     type Output = TypedArray<'a, T>;
 }
 
@@ -636,7 +636,7 @@ impl<'a, T> TypedArray<'a, T> {
     ///
     /// Returns `T` but with its lifetime rewritten from `'a` to `'b`.
     #[inline]
-    pub fn push<'b>(&'b mut self) -> <T as Rewrite>::Output
+    pub fn push<'b>(&'b mut self) -> <T as Rewrite<'b>>::Output
     where
         T: Writer<'a> + Rewrite<'b>,
     {
@@ -746,7 +746,7 @@ impl<'a, T> Writer<'a> for TypedDict<'a, T> {
     }
 }
 
-impl<'a, 'any, T> Rewrite<'a> for TypedDict<'any, T> {
+impl<'a, T> Rewrite<'a> for TypedDict<'_, T> {
     type Output = TypedDict<'a, T>;
 }
 
@@ -796,7 +796,7 @@ impl<'a, T> TypedDict<'a, T> {
     ///
     /// Returns `T` but with its lifetime rewritten from `'a` to `'b`.
     #[inline]
-    pub fn insert<'b>(&'b mut self, key: Name) -> <T as Rewrite>::Output
+    pub fn insert<'b>(&'b mut self, key: Name) -> <T as Rewrite<'b>>::Output
     where
         T: Writer<'a> + Rewrite<'b>,
     {
@@ -1136,7 +1136,7 @@ impl<'a, T> Writer<'a> for NameTree<'a, T> {
     }
 }
 
-impl<'a, 'any, T> Rewrite<'a> for NameTree<'any, T> {
+impl<'a, T> Rewrite<'a> for NameTree<'_, T> {
     type Output = NameTree<'a, T>;
 }
 
@@ -1176,7 +1176,7 @@ impl<'a, T> Writer<'a> for NameTreeEntries<'a, T> {
     }
 }
 
-impl<'a, 'any, T> Rewrite<'a> for NameTreeEntries<'any, T> {
+impl<'a, T> Rewrite<'a> for NameTreeEntries<'_, T> {
     type Output = NameTreeEntries<'a, T>;
 }
 
@@ -1212,7 +1212,7 @@ impl<'a, T> Writer<'a> for NumberTree<'a, T> {
     }
 }
 
-impl<'a, 'any, T> Rewrite<'a> for NumberTree<'any, T> {
+impl<'a, T> Rewrite<'a> for NumberTree<'_, T> {
     type Output = NumberTree<'a, T>;
 }
 
@@ -1252,7 +1252,7 @@ impl<'a, T> Writer<'a> for NumberTreeEntries<'a, T> {
     }
 }
 
-impl<'a, 'any, T> Rewrite<'a> for NumberTreeEntries<'any, T> {
+impl<'a, T> Rewrite<'a> for NumberTreeEntries<'_, T> {
     type Output = NumberTreeEntries<'a, T>;
 }
 
