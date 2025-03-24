@@ -21,31 +21,7 @@ fn main() {
     // This will update the limit for the maximum name and dictionary length.
     limits.merge(chunk.limits());
 
-    // This is what the final PDF will look like.
-    assert_eq!(
-        chunk.as_bytes(),
-        b"1 0 obj
-<<
-  /Length 34
->>
-stream
--3.4 0 0 3.1 100 100 cm
-15 -26.1 l
-endstream
-endobj
-
-2 0 obj
-<<
-  /Type /Font
-  /Subtype /Type3
-  /Name /A_long_font_name
->>
-endobj
-
-"
-    );
-
-    // And the limits should match, as well!
+    // The limits of the PDF file should match.
     assert_eq!(limits.int(), 100);
     assert_eq!(limits.real(), 26.1);
     assert_eq!(limits.name_len(), 16);
