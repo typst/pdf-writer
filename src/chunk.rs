@@ -49,7 +49,7 @@ impl Chunk {
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
-        self.buf.extend(&other.buf);
+        self.buf.extend_buf(&other.buf);
         self.offsets
             .extend(other.offsets.iter().map(|&(id, offset)| (id, base + offset)));
     }

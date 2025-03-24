@@ -122,7 +122,7 @@ impl Buf {
     #[inline]
     pub(crate) fn push_int(&mut self, value: i32) {
         self.limits.register_int(value);
-        self.extend_slice(itoa::Buffer::new().format(value).as_bytes());
+        self.extend(itoa::Buffer::new().format(value).as_bytes());
     }
 
     #[inline]
@@ -142,7 +142,7 @@ impl Buf {
         self.limits.register_real(value);
 
         if value == 0.0 || (value.abs() > 1e-6 && value.abs() < 1e12) {
-            self.extend_slice(ryu::Buffer::new().format(value).as_bytes());
+            self.extend(ryu::Buffer::new().format(value).as_bytes());
         } else {
             #[inline(never)]
             fn write_extreme(buf: &mut Buf, value: f32) {
@@ -155,12 +155,7 @@ impl Buf {
     }
 
     #[inline]
-    pub(crate) fn extend_slice(&mut self, other: &[u8]) {
-        self.inner.extend(other);
-    }
-
-    #[inline]
-    pub(crate) fn extend(&mut self, other: &Buf) {
+    pub(crate) fn extend_buf(&mut self, other: &Buf) {
         self.limits.merge(&other.limits);
         self.inner.extend(&other.inner);
     }
@@ -212,6 +207,12 @@ impl Deref for Buf {
 
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<'a> Extend<&'a u8> for Buf {
+    fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
+        self.inner.extend(iter)
     }
 }
 

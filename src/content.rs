@@ -96,7 +96,7 @@ impl Drop for Operation<'_> {
         if !self.first {
             self.buf.push(b' ');
         }
-        self.buf.extend_slice(self.op.as_bytes());
+        self.buf.extend(self.op.as_bytes());
         self.buf.push(b'\n');
     }
 }

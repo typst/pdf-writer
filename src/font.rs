@@ -1,3 +1,4 @@
+use super::*;
 use crate::buf::Buf;
 use std::marker::PhantomData;
 
@@ -874,58 +875,58 @@ where
         let mut buf = Buf::new();
 
         // Static header.
-        buf.extend_slice(b"%!PS-Adobe-3.0 Resource-CMap\n");
-        buf.extend_slice(b"%%DocumentNeededResources: procset CIDInit\n");
-        buf.extend_slice(b"%%IncludeResource: procset CIDInit\n");
+        buf.extend(b"%!PS-Adobe-3.0 Resource-CMap\n");
+        buf.extend(b"%%DocumentNeededResources: procset CIDInit\n");
+        buf.extend(b"%%IncludeResource: procset CIDInit\n");
 
         // Dynamic header.
-        buf.extend_slice(b"%%BeginResource: CMap ");
-        buf.extend_slice(name.0);
+        buf.extend(b"%%BeginResource: CMap ");
+        buf.extend(name.0);
         buf.push(b'\n');
-        buf.extend_slice(b"%%Title: (");
-        buf.extend_slice(name.0);
+        buf.extend(b"%%Title: (");
+        buf.extend(name.0);
         buf.push(b' ');
-        buf.extend_slice(info.registry.0);
+        buf.extend(info.registry.0);
         buf.push(b' ');
-        buf.extend_slice(info.ordering.0);
+        buf.extend(info.ordering.0);
         buf.push(b' ');
         buf.push_int(info.supplement);
-        buf.extend_slice(b")\n");
-        buf.extend_slice(b"%%Version: 1\n");
-        buf.extend_slice(b"%%EndComments\n");
+        buf.extend(b")\n");
+        buf.extend(b"%%Version: 1\n");
+        buf.extend(b"%%EndComments\n");
 
         // General body.
-        buf.extend_slice(b"/CIDInit /ProcSet findresource begin\n");
-        buf.extend_slice(b"12 dict begin\n");
-        buf.extend_slice(b"begincmap\n");
-        buf.extend_slice(b"/CIDSystemInfo 3 dict dup begin\n");
-        buf.extend_slice(b"    /Registry ");
+        buf.extend(b"/CIDInit /ProcSet findresource begin\n");
+        buf.extend(b"12 dict begin\n");
+        buf.extend(b"begincmap\n");
+        buf.extend(b"/CIDSystemInfo 3 dict dup begin\n");
+        buf.extend(b"    /Registry ");
         buf.push_val(info.registry);
-        buf.extend_slice(b" def\n");
-        buf.extend_slice(b"    /Ordering ");
+        buf.extend(b" def\n");
+        buf.extend(b"    /Ordering ");
         buf.push_val(info.ordering);
-        buf.extend_slice(b" def\n");
-        buf.extend_slice(b"    /Supplement ");
+        buf.extend(b" def\n");
+        buf.extend(b"    /Supplement ");
         buf.push_val(info.supplement);
-        buf.extend_slice(b" def\n");
-        buf.extend_slice(b"end def\n");
-        buf.extend_slice(b"/CMapName ");
+        buf.extend(b" def\n");
+        buf.extend(b"end def\n");
+        buf.extend(b"/CMapName ");
         buf.push_val(name);
-        buf.extend_slice(b" def\n");
-        buf.extend_slice(b"/CMapVersion 1 def\n");
-        buf.extend_slice(b"/CMapType 0 def\n");
-        buf.extend_slice(b"/WMode ");
+        buf.extend(b" def\n");
+        buf.extend(b"/CMapVersion 1 def\n");
+        buf.extend(b"/CMapType 0 def\n");
+        buf.extend(b"/WMode ");
         buf.push_int(mode.to_int());
-        buf.extend_slice(b" def\n");
+        buf.extend(b" def\n");
 
         // We just cover the whole unicode codespace.
-        buf.extend_slice(b"1 begincodespacerange\n");
+        buf.extend(b"1 begincodespacerange\n");
         buf.push(b'<');
         G::MIN.push(&mut buf);
-        buf.extend_slice(b"> <");
+        buf.extend(b"> <");
         G::MAX.push(&mut buf);
-        buf.extend_slice(b">\n");
-        buf.extend_slice(b"endcodespacerange\n");
+        buf.extend(b">\n");
+        buf.extend(b"endcodespacerange\n");
 
         Self {
             buf,
@@ -948,7 +949,7 @@ where
     ) {
         self.mappings.push(b'<');
         glyph.push(&mut self.mappings);
-        self.mappings.extend_slice(b"> <");
+        self.mappings.extend(b"> <");
 
         for c in codepoints {
             for &mut part in c.encode_utf16(&mut [0; 2]) {
@@ -956,7 +957,7 @@ where
             }
         }
 
-        self.mappings.extend_slice(b">\n");
+        self.mappings.extend(b">\n");
         self.count += 1;
 
         // At most 100 lines per range.
@@ -971,13 +972,12 @@ where
         self.flush_range();
 
         // End of body.
-        self.buf.extend_slice(b"endcmap\n");
-        self.buf
-            .extend_slice(b"CMapName currentdict /CMap defineresource pop\n");
-        self.buf.extend_slice(b"end\n");
-        self.buf.extend_slice(b"end\n");
-        self.buf.extend_slice(b"%%EndResource\n");
-        self.buf.extend_slice(b"%%EOF");
+        self.buf.extend(b"endcmap\n");
+        self.buf.extend(b"CMapName currentdict /CMap defineresource pop\n");
+        self.buf.extend(b"end\n");
+        self.buf.extend(b"end\n");
+        self.buf.extend(b"%%EndResource\n");
+        self.buf.extend(b"%%EOF");
 
         self.buf
     }
@@ -985,9 +985,9 @@ where
     fn flush_range(&mut self) {
         if self.count > 0 {
             self.buf.push_int(self.count);
-            self.buf.extend_slice(b" beginbfchar\n");
-            self.buf.extend_slice(&self.mappings);
-            self.buf.extend_slice(b"endbfchar\n");
+            self.buf.extend(b" beginbfchar\n");
+            self.buf.extend(self.mappings.as_bytes());
+            self.buf.extend(b"endbfchar\n");
         }
 
         self.count = 0;

@@ -17,9 +17,9 @@ pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref)
         target.buf.push_int(new.get());
         target.buf.push(b' ');
         target.buf.push_int(gen);
-        target.buf.extend_slice(b" obj\n");
+        target.buf.extend(b" obj\n");
         patch_object(slice, &mut target.buf, mapping);
-        target.buf.extend_slice(b"\nendobj\n\n");
+        target.buf.extend(b"\nendobj\n\n");
     }
 }
 
@@ -65,7 +65,7 @@ fn patch_object(slice: &[u8], buf: &mut Buf, mapping: &mut dyn FnMut(Ref) -> Ref
             b'R' => {
                 if let Some((head, id, gen)) = validate_ref(&slice[..seen]) {
                     let new = mapping(id);
-                    buf.extend_slice(&slice[written..head]);
+                    buf.extend(&slice[written..head]);
                     buf.push_int(new.get());
                     buf.push(b' ');
                     buf.push_int(gen);
@@ -115,7 +115,7 @@ fn patch_object(slice: &[u8], buf: &mut Buf, mapping: &mut dyn FnMut(Ref) -> Ref
         seen += 1;
     }
 
-    buf.extend_slice(&slice[written..]);
+    buf.extend(&slice[written..]);
 }
 
 /// Validate a match for an indirect reference.
@@ -186,10 +186,9 @@ mod tests {
 
         // Manually write an untidy object.
         c.offsets.push((Ref::new(8), c.buf.len()));
-        c.buf.extend_slice(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
-        c.buf.extend_slice(b"/beginobj/endobj%4 0 R\n");
-        c.buf
-            .extend_slice(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>%\n\nendobj");
+        c.buf.extend(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
+        c.buf.extend(b"/beginobj/endobj%4 0 R\n");
+        c.buf.extend(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>%\n\nendobj");
 
         c.stream(Ref::new(17), b"1 0 R 2 0 R 3 0 R 4 0 R")
             .pair(Name(b"Ok"), TextStr(")4 0 R"))
