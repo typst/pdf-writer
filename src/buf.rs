@@ -1,7 +1,6 @@
 use super::Primitive;
 
 use std::ops::Deref;
-use image::EncodableLayout;
 
 /// Tracks the limits of data types used in a buffer.
 #[derive(Clone, PartialEq, Debug, Default)]
@@ -112,7 +111,7 @@ impl Buf {
 
     /// Get the underlying bytes of the buffer as a slice.
     pub fn as_slice(&self) -> &[u8] {
-        self.inner.as_bytes()
+        self.inner.as_slice()
     }
 
     /// Return the limits of the buffer.

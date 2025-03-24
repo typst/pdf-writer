@@ -205,7 +205,7 @@ mod tests {
         });
 
         test!(
-            r.buf.into_bytes(),
+            r.buf.as_slice(),
             b"1 0 obj",
             b"<<",
             b"  /Nested <<",
