@@ -1,9 +1,9 @@
-use super::Primitive;
-
 use std::ops::Deref;
 
+use super::Primitive;
+
 /// A buffer of arbitrary PDF content.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Buf {
     pub(crate) inner: Vec<u8>,
     pub(crate) limits: Limits,
@@ -132,6 +132,12 @@ impl Deref for Buf {
     }
 }
 
+impl Extend<u8> for Buf {
+    fn extend<T: IntoIterator<Item = u8>>(&mut self, iter: T) {
+        self.inner.extend(iter)
+    }
+}
+
 impl<'a> Extend<&'a u8> for Buf {
     fn extend<T: IntoIterator<Item = &'a u8>>(&mut self, iter: T) {
         self.inner.extend(iter)
@@ -139,7 +145,7 @@ impl<'a> Extend<&'a u8> for Buf {
 }
 
 /// Tracks the limits of data types used in a buffer.
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Limits {
     int: i32,
     real: f32,
@@ -170,6 +176,11 @@ impl Limits {
         self.name_len
     }
 
+    /// Get the maximum length of any used string.
+    pub fn str_len(&self) -> usize {
+        self.str_len
+    }
+
     /// Get the maximum length of any used array.
     pub fn array_len(&self) -> usize {
         self.array_len
@@ -178,11 +189,6 @@ impl Limits {
     /// Get the maximum number of entries in any dictionary.
     pub fn dict_entries(&self) -> usize {
         self.dict_entries
-    }
-
-    /// Get the maximum length of any used string.
-    pub fn str_len(&self) -> usize {
-        self.str_len
     }
 
     pub(crate) fn register_int(&mut self, val: i32) {

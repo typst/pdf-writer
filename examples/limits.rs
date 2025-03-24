@@ -9,6 +9,7 @@ fn main() {
     content.transform([-3.4, 0.0, 0.0, 3.1, 100.0, 100.0]);
     content.line_to(15.0, -26.1);
     let buf = content.finish();
+
     // This will have the limits:
     // - Max real number: 26.1 (for negative values we use their absolute value)
     // - Max int number 100 (even though above 100.0 is a float number, it will be coerced into an
@@ -18,10 +19,11 @@ fn main() {
     let mut chunk = Chunk::new();
     chunk.stream(Ref::new(1), &buf.into_vec());
     chunk.type3_font(Ref::new(2)).name(Name(b"A_long_font_name"));
+
     // This will update the limit for the maximum name and dictionary length.
     limits.merge(chunk.limits());
 
-    // The limits of the PDF file should match.
+    // The combined limits of the content and the chunk.
     assert_eq!(limits.int(), 100);
     assert_eq!(limits.real(), 26.1);
     assert_eq!(limits.name_len(), 16);

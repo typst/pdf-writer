@@ -29,10 +29,10 @@ impl Content {
     /// Return the buffer of the content stream.
     ///
     /// The buffer is essentially a thin wrapper around two objects:
-    /// - A [`Limits`] object, which can optionally be used to keep
-    ///   track of data such as the largest used integer or
-    ///   the longest string used in the content streams, which is useful information
-    ///   for some export modes.
+    /// - A [`Limits`] object, which can optionally be used to keep track of
+    ///   data such as the largest used integer or the longest string used in
+    ///   the content streams, which is useful information for some export
+    ///   modes.
     /// - The actual underlying data of the content stream, which can be written
     ///   to a chunk (and optionally apply a filter before doing so).
     pub fn finish(mut self) -> Buf {

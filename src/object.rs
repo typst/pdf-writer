@@ -129,7 +129,7 @@ pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
     fn write(self, buf: &mut Buf) {
-        buf.limits.register_str_len(self.0.as_bytes().len());
+        buf.limits.register_str_len(self.0.len());
 
         // ASCII and PDFDocEncoding match for 32 up to 126.
         if self.0.bytes().all(|b| matches!(b, 32..=126)) {

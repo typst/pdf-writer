@@ -1,8 +1,6 @@
 use super::*;
 use std::marker::PhantomData;
 
-use super::*;
-
 /// Writer for a _Type-1 font dictionary_.
 ///
 /// This struct is created by [`Chunk::type1_font`].
