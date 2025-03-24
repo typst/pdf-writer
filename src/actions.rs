@@ -14,7 +14,7 @@ writer!(Action: |obj| {
     Self { dict }
 });
 
-impl<'a> Action<'a> {
+impl Action<'_> {
     /// Write the `/S` attribute to set the action type.
     pub fn action_type(&mut self, kind: ActionType) -> &mut Self {
         self.pair(Name(b"S"), kind.to_name());
@@ -147,7 +147,7 @@ pub struct Fields<'a> {
 
 writer!(Fields: |obj| Self { array: obj.array() });
 
-impl<'a> Fields<'a> {
+impl Fields<'_> {
     /// The indirect reference to the field.
     pub fn id(&mut self, id: Ref) -> &mut Self {
         self.array.item(id);
@@ -299,7 +299,7 @@ pub struct AdditionalActions<'a> {
 writer!(AdditionalActions: |obj| Self { dict: obj.dict() });
 
 /// Only permissible for [annotations](Annotation).
-impl<'a> AdditionalActions<'a> {
+impl AdditionalActions<'_> {
     /// Start writing the `/E` dictionary. An action that shall be performed
     /// when the cursor enters the annotation's active area. Only permissible
     /// for annotations. PDF 1.2+.
@@ -360,7 +360,7 @@ impl<'a> AdditionalActions<'a> {
 
 /// Only permissible for [widget](crate::types::AnnotationType::Widget)
 /// [annotations](Annotation).
-impl<'a> AdditionalActions<'a> {
+impl AdditionalActions<'_> {
     /// Start writing the `/Fo` dictionary. This sets the action that shall be
     /// performed when the annotation receives the input focus. Only permissible
     /// for widget annotations. PDF 1.2+.
@@ -377,7 +377,7 @@ impl<'a> AdditionalActions<'a> {
 }
 
 /// Only permissible for [page objects](Page).
-impl<'a> AdditionalActions<'a> {
+impl AdditionalActions<'_> {
     /// Start writing the `/O` dictionary. This sets the action that shall be
     /// performed when the page is opened. This action is independent of any
     /// that may be defined by the open action entry in the
@@ -397,7 +397,7 @@ impl<'a> AdditionalActions<'a> {
 }
 
 /// Only permisible for form fields.
-impl<'a> AdditionalActions<'a> {
+impl AdditionalActions<'_> {
     /// Start writing the `/K` dictionary. This sets the JavaScript action that
     /// shall be performed when the user modifies a character in a text field
     /// or combo box or modifies the selection in a scrollable list box. This
@@ -434,7 +434,7 @@ impl<'a> AdditionalActions<'a> {
 }
 
 /// Only permisible for [document catalog](Catalog).
-impl<'a> AdditionalActions<'a> {
+impl AdditionalActions<'_> {
     /// Start writing the `/WC` dictionary. This sets the JavaScript action
     /// that shall be performed before closing a document. Only permissible for
     /// the [document catalog](Catalog) PDF 1.4+.

@@ -14,7 +14,7 @@ writer!(FileSpec: |obj| {
     Self { dict }
 });
 
-impl<'a> FileSpec<'a> {
+impl FileSpec<'_> {
     /// Write the `/FS` attribute to set the file system this entry relates to.
     /// If you set the `system` argument to `Name(b"URL")`, this becomes an URL
     /// specification.
@@ -129,7 +129,7 @@ pub struct EmbeddingParams<'a> {
 
 writer!(EmbeddingParams: |obj| Self { dict: obj.dict() });
 
-impl<'a> EmbeddingParams<'a> {
+impl EmbeddingParams<'_> {
     /// Write the `/Size` attribute to set the uncompressed file size in bytes.
     pub fn size(&mut self, size: i32) -> &mut Self {
         self.pair(Name(b"Size"), size);

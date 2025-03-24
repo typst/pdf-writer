@@ -14,7 +14,7 @@ writer!(Catalog: |obj| {
     Self { dict }
 });
 
-impl<'a> Catalog<'a> {
+impl Catalog<'_> {
     /// Write the `/Pages` attribute pointing to the root page tree.
     pub fn pages(&mut self, id: Ref) -> &mut Self {
         self.pair(Name(b"Pages"), id);
@@ -230,11 +230,11 @@ pub struct DeveloperExtension<'a> {
 
 writer!(DeveloperExtension: |obj| {
     let mut dict = obj.dict();
-    dict.pair(Name(b"Type"), Name(b"DeveloperExtension"));
+    dict.pair(Name(b"Type"), Name(b"DeveloperExtensions"));
     Self { dict }
 });
 
-impl<'a> DeveloperExtension<'a> {
+impl DeveloperExtension<'_> {
     /// Write the `/BaseVersion` attribute to specify the version of PDF this
     /// extension is based on. Required.
     pub fn base_version(&mut self, major: u8, minor: u8) -> &mut Self {
@@ -261,7 +261,7 @@ pub struct ViewerPreferences<'a> {
 
 writer!(ViewerPreferences: |obj| Self { dict: obj.dict() });
 
-impl<'a> ViewerPreferences<'a> {
+impl ViewerPreferences<'_> {
     /// Write the `/HideToolbar` attribute to set whether the viewer should hide
     /// its toolbars while the document is open.
     pub fn hide_toolbar(&mut self, hide: bool) -> &mut Self {
@@ -333,7 +333,7 @@ writer!(StructTreeRoot: |obj| {
     Self { dict }
 });
 
-impl<'a> StructTreeRoot<'a> {
+impl StructTreeRoot<'_> {
     /// Write the `/K` attribute to reference the immediate child of this
     /// element.
     pub fn child(&mut self, id: Ref) -> &mut Self {
@@ -395,7 +395,7 @@ writer!(StructElement: |obj| {
     Self { dict }
 });
 
-impl<'a> StructElement<'a> {
+impl StructElement<'_> {
     /// Write the `/S` attribute to specify the role of this structure element.
     /// Required if no custom type is specified with [`Self::custom_kind`].
     pub fn kind(&mut self, role: StructRole) -> &mut Self {
@@ -529,7 +529,7 @@ pub struct StructChildren<'a> {
 
 writer!(StructChildren: |obj| Self { arr: obj.array() });
 
-impl<'a> StructChildren<'a> {
+impl StructChildren<'_> {
     /// Write a structure element child as an indirect object.
     pub fn struct_element(&mut self, id: Ref) -> &mut Self {
         self.arr.item(id);
@@ -569,7 +569,7 @@ writer!(MarkedRef: |obj| {
     Self { dict }
 });
 
-impl<'a> MarkedRef<'a> {
+impl MarkedRef<'_> {
     /// Write the `/Pg` attribute to specify the page the referenced marked
     /// content sequence is located on.
     pub fn page(&mut self, page: Ref) -> &mut Self {
@@ -616,7 +616,7 @@ writer!(ObjectRef: |obj| {
     Self { dict }
 });
 
-impl<'a> ObjectRef<'a> {
+impl ObjectRef<'_> {
     /// Write the `/Pg` attribute to specify the page some or all of this
     /// structure element is located on.
     pub fn page(&mut self, page: Ref) -> &mut Self {
@@ -642,7 +642,7 @@ pub struct RoleMap<'a> {
 
 writer!(RoleMap: |obj| Self { dict: obj.dict().typed() });
 
-impl<'a> RoleMap<'a> {
+impl RoleMap<'_> {
     /// Write an entry mapping a custom name to a pre-defined role.
     pub fn insert(&mut self, name: Name, role: StructRole) -> &mut Self {
         self.dict.pair(name, role.to_name());
@@ -661,7 +661,7 @@ pub struct ClassMap<'a> {
 
 writer!(ClassMap: |obj| Self { dict: obj.dict() });
 
-impl<'a> ClassMap<'a> {
+impl ClassMap<'_> {
     /// Start writing an attributes dictionary for a class name.
     pub fn single(&mut self, name: Name) -> Attributes<'_> {
         self.dict.insert(name).start()
@@ -844,7 +844,7 @@ pub struct MarkInfo<'a> {
 
 writer!(MarkInfo: |obj| Self { dict: obj.dict() });
 
-impl<'a> MarkInfo<'a> {
+impl MarkInfo<'_> {
     /// Write the `/Marked` attribute to indicate whether the document conforms
     /// to the Tagged PDF specification.
     ///
@@ -902,7 +902,7 @@ writer!(PageLabel: |obj| {
     Self { dict }
 });
 
-impl<'a> PageLabel<'a> {
+impl PageLabel<'_> {
     /// Write the `/S` attribute to set the page label's numbering style.
     ///
     /// If this attribute is omitted, only the prefix will be used, there will
@@ -965,7 +965,7 @@ pub struct DocumentInfo<'a> {
 
 writer!(DocumentInfo: |obj| Self { dict: obj.dict() });
 
-impl<'a> DocumentInfo<'a> {
+impl DocumentInfo<'_> {
     /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
     pub fn title(&mut self, title: TextStr) -> &mut Self {
         self.pair(Name(b"Title"), title);
@@ -1067,7 +1067,7 @@ writer!(Pages: |obj| {
     Self { dict }
 });
 
-impl<'a> Pages<'a> {
+impl Pages<'_> {
     /// Write the `/Parent` attribute. Required except in root node.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.pair(Name(b"Parent"), parent);
@@ -1116,7 +1116,7 @@ writer!(Page: |obj| {
     Self { dict }
 });
 
-impl<'a> Page<'a> {
+impl Page<'_> {
     /// Write the `/Parent` attribute. Required.
     pub fn parent(&mut self, parent: Ref) -> &mut Self {
         self.pair(Name(b"Parent"), parent);
@@ -1291,7 +1291,7 @@ writer!(Outline: |obj| {
     Self { dict }
 });
 
-impl<'a> Outline<'a> {
+impl Outline<'_> {
     /// Write the `/First` attribute which points to the first
     /// [item](OutlineItem) in the document's outline.
     pub fn first(&mut self, item: Ref) -> &mut Self {
@@ -1328,7 +1328,7 @@ pub struct OutlineItem<'a> {
 
 writer!(OutlineItem: |obj| Self { dict: obj.dict() });
 
-impl<'a> OutlineItem<'a> {
+impl OutlineItem<'_> {
     /// Write the `/Title` attribute.
     pub fn title(&mut self, title: TextStr) -> &mut Self {
         self.pair(Name(b"Title"), title);
@@ -1505,7 +1505,7 @@ pub struct Destination<'a> {
 
 writer!(Destination: |obj| Self { array: obj.array() });
 
-impl<'a> Destination<'a> {
+impl Destination<'_> {
     /// The target page. Required.
     pub fn page(mut self, page: Ref) -> Self {
         self.item(page);

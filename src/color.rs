@@ -898,7 +898,7 @@ writer!(ShadingPattern: |obj| {
     Self { dict }
 });
 
-impl<'a> ShadingPattern<'a> {
+impl ShadingPattern<'_> {
     /// Start writing the `/Shading` dictionary for a type 1, 2, or 3 shading.
     pub fn function_shading(&mut self) -> FunctionShading<'_> {
         self.dict.insert(Name(b"Shading")).start()
@@ -936,7 +936,7 @@ pub struct FunctionShading<'a> {
 
 writer!(FunctionShading: |obj| Self { dict: obj.dict() });
 
-impl<'a> FunctionShading<'a> {
+impl FunctionShading<'_> {
     /// Write the `/ShadingType` attribute.
     ///
     /// Sets the type of shading. The available and required attributes change

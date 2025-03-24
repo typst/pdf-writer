@@ -138,7 +138,7 @@ writer!(ExponentialFunction: |obj| {
     Self { dict }
 });
 
-impl<'a> ExponentialFunction<'a> {
+impl ExponentialFunction<'_> {
     common_func_methods!();
 
     /// Write the `/C0` array.
@@ -185,7 +185,7 @@ writer!(StitchingFunction: |obj| {
     Self { dict }
 });
 
-impl<'a> StitchingFunction<'a> {
+impl StitchingFunction<'_> {
     common_func_methods!();
 
     /// Write the `/Functions` array.
@@ -333,7 +333,7 @@ pub enum PostScriptOp<'a> {
     Roll,
 }
 
-impl<'a> PostScriptOp<'a> {
+impl PostScriptOp<'_> {
     /// Encode a slice of operations into a byte stream.
     pub fn encode(ops: &[Self]) -> Buf {
         let mut buf = Buf::new();

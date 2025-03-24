@@ -128,7 +128,7 @@ pub mod writers {
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
         CidFont, Cmap, Differences, Encoding, FontDescriptor, FontDescriptorOverride,
-        Type0Font, Type1Font, Type3Font, WMode, Widths,
+        GlyphId, Type0Font, Type1Font, Type3Font, WMode, Widths,
     };
     pub use forms::{Field, Form};
     pub use functions::{
@@ -503,7 +503,7 @@ mod tests {
     #[test]
     fn test_binary_marker() {
         let mut w = Pdf::new();
-        w.set_binary_marker(&[b'A', b'B', b'C', b'D']);
+        w.set_binary_marker(b"ABCD");
         test!(
             w.finish(),
             b"%PDF-1.7\n%ABCD\n",

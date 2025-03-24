@@ -1164,7 +1164,7 @@ pub struct Resources<'a> {
 
 writer!(Resources: |obj| Self { dict: obj.dict() });
 
-impl<'a> Resources<'a> {
+impl Resources<'_> {
     /// Start writing the `/XObject` dictionary.
     ///
     /// Relevant types:
@@ -1300,7 +1300,7 @@ writer!(ExtGraphicsState: |obj| {
     Self { dict }
 });
 
-impl<'a> ExtGraphicsState<'a> {
+impl ExtGraphicsState<'_> {
     /// Write the `LW` attribute to set the line width. PDF 1.3+.
     pub fn line_width(&mut self, width: f32) -> &mut Self {
         self.pair(Name(b"LW"), width);
@@ -1594,7 +1594,7 @@ writer!(SoftMask: |obj| {
     Self { dict }
 });
 
-impl<'a> SoftMask<'a> {
+impl SoftMask<'_> {
     /// Write the `S` attribute to set the soft mask subtype. Required.
     pub fn subtype(&mut self, subtype: MaskType) -> &mut Self {
         self.pair(Name(b"S"), subtype.to_name());
