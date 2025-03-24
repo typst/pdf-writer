@@ -73,6 +73,7 @@ impl Primitive for Str<'_> {
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
 
+        // We use:
         // - Literal strings for ASCII with nice escape sequences to make it
         //   also be represented fully in visible ASCII. We also escape
         //   parentheses because they are delimiters.
