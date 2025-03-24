@@ -1664,7 +1664,7 @@ mod tests {
             .restore_state();
 
         assert_eq!(
-            content.finish().into_bytes(),
+            content.finish().into_vec(),
             b"q\n1 2 3 4 re\nf\n[7 2] 4 d\n/MyImage Do\n2 3.5 /MyPattern scn\nQ"
         );
     }
@@ -1685,7 +1685,7 @@ mod tests {
         content.end_text();
 
         assert_eq!(
-            content.finish().into_bytes(),
+            content.finish().into_vec(),
             b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
         );
     }

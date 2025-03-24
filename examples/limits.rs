@@ -16,7 +16,7 @@ fn main() {
     limits.merge(buf.limits());
 
     let mut chunk = Chunk::new();
-    chunk.stream(Ref::new(1), &buf.into_bytes());
+    chunk.stream(Ref::new(1), &buf.into_vec());
     chunk.type3_font(Ref::new(2)).name(Name(b"A_long_font_name"));
     // This will update the limit for the maximum name and dictionary length.
     limits.merge(chunk.limits());

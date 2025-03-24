@@ -106,7 +106,7 @@ impl Buf {
     }
 
     /// Get the underlying bytes of the buffer.
-    pub fn into_bytes(self) -> Vec<u8> {
+    pub fn into_vec(self) -> Vec<u8> {
         self.inner
     }
 
