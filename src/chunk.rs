@@ -1,5 +1,4 @@
 use super::*;
-use crate::buf::Buf;
 
 /// A builder for a collection of indirect PDF objects.
 ///

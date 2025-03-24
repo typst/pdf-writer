@@ -1,4 +1,3 @@
-use crate::buf::Buf;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;

@@ -1,5 +1,4 @@
-use crate::buf::Buf;
-use crate::{Chunk, Ref};
+use crate::{Buf, Chunk, Ref};
 
 /// Renumbers a chunk of objects.
 ///
