@@ -38,7 +38,7 @@ impl Chunk {
 
     /// The bytes already written so far.
     pub fn as_bytes(&self) -> &[u8] {
-        self.buf.deref()
+        self.buf.as_slice()
     }
 
     /// Return the limits of the chunk.
