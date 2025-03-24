@@ -111,7 +111,7 @@ impl Buf {
     }
 
     /// Get the underlying bytes of the buffer as a slice.
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.inner.as_bytes()
     }
 

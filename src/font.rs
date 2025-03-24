@@ -986,7 +986,7 @@ where
         if self.count > 0 {
             self.buf.push_int(self.count);
             self.buf.extend(b" beginbfchar\n");
-            self.buf.extend(self.mappings.as_bytes());
+            self.buf.extend(self.mappings.as_slice());
             self.buf.extend(b"endbfchar\n");
         }
 
