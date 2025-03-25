@@ -28,12 +28,12 @@ fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
     let gen = eat_number_rev(&mut prefix)?;
 
     let mut head = offset + 3;
-    while slice.get(head).copied().map_or(false, is_whitespace) {
+    while slice.get(head).copied().is_some_and(is_whitespace) {
         head += 1;
     }
 
     let mut tail = memchr::memmem::rfind(slice, b"endobj")?;
-    while tail > 0 && slice.get(tail - 1).copied().map_or(false, is_whitespace) {
+    while tail > 0 && slice.get(tail - 1).copied().is_some_and(is_whitespace) {
         tail -= 1;
     }
 
