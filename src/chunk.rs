@@ -12,7 +12,7 @@ use super::*;
 /// it at a time).
 #[derive(Clone)]
 pub struct Chunk {
-    pub(crate) buf: Vec<u8>,
+    pub(crate) buf: Buf,
     pub(crate) offsets: Vec<(Ref, usize)>,
 }
 
@@ -25,7 +25,7 @@ impl Chunk {
 
     /// Create a new chunk with the specified initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Vec::with_capacity(capacity), offsets: vec![] }
+        Self { buf: Buf::with_capacity(capacity), offsets: vec![] }
     }
 
     /// The number of bytes that were written so far.
@@ -43,7 +43,7 @@ impl Chunk {
     /// Add all objects from another chunk to this one.
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
-        self.buf.extend_from_slice(&other.buf);
+        self.buf.extend_buf(&other.buf);
         self.offsets
             .extend(other.offsets.iter().map(|&(id, offset)| (id, base + offset)));
     }
@@ -52,6 +52,35 @@ impl Chunk {
     /// of the chunk, in the order they appear in the chunk.
     pub fn refs(&self) -> impl ExactSizeIterator<Item = Ref> + '_ {
         self.offsets.iter().map(|&(id, _)| id)
+    }
+
+    /// Returns the limits of data written into the chunk.
+    pub fn limits(&self) -> &Limits {
+        self.buf.limits()
+    }
+
+    /// Merges other limits into this chunk, taking the maximum of each field
+    /// from the chunk's current [`limits()`](Self::limits) and `other`.
+    ///
+    /// This is, for instance, useful when adding a content stream (with limits
+    /// of its own) to the chunk.
+    ///
+    /// ```
+    /// use pdf_writer::{Chunk, Content, Ref};
+    ///
+    /// let mut content = Content::new();
+    /// content.set_dash_pattern([1.0, 3.0, 2.0, 4.0, 5.0], 1.0);
+    /// let buf = content.finish();
+    ///
+    /// let mut chunk = Chunk::new();
+    /// chunk.stream(Ref::new(1), &buf);
+    /// chunk.merge_limits(buf.limits());
+    ///
+    /// // Dash pattern had an array with 5 entries.
+    /// assert_eq!(chunk.limits().array_len(), 5);
+    /// ```
+    pub fn merge_limits(&mut self, other: &Limits) {
+        self.buf.limits.merge(other);
     }
 
     /// Renumbers the IDs of indirect objects and all indirect references in the

@@ -1,6 +1,5 @@
-use std::marker::PhantomData;
-
 use super::*;
+use std::marker::PhantomData;
 
 /// Writer for a _Type-1 font dictionary_.
 ///
@@ -849,8 +848,8 @@ impl WMode {
 
 /// A builder for a `/ToUnicode` character map stream.
 pub struct UnicodeCmap<G = u16> {
-    buf: Vec<u8>,
-    mappings: Vec<u8>,
+    buf: Buf,
+    mappings: Buf,
     count: i32,
     glyph_id: PhantomData<G>,
 }
@@ -870,7 +869,7 @@ where
     pub fn with_writing_mode(name: Name, info: SystemInfo, mode: WMode) -> Self {
         // https://www.adobe.com/content/dam/acom/en/devnet/font/pdfs/5014.CIDFont_Spec.pdf
 
-        let mut buf = Vec::new();
+        let mut buf = Buf::new();
 
         // Static header.
         buf.extend(b"%!PS-Adobe-3.0 Resource-CMap\n");
@@ -928,7 +927,7 @@ where
 
         Self {
             buf,
-            mappings: vec![],
+            mappings: Buf::new(),
             count: 0,
             glyph_id: PhantomData,
         }
@@ -965,7 +964,7 @@ where
     }
 
     /// Finish building the character map.
-    pub fn finish(mut self) -> Vec<u8> {
+    pub fn finish(mut self) -> Buf {
         // Flush the in-progress range.
         self.flush_range();
 
@@ -984,12 +983,12 @@ where
         if self.count > 0 {
             self.buf.push_int(self.count);
             self.buf.extend(b" beginbfchar\n");
-            self.buf.extend(&self.mappings);
+            self.buf.extend(self.mappings.as_slice());
             self.buf.extend(b"endbfchar\n");
         }
 
         self.count = 0;
-        self.mappings.clear();
+        self.mappings.inner.clear();
     }
 }
 
@@ -1005,19 +1004,19 @@ impl GlyphId for u16 {}
 
 /// Module to seal the `GlyphId` trait.
 mod private {
-    use crate::buf::BufExt;
+    use crate::buf::Buf;
 
     pub trait Sealed {
         const MIN: Self;
         const MAX: Self;
-        fn push(self, buf: &mut Vec<u8>);
+        fn push(self, buf: &mut Buf);
     }
 
     impl Sealed for u8 {
         const MIN: Self = u8::MIN;
         const MAX: Self = u8::MAX;
 
-        fn push(self, buf: &mut Vec<u8>) {
+        fn push(self, buf: &mut Buf) {
             buf.push_hex(self);
         }
     }
@@ -1026,7 +1025,7 @@ mod private {
         const MIN: Self = u16::MIN;
         const MAX: Self = u16::MAX;
 
-        fn push(self, buf: &mut Vec<u8>) {
+        fn push(self, buf: &mut Buf) {
             buf.push_hex_u16(self);
         }
     }

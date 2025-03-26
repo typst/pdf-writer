@@ -47,7 +47,7 @@ fn bench_content() -> Vec<u8> {
     c.save_state();
     c.set_flatness(10);
     c.restore_state();
-    c.finish()
+    c.finish().into_vec()
 }
 
 fn bench_new() -> Pdf {

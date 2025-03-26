@@ -335,13 +335,13 @@ pub enum PostScriptOp<'a> {
 
 impl PostScriptOp<'_> {
     /// Encode a slice of operations into a byte stream.
-    pub fn encode(ops: &[Self]) -> Vec<u8> {
-        let mut buf = Vec::new();
+    pub fn encode(ops: &[Self]) -> Buf {
+        let mut buf = Buf::new();
         Self::write_slice(ops, &mut buf);
         buf
     }
 
-    fn write_slice(ops: &[Self], buf: &mut Vec<u8>) {
+    fn write_slice(ops: &[Self], buf: &mut Buf) {
         buf.push(b'{');
         if ops.len() > 1 {
             buf.push(b' ');
@@ -351,12 +351,12 @@ impl PostScriptOp<'_> {
             buf.push(b' ');
         }
         if ops.len() == 1 {
-            buf.pop();
+            buf.inner.pop();
         }
         buf.push(b'}');
     }
 
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write(&self, buf: &mut Buf) {
         match *self {
             Self::Real(r) => buf.push_decimal(r),
             Self::Integer(i) => buf.push_val(i),
@@ -446,7 +446,7 @@ mod tests {
         ];
 
         assert_eq!(
-            PostScriptOp::encode(&ops),
+            PostScriptOp::encode(&ops).as_slice(),
             b"{ 3.0 2.0 mul exch dup 0.0 ge { 1.0 add } {neg} ifelse add }"
         );
     }

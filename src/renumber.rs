@@ -1,9 +1,11 @@
-use crate::{BufExt, Chunk, Ref};
+use crate::{Buf, Chunk, Ref};
 
 /// Renumbers a chunk of objects.
 ///
 /// See [`Chunk::renumber`] for more details.
 pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref) -> Ref) {
+    target.buf.limits.merge(source.limits());
+
     let mut iter = source.offsets.iter().copied().peekable();
     while let Some((id, offset)) = iter.next() {
         let new = mapping(id);
@@ -43,7 +45,7 @@ fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
 
 /// Processes the interior of an indirect object and patches all indirect
 /// references.
-fn patch_object(slice: &[u8], buf: &mut Vec<u8>, mapping: &mut dyn FnMut(Ref) -> Ref) {
+fn patch_object(slice: &[u8], buf: &mut Buf, mapping: &mut dyn FnMut(Ref) -> Ref) {
     // Find the next point of interest:
     // - 'R' is interesting because it could be an indirect reference
     // - Anything that could contain indirect-reference-like things that are not
@@ -202,7 +204,7 @@ mod tests {
         });
 
         test!(
-            r.buf,
+            r.buf.as_slice(),
             b"1 0 obj",
             b"<<",
             b"  /Nested <<",
