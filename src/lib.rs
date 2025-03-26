@@ -128,7 +128,7 @@ pub mod writers {
     pub use files::{EmbeddedFile, EmbeddingParams, FileSpec};
     pub use font::{
         CidFont, Cmap, Differences, Encoding, FontDescriptor, FontDescriptorOverride,
-        GlyphId, Type0Font, Type1Font, Type3Font, WMode, Widths,
+        Type0Font, Type1Font, Type3Font, WMode, Widths,
     };
     pub use forms::{Field, Form};
     pub use functions::{
@@ -170,7 +170,7 @@ pub mod types {
     };
     pub use files::AssociationKind;
     pub use font::{
-        CidFontType, CjkClass, FontFlags, FontStretch, SystemInfo, UnicodeCmap,
+        CidFontType, CjkClass, FontFlags, FontStretch, GlyphId, SystemInfo, UnicodeCmap,
     };
     pub use forms::{
         CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, SigFlags,
