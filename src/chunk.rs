@@ -252,6 +252,11 @@ impl Chunk {
         self.indirect(id).start()
     }
 
+    /// Start writing a namespace dictionary. PDF 2.0+
+    pub fn namespace(&mut self, id: Ref) -> Namespace<'_> {
+        self.indirect(id).start()
+    }
+
     /// Start writing a metadata stream.
     pub fn metadata<'a>(&'a mut self, id: Ref, bytes: &'a [u8]) -> Metadata<'a> {
         Metadata::start(self.stream(id, bytes))

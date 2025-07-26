@@ -370,6 +370,10 @@ impl StructTreeRoot<'_> {
 
     /// Start writing the `/RoleMap` attribute to map structure element names to
     /// their approximate equivalents from the standard set of types. PDF 1.4+.
+    ///
+    /// For PDF 2.0 documents, note that this mapping maps to the PDF 1.7 roles.
+    /// For a namespace-aware role-mapping mechanism, see
+    /// [`Namespace::role_map_ns`].
     pub fn role_map(&mut self) -> RoleMap<'_> {
         self.dict.insert(Name(b"RoleMap")).start()
     }
@@ -379,6 +383,14 @@ impl StructTreeRoot<'_> {
     /// thereof.
     pub fn class_map(&mut self) -> ClassMap<'_> {
         self.dict.insert(Name(b"ClassMap")).start()
+    }
+
+    /// Start writing the `/Namespaces` attribute to specify the namespaces
+    /// occurring in the document. Required if namespaced structure types or
+    /// attributes, including the standard namespace for PDF 2.0, are used.
+    /// Create these dictionaries with [`Chunk::namespace`] PDF 2.0+.
+    pub fn namespaces(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"Namespaces")).array().typed()
     }
 }
 
@@ -409,6 +421,9 @@ impl StructElement<'_> {
     ///
     /// In some PDF/A profiles like PDF/A-2a, custom kinds must be mapped to
     /// their closest standard type in the role map.
+    ///
+    /// When using the namespaced model of PDF 2.0, using this may also require
+    /// setting a namespace using [`Self::namespace`].
     pub fn custom_kind(&mut self, name: Name) -> &mut Self {
         self.dict.pair(Name(b"S"), name);
         self
@@ -515,6 +530,13 @@ impl StructElement<'_> {
     /// element. PDF 2.0+ or PDF/A-3.
     pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
         self.insert(Name(b"AF")).array().typed()
+    }
+
+    /// Write the `/NS` attribute to indirectly reference a namespace dictionary
+    /// for this structure element type. PDF 2.0+
+    pub fn namespace(&mut self, ns: Ref) -> &mut Self {
+        self.dict.pair(Name(b"NS"), ns);
+        self
     }
 }
 
@@ -636,6 +658,9 @@ deref!('a, ObjectRef<'a> => Dict<'a>, dict);
 /// Writer for a _role map dictionary_. PDF 1.4+
 ///
 /// This struct is created by [`StructTreeRoot::role_map`].
+///
+/// For PDF 2.0 documents, note that this mapping maps to the PDF 1.7 roles. For
+/// a namespace-aware role-mapping mechanism, see [`Namespace::role_map_ns`].
 pub struct RoleMap<'a> {
     dict: TypedDict<'a, Name<'a>>,
 }
@@ -833,7 +858,94 @@ impl StructRole {
             Self::Form => Name(b"Form"),
         }
     }
+
+/// Writer for a _namespace dictionary_. PDF 2.0+
+///
+/// This struct is created by [`Chunk::namespace`].
+pub struct Namespace<'a> {
+    dict: Dict<'a>,
 }
+
+writer!(Namespace: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"Namespace"));
+    Self { dict }
+});
+
+impl Namespace<'_> {
+    /// Write the `/NS` attribute to specify the identifier (URI) of the namespace.
+    pub fn ns(&mut self, identifier: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"Name"), identifier);
+        self
+    }
+
+    /// Start writing the `/Schema` attribute to point to a schema definition
+    /// for the namespace. Optional.
+    pub fn schema(&mut self) -> FileSpec<'_> {
+        self.dict.insert(Name(b"Schema")).start()
+    }
+
+    /// Start writing the `/RoleMapNS` attribute to map structure elements to
+    /// elements in another namespace. Optional.
+    ///
+    /// For a mechanism to define role mappings compatible with PDF 1.3 and
+    /// above, see [`StructTreeRoot::role_map`].
+    pub fn role_map_ns(&mut self) -> NamespaceRoleMap<'_> {
+        self.dict.insert(Name(b"RoleMapNS")).start()
+    }
+
+    /// Write the namespace dictionary for the _standard structure namespace for
+    /// PDF 2.0_.
+    pub fn pdf_2_ns(mut self) {
+        self.ns(TextStr("https://www.iso.org/pdf2/ssn"));
+    }
+
+    /// Write the namespace dictionary for the _standard structure namespace for
+    /// PDF 1.7_.
+    pub fn pdf_1_7_ns(mut self) {
+        self.ns(TextStr("https://www.iso.org/pdf/ssn"));
+    }
+
+    /// Write the namespace dictionary for MathML 3.0.
+    pub fn mathml_3_0_ns(mut self) {
+        self.ns(TextStr("https://www.w3.org/1998/Math/MathML"));
+    }
+}
+
+deref!('a, Namespace<'a> => Dict<'a>, dict);
+
+/// Writer for a _namespace role map dictionary_. PDF 2.0+
+///
+/// This struct is created by [`Namespace::role_map_ns`].
+pub struct NamespaceRoleMap<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(NamespaceRoleMap: |obj| {
+    Self { dict: obj.dict() }
+});
+
+impl NamespaceRoleMap<'_> {
+    /// Write an entry mapping a custom structure type to an element in the
+    /// standard (PDF 1.7) namespace.
+    pub fn to_pdf_1_7(&mut self, name: Name, role: StructRole) -> &mut Self {
+        self.dict.pair(name, role.to_name());
+        self
+    }
+
+    /// Write an entry mapping a custom structure type to an element in the
+    /// namespace referenced by the namespace dictionary the value of the
+    /// `ns_ref` parameter points to.
+    pub fn to_namespace(&mut self, name: Name, role: Name, ns_ref: Ref) -> &mut Self {
+        let mut dict = self.dict.insert(name).dict();
+        dict.pair(Name(b"Role"), role);
+        dict.pair(Name(b"NS"), ns_ref);
+        dict.finish();
+        self
+    }
+}
+
+deref!('a, NamespaceRoleMap<'a> => Dict<'a>, dict);
 
 /// Writer for a _mark information dictionary_. PDF 1.4+
 ///

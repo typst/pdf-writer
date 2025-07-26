@@ -140,8 +140,9 @@ pub mod writers {
     pub use renditions::{MediaClip, MediaPermissions, MediaPlayParams, Rendition};
     pub use structure::{
         Catalog, ClassMap, Destination, DeveloperExtension, DocumentInfo, MarkInfo,
-        MarkedRef, Metadata, Names, ObjectRef, Outline, OutlineItem, Page, PageLabel,
-        Pages, RoleMap, StructChildren, StructElement, StructTreeRoot, ViewerPreferences,
+        MarkedRef, Metadata, Names, Namespace, NamespaceRoleMap, ObjectRef, Outline,
+        OutlineItem, Page, PageLabel, Pages, RoleMap, StructChildren, StructElement,
+        StructTreeRoot, ViewerPreferences,
     };
     pub use transitions::Transition;
     pub use xobject::{FormXObject, Group, ImageXObject, Reference};

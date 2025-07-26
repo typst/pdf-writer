@@ -59,6 +59,16 @@ impl<'a> Attributes<'a> {
     pub fn artifact(self) -> ArtifactAttributes<'a> {
         ArtifactAttributes::start_with_dict(self.dict)
     }
+
+    /// Set the `/O` attribute to `NSO` and set the `/NS` attribute to an
+    /// indirect reference to a [`Namespace`] dictionary to start writing
+    /// attributes for a namespace. PDF 2.0+
+    pub fn namespace(self, ns: Ref) -> Dict<'a> {
+        let mut dict = self.dict;
+        dict.pair(Name(b"O"), AttributeOwner::NSO.to_name(true));
+        dict.pair(Name(b"NS"), ns);
+        dict
+    }
 }
 
 deref!('a, Attributes<'a> => Dict<'a>, dict);
@@ -973,6 +983,8 @@ pub enum AttributeOwner {
     Rdfa1_1,
     /// ARIA 1.1 accessibility attributes for assistive technology. PDF 2.0+.
     Aria1_1,
+    /// The attribute owner is a namespace. PDF 2.0+.
+    NSO,
     /// User-defined attributes. Requires to set the `/UserProperties` attribute
     /// of the [`MarkInfo`] dictionary to true. PDF 1.6+
     User,
@@ -1004,7 +1016,8 @@ impl AttributeOwner {
             Self::Css3 => Name(b"CSS-3"),
             Self::Rdfa1_1 => Name(b"RDFa-1.10"),
             Self::Aria1_1 => Name(b"ARIA-1.1"),
-            Self::User => Name(b"UserDefined"),
+            Self::NSO => Name(b"NSO"),
+            Self::User => Name(b"UserProperties"),
         }
     }
 }
