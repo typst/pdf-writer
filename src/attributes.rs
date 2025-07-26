@@ -1,3 +1,5 @@
+use crate::types::{ArtifactSubtype, ArtifactType};
+
 use super::*;
 
 /// Writer for an _attribute dictionary_. PDF 1.4+
@@ -15,15 +17,19 @@ impl<'a> Attributes<'a> {
     /// Write the `/O` attribute to set the owner.
     ///
     /// Should not be called when using any of the other methods.
-    pub fn owner(&mut self, owner: AttributeOwner) -> &mut Self {
-        self.pair(Name(b"O"), owner.to_name());
+    ///
+    /// The `iso32000_2_2020` parameter is used to determine the name for the
+    /// CSS 1 and CSS 2 variants. Set it to `true` when writing a PDF 2.0 file
+    /// conforming to the 2020 edition of the standard or later.
+    pub fn owner(&mut self, owner: AttributeOwner, iso32000_2_2020: bool) -> &mut Self {
+        self.pair(Name(b"O"), owner.to_name(iso32000_2_2020));
         self
     }
 
     /// Set the `/O` attribute to user-defined and start writing the `/P` array
     /// with user properties. PDF 1.6+
     pub fn user(&mut self) -> TypedArray<'_, UserProperty> {
-        self.pair(Name(b"O"), AttributeOwner::User.to_name());
+        self.pair(Name(b"O"), AttributeOwner::User.to_name(false));
         self.insert(Name(b"P")).array().typed()
     }
 
@@ -46,6 +52,12 @@ impl<'a> Attributes<'a> {
     /// Set the `/O` attribute to `Table` to start writing table attributes.
     pub fn table(self) -> TableAttributes<'a> {
         TableAttributes::start_with_dict(self.dict)
+    }
+
+    /// Set the `/O` attribute to `Artifact` to start writing attributes for
+    /// artifacts. PDF 2.0+
+    pub fn artifact(self) -> ArtifactAttributes<'a> {
+        ArtifactAttributes::start_with_dict(self.dict)
     }
 }
 
@@ -99,7 +111,7 @@ writer!(LayoutAttributes: |obj| Self::start_with_dict(obj.dict()));
 /// General layout attributes.
 impl<'a> LayoutAttributes<'a> {
     pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
-        dict.pair(Name(b"O"), AttributeOwner::Layout.to_name());
+        dict.pair(Name(b"O"), AttributeOwner::Layout.to_name(false));
         Self { dict }
     }
 
@@ -455,6 +467,12 @@ impl LayoutAttributes<'_> {
         self
     }
 
+    /// Write the `/TextPosition` attribute. PDF 2.0+.
+    pub fn text_position(&mut self, position: LayoutTextPosition) -> &mut Self {
+        self.dict.pair(Name(b"TextPosition"), position.to_name());
+        self
+    }
+
     /// Write the `/TextDecorationType` attribute. PDF 1.5+.
     pub fn text_decoration_type(&mut self, decoration: TextDecorationType) -> &mut Self {
         self.dict.pair(Name(b"TextDecorationType"), decoration.to_name());
@@ -496,6 +514,27 @@ impl LineHeight {
             Self::Normal => obj.primitive(Name(b"Normal")),
             Self::Auto => obj.primitive(Name(b"Auto")),
             Self::Custom(height) => obj.primitive(height),
+        }
+    }
+}
+
+/// Where the text is positioned relative to the baseline.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum LayoutTextPosition {
+    /// At the baseline.
+    Normal,
+    /// Above the baseline.
+    Superscript,
+    /// Below the baseline.
+    Subscript,
+}
+
+impl LayoutTextPosition {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Normal => Name(b"Normal"),
+            Self::Superscript => Name(b"Sup"),
+            Self::Subscript => Name(b"Sub"),
         }
     }
 }
@@ -613,13 +652,31 @@ writer!(ListAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> ListAttributes<'a> {
     pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
-        dict.pair(Name(b"O"), AttributeOwner::List.to_name());
+        dict.pair(Name(b"O"), AttributeOwner::List.to_name(false));
         Self { dict }
     }
 
     /// Write the `/ListNumbering` attribute.
     pub fn list_numbering(&mut self, numbering: ListNumbering) -> &mut Self {
         self.dict.pair(Name(b"ListNumbering"), numbering.to_name());
+        self
+    }
+
+    /// Write the `/ContinuedList` attribute. PDF 2.0+.
+    ///
+    /// Setting this to `true` indicates that the list continues from the
+    /// previous list, or from the list indicated by the `/ContinuedFrom`
+    /// attribute.
+    pub fn continued_list(&mut self, continued: bool) -> &mut Self {
+        self.dict.pair(Name(b"ContinuedList"), continued);
+        self
+    }
+
+    /// Write the `/ContinuedFrom` attribute. PDF 2.0+.
+    ///
+    /// Also see [`ListAttributes::continued_list`].
+    pub fn continued_from(&mut self, id: Str) -> &mut Self {
+        self.dict.pair(Name(b"ContinuedFrom"), id);
         self
     }
 }
@@ -631,6 +688,12 @@ deref!('a, ListAttributes<'a> => Dict<'a>, dict);
 pub enum ListNumbering {
     /// No numbering.
     None,
+    /// An unordered list with unspecified bullets. PDF 2.0+.
+    Unordered,
+    /// An ordered list with unspecified numbering. PDF 2.0+.
+    Ordered,
+    /// A list defining terms and their definitions. PDF 2.0+.
+    Description,
     /// Solid circular bullets.
     Disc,
     /// Open circular bullets.
@@ -653,6 +716,9 @@ impl ListNumbering {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
             Self::None => Name(b"None"),
+            Self::Unordered => Name(b"Unordered"),
+            Self::Ordered => Name(b"Ordered"),
+            Self::Description => Name(b"Description"),
             Self::Disc => Name(b"Disc"),
             Self::Circle => Name(b"Circle"),
             Self::Square => Name(b"Square"),
@@ -676,7 +742,7 @@ writer!(FieldAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> FieldAttributes<'a> {
     pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
-        dict.pair(Name(b"O"), AttributeOwner::PrintField.to_name());
+        dict.pair(Name(b"O"), AttributeOwner::PrintField.to_name(false));
         Self { dict }
     }
 
@@ -686,10 +752,15 @@ impl<'a> FieldAttributes<'a> {
         self
     }
 
-    /// Write the `/checked` attribute to set whether a radio button or checkbox
-    /// is checked.
-    pub fn checked(&mut self, checked: FieldState) -> &mut Self {
-        self.dict.pair(Name(b"checked"), checked.to_name());
+    /// Write the `/checked` or `/Checked` attribute to set whether a radio
+    /// button or checkbox is checked.
+    ///
+    /// The `pdf2` parameter determines whether the attribute is written as
+    /// `/checked` or `/Checked`. PDF 2.0+ has deprecated the lowercase
+    /// `/checked` attribute.
+    pub fn checked(&mut self, checked: FieldState, pdf2: bool) -> &mut Self {
+        self.dict
+            .pair(Name(if pdf2 { b"Checked" } else { b"checked" }), checked.to_name());
         self
     }
 
@@ -713,6 +784,8 @@ pub enum FieldRole {
     RadioButton,
     /// A text field.
     TextField,
+    /// A list box. PDF 2.0+.
+    ListBox,
 }
 
 impl FieldRole {
@@ -722,6 +795,7 @@ impl FieldRole {
             Self::CheckBox => Name(b"cb"),
             Self::RadioButton => Name(b"rb"),
             Self::TextField => Name(b"tv"),
+            Self::ListBox => Name(b"lb"),
         }
     }
 }
@@ -758,7 +832,7 @@ writer!(TableAttributes: |obj| Self::start_with_dict(obj.dict()));
 
 impl<'a> TableAttributes<'a> {
     pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
-        dict.pair(Name(b"O"), AttributeOwner::Table.to_name());
+        dict.pair(Name(b"O"), AttributeOwner::Table.to_name(false));
         Self { dict }
     }
 
@@ -795,6 +869,13 @@ impl<'a> TableAttributes<'a> {
         self.dict.pair(Name(b"Summary"), summary);
         self
     }
+
+    /// Write the `/Short` attribute to set a short form of the table header's
+    /// content. PDF 2.0+.
+    pub fn short(&mut self, short: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"Short"), short);
+        self
+    }
 }
 
 deref!('a, TableAttributes<'a> => Dict<'a>, dict);
@@ -820,6 +901,43 @@ impl TableHeaderScope {
     }
 }
 
+/// Writer for a _artifact attributes dictionary_. PDF 2.0+
+///
+/// This struct is created by [`Attributes::artifact`].
+pub struct ArtifactAttributes<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(ArtifactAttributes: |obj| Self::start_with_dict(obj.dict()));
+
+impl<'a> ArtifactAttributes<'a> {
+    pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
+        dict.pair(Name(b"O"), AttributeOwner::Artifact.to_name(true));
+        Self { dict }
+    }
+
+    /// Write the `/Type` attribute to set the type of artifact.
+    pub fn artifact_type(&mut self, artifact_type: ArtifactType) -> &mut Self {
+        self.dict.pair(Name(b"Type"), artifact_type.to_name());
+        self
+    }
+
+    /// Write the `/BBox` attribute to set the bounding box of the artifact.
+    pub fn bbox(&mut self, bbox: Rect) -> &mut Self {
+        self.dict.pair(Name(b"BBox"), bbox);
+        self
+    }
+
+    /// Write the `/Subtype` attribute to set the subtype of pagination or
+    /// inline artifacts.
+    pub fn subtype(&mut self, subtype: ArtifactSubtype) -> &mut Self {
+        self.dict.pair(Name(b"Subtype"), subtype.to_name());
+        self
+    }
+}
+
+deref!('a, ArtifactAttributes<'a> => Dict<'a>, dict);
+
 /// Owner of the attribute dictionary.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AttributeOwner {
@@ -831,12 +949,16 @@ pub enum AttributeOwner {
     PrintField,
     /// Table attributes.
     Table,
+    /// Attributes covering artifacts. PDF 2.0+.
+    Artifact,
     /// Hints for conversion to XML 1.0.
     Xml,
     /// Hints for conversion to HTML 3.2.
     Html3_2,
     /// Hints for conversion to HTML 4.01.
     Html4,
+    /// Hints for conversion to HTML 5.
+    Html5,
     /// Hints for conversion to OEB 1.0.
     Oeb,
     /// Hints for conversion to RTF 1.05.
@@ -845,25 +967,43 @@ pub enum AttributeOwner {
     Css1,
     /// Hints for conversion to CSS 2.
     Css2,
+    /// Hints for conversion to CSS 3. PDF 2.0+.
+    Css3,
+    /// Hints for converting to a format expressed in RDFa 1.1. PDF 2.0+.
+    Rdfa1_1,
+    /// ARIA 1.1 accessibility attributes for assistive technology. PDF 2.0+.
+    Aria1_1,
     /// User-defined attributes. Requires to set the `/UserProperties` attribute
     /// of the [`MarkInfo`] dictionary to true. PDF 1.6+
     User,
 }
 
 impl AttributeOwner {
-    pub(crate) fn to_name(self) -> Name<'static> {
+    /// Convert the attribute owner to a name.
+    ///
+    /// The `iso32000_2_2020` parameter is used to determine the name for the
+    /// CSS 1 and CSS 2 variants. Set it to `true` when writing a PDF 2.0 file
+    /// conforming to the 2020 edition of the standard or later.
+    pub(crate) fn to_name(self, iso32000_2_2020: bool) -> Name<'static> {
         match self {
             Self::Layout => Name(b"Layout"),
             Self::List => Name(b"List"),
             Self::PrintField => Name(b"PrintField"),
             Self::Table => Name(b"Table"),
+            Self::Artifact => Name(b"Artifact"),
             Self::Xml => Name(b"XML-1.00"),
             Self::Html3_2 => Name(b"HTML-3.20"),
             Self::Html4 => Name(b"HTML-4.01"),
+            Self::Html5 => Name(b"HTML-5.00"),
             Self::Oeb => Name(b"OEB-1.00"),
             Self::Rtf1_05 => Name(b"RTF-1.05"),
+            Self::Css1 if iso32000_2_2020 => Name(b"CSS-1"),
+            Self::Css2 if iso32000_2_2020 => Name(b"CSS-2"),
             Self::Css1 => Name(b"CSS-1.00"),
             Self::Css2 => Name(b"CSS-2.00"),
+            Self::Css3 => Name(b"CSS-3"),
+            Self::Rdfa1_1 => Name(b"RDFa-1.10"),
+            Self::Aria1_1 => Name(b"ARIA-1.1"),
             Self::User => Name(b"UserDefined"),
         }
     }

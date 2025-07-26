@@ -1031,8 +1031,8 @@ impl<'a> Artifact<'a> {
         self
     }
 
-    /// Write the `/Subtype` entry to set the subtype of pagination artifacts.
-    /// Specific to artifacts. PDF 1.7+.
+    /// Write the `/Subtype` entry to set the subtype of pagination or inline
+    /// artifacts. Specific to artifacts. PDF 1.7+.
     #[inline]
     pub fn subtype(&mut self, subtype: ArtifactSubtype) -> &mut Self {
         self.pair(Name(b"Subtype"), subtype.to_name());
@@ -1076,6 +1076,8 @@ pub enum ArtifactType {
     Page,
     /// Background image artifacts. PDF 1.7+.
     Background,
+    /// Artefacts related to inline content, such as line numbers or redactions. PDF 2.0+.
+    Inline,
 }
 
 impl ArtifactType {
@@ -1086,6 +1088,7 @@ impl ArtifactType {
             Self::Layout => Name(b"Layout"),
             Self::Page => Name(b"Page"),
             Self::Background => Name(b"Background"),
+            Self::Inline => Name(b"Inline"),
         }
     }
 }
@@ -1099,6 +1102,14 @@ pub enum ArtifactSubtype<'a> {
     Footer,
     /// Background watermarks.
     Watermark,
+    /// Page numbers. PDF 2.0+
+    PageNumber,
+    /// Bates numbering. PDF 2.0+
+    Bates,
+    /// Line numbers. PDF 2.0+
+    LineNumber,
+    /// Redactions. PDF 2.0+
+    Redaction,
     /// Custom subtype named according to ISO 32000-1:2008 Annex E.
     Custom(Name<'a>),
 }
@@ -1110,6 +1121,10 @@ impl<'a> ArtifactSubtype<'a> {
             Self::Header => Name(b"Header"),
             Self::Footer => Name(b"Footer"),
             Self::Watermark => Name(b"Watermark"),
+            Self::PageNumber => Name(b"PageNum"),
+            Self::Bates => Name(b"Bates"),
+            Self::LineNumber => Name(b"LineNum"),
+            Self::Redaction => Name(b"Redaction"),
             Self::Custom(name) => name,
         }
     }
