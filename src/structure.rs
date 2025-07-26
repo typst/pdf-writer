@@ -392,6 +392,22 @@ impl StructTreeRoot<'_> {
     pub fn namespaces(&mut self) -> TypedArray<'_, Ref> {
         self.dict.insert(Name(b"Namespaces")).array().typed()
     }
+
+    /// Start writing the `PronunciationLexicon` attribute to specify one or
+    /// multiple pronunciation lexicons for the document. PDF 2.0+.
+    ///
+    /// The lexicons shall be XML files conforming to the Pronunciation Lexicon
+    /// Specification (PLS) Version 1.0. Each entry in the array is an indirect
+    /// reference to a [`FileSpec`] dictionary for a lexicon file.
+    pub fn pronunciation_lexicon(&mut self) -> TypedArray<'_, Ref> {
+        self.dict.insert(Name(b"PronunciationLexicon")).array().typed()
+    }
+
+    /// Start writing the `/AF` attribute to specify one or multiple files
+    /// associated with the entire structure tree. PDF 2.0+.
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+        self.dict.insert(Name(b"AF")).array().typed()
+    }
 }
 
 deref!('a, StructTreeRoot<'a> => Dict<'a>, dict);
@@ -440,6 +456,16 @@ impl StructElement<'_> {
     /// structure element.
     pub fn id(&mut self, id: Str) -> &mut Self {
         self.dict.pair(Name(b"ID"), id);
+        self
+    }
+
+    /// Write the `/Ref` attribute to specify to which structure element this
+    /// element refers. Used e.g. for footnotes. PDF 2.0+
+    ///
+    /// The parameter `refs` shall be indirect object references to other
+    /// structure elements.
+    pub fn refs(&mut self, refs: impl IntoIterator<Item = Ref>) -> &mut Self {
+        self.dict.insert(Name(b"Ref")).array().typed().items(refs);
         self
     }
 
@@ -536,6 +562,20 @@ impl StructElement<'_> {
     /// for this structure element type. PDF 2.0+
     pub fn namespace(&mut self, ns: Ref) -> &mut Self {
         self.dict.pair(Name(b"NS"), ns);
+        self
+    }
+
+    /// Write the `/PhoneticAlphabet` attribute to specify the phonetic alphabet
+    /// used in the [StructElement::phoneme] attribute. PDF 2.0+
+    pub fn phonetic_alphabet(&mut self, alphabet: PhoneticAlphabet) -> &mut Self {
+        self.dict.pair(Name(b"PhoneticAlphabet"), alphabet.to_name());
+        self
+    }
+
+    /// Write the `/Phoneme` attribute to specify the phonetic pronunciation of
+    /// the text in the structure element. PDF 2.0+
+    pub fn phoneme(&mut self, phoneme: TextStr) -> &mut Self {
+        self.dict.pair(Name(b"Phoneme"), phoneme);
         self
     }
 }
@@ -858,6 +898,34 @@ impl StructRole {
             Self::Form => Name(b"Form"),
         }
     }
+
+/// Which phonetic alphabet to use for the `/Phonetic` key in the
+/// [`StructElement`] dictionary.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum PhoneticAlphabet<'a> {
+    /// The International Phonetic Alphabet.
+    Ipa,
+    /// The Extended Speech Assessment Methods Phonetic Alphabet (X-SAMPA).
+    XSampa,
+    /// The Pinyin romanization system for Chinese.
+    Pinyin,
+    /// The Wade-Giles romanization system for Chinese.
+    WadeGiles,
+    /// A custom phonetic alphabet.
+    Custom(Name<'a>),
+}
+
+impl<'a> PhoneticAlphabet<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Ipa => Name(b"ipa"),
+            Self::XSampa => Name(b"x-sampa"),
+            Self::Pinyin => Name(b"zh-Latn-pinyin"),
+            Self::WadeGiles => Name(b"zh-Latn-wadegile"),
+            Self::Custom(name) => name,
+        }
+    }
+}
 
 /// Writer for a _namespace dictionary_. PDF 2.0+
 ///
