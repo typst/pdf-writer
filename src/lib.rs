@@ -113,8 +113,8 @@ pub mod writers {
         IconFit,
     };
     pub use attributes::{
-        ArtifactAttributes, Attributes, FieldAttributes, LayoutAttributes,
-        ListAttributes, TableAttributes, UserProperty,
+        ArtifactAttributes, Attributes, FENoteAttributes, FieldAttributes,
+        LayoutAttributes, ListAttributes, TableAttributes, UserProperty,
     };
     pub use color::{
         ColorSpace, DeviceN, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess,
@@ -158,9 +158,9 @@ pub mod types {
     };
     pub use attributes::{
         AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
-        LayoutBorderStyle, LayoutTextPosition, LineHeight, ListNumbering, Placement,
-        RubyAlign, RubyPosition, TableHeaderScope, TextAlign, TextDecorationType,
-        WritingMode,
+        LayoutBorderStyle, LayoutTextPosition, LineHeight, ListNumbering, NoteType,
+        Placement, RubyAlign, RubyPosition, TableHeaderScope, TextAlign,
+        TextDecorationType, WritingMode,
     };
     pub use color::{
         DeviceNSubtype, FunctionShadingType, OutputIntentSubtype, PaintType, TilingType,
