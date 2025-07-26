@@ -1,3 +1,5 @@
+use std::{borrow::Cow, num::NonZeroU16};
+
 use super::*;
 use crate::color::SeparationInfo;
 
@@ -424,11 +426,26 @@ writer!(StructElement: |obj| {
 });
 
 impl StructElement<'_> {
-    /// Write the `/S` attribute to specify the role of this structure element.
-    /// Required if no custom type is specified with [`Self::custom_kind`].
+    /// Write the `/S` attribute to specify the role of this structure element
+    /// using elements from PDF 1.7 and below. Required if neither a PDF 2.0
+    /// structure type is defined using [`Self::kind_2`] nor a custom type is
+    /// specified using [`Self::custom_kind`].
     pub fn kind(&mut self, role: StructRole) -> &mut Self {
         self.dict.pair(Name(b"S"), role.to_name());
         self
+    }
+
+    /// Write the `/S` attribute and the `/NS` attribute to specify the role of
+    /// this structure element in the PDF 2.0 namespace. Required if neither a
+    /// PDF 1.7 structure type is defined using [`Self::kind`] nor a custom type
+    /// is specified using [`Self::custom_kind`].
+    ///
+    /// The `pdf_2_ns` parameter is an indirect reference to a PDF 2.0 namespace
+    /// dictionary. You can create this dictionary by using [`Chunk::namespace`]
+    /// and then calling [`Namespace::pdf_2_ns`] on the returned writer.
+    pub fn kind_2(&mut self, role: StructRole2, pdf_2_ns: Ref) -> &mut Self {
+        self.dict.pair(Name(b"S"), Name(&role.to_name_bytes()));
+        self.namespace(pdf_2_ns)
     }
 
     /// Write the `/S` attribute to specify the role of this structure element
@@ -740,10 +757,12 @@ impl ClassMap<'_> {
 
 deref!('a, ClassMap<'a> => Dict<'a>, dict);
 
-/// Role the structure element fulfills in the document.
+/// Role the structure element fulfills in the document for PDF 1.7 and below.
 ///
-/// These are the predefined standard roles. The writer may write their own and
-/// then provide a mapping. PDF 1.4+.
+/// These are the predefined standard roles in PDF 1.7 and below, matching the
+/// `https://www.iso.org/pdf/ssn` namespace. The writer may write their own
+/// roles and then provide a mapping with [`StructTreeRoot::role_map`], or, if
+/// writing PDF 2.0, with [`Namespace::role_map_ns`]. PDF 1.4+.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum StructRole {
     /// The whole document.
@@ -898,6 +917,508 @@ impl StructRole {
             Self::Form => Name(b"Form"),
         }
     }
+
+    /// Return the corresponding PDF 2.0 [`StructRole2`] for this role or
+    /// `None`.
+    pub fn into_pdf_2_0(self) -> Option<StructRole2> {
+        match self {
+            Self::Document => Some(StructRole2::Document),
+            Self::Part => Some(StructRole2::Part),
+            Self::Art => None,
+            Self::Sect => Some(StructRole2::Sect),
+            Self::Div => Some(StructRole2::Div),
+            Self::BlockQuote => None,
+            Self::Caption => Some(StructRole2::Caption),
+            Self::TOC => None,
+            Self::TOCI => None,
+            Self::Index => None,
+            Self::NonStruct => Some(StructRole2::NonStruct),
+            Self::Private => None,
+            Self::P => Some(StructRole2::P),
+            Self::H1 => Some(StructRole2::Heading(NonZeroU16::new(1).unwrap())),
+            Self::H2 => Some(StructRole2::Heading(NonZeroU16::new(2).unwrap())),
+            Self::H3 => Some(StructRole2::Heading(NonZeroU16::new(3).unwrap())),
+            Self::H4 => Some(StructRole2::Heading(NonZeroU16::new(4).unwrap())),
+            Self::H5 => Some(StructRole2::Heading(NonZeroU16::new(5).unwrap())),
+            Self::H6 => Some(StructRole2::Heading(NonZeroU16::new(6).unwrap())),
+            Self::L => Some(StructRole2::L),
+            Self::LI => Some(StructRole2::LI),
+            Self::Lbl => Some(StructRole2::Lbl),
+            Self::LBody => Some(StructRole2::LBody),
+            Self::Table => Some(StructRole2::Table),
+            Self::TR => Some(StructRole2::TR),
+            Self::TH => Some(StructRole2::TH),
+            Self::TD => Some(StructRole2::TD),
+            Self::THead => Some(StructRole2::THead),
+            Self::TBody => Some(StructRole2::TBody),
+            Self::TFoot => Some(StructRole2::TFoot),
+            Self::Span => Some(StructRole2::Span),
+            Self::Quote => Some(StructRole2::Em),
+            Self::Note => Some(StructRole2::FENote),
+            Self::Reference => Some(StructRole2::Link),
+            Self::BibEntry => None,
+            Self::Code => Some(StructRole2::Strong),
+            Self::Link => Some(StructRole2::Link),
+            Self::Annot => Some(StructRole2::Annot),
+            Self::Ruby => Some(StructRole2::Ruby),
+            Self::Warichu => Some(StructRole2::Warichu),
+            Self::RB => Some(StructRole2::RB),
+            Self::RT => Some(StructRole2::RT),
+            Self::RP => Some(StructRole2::WP),
+            Self::WT => Some(StructRole2::WT),
+            Self::WP => Some(StructRole2::WP),
+            Self::Figure => Some(StructRole2::Figure),
+            Self::Formula => Some(StructRole2::Formula),
+            Self::Form => Some(StructRole2::Form),
+        }
+    }
+
+    /// Return the type of the structure element.
+    pub fn role_type(self) -> StructRoleType {
+        match self {
+            Self::Document
+            | Self::Part
+            | Self::Art
+            | Self::Sect
+            | Self::Div
+            | Self::BlockQuote
+            | Self::Caption
+            | Self::TOC
+            | Self::TOCI
+            | Self::Index
+            | Self::NonStruct
+            | Self::Private => StructRoleType::Grouping,
+            Self::P | Self::H1 | Self::H2 | Self::H3 | Self::H4 | Self::H5 | Self::H6 => {
+                StructRoleType::BlockLevel(BlockLevelRoleSubtype::ParagraphLike)
+            }
+            Self::L | Self::LI | Self::Lbl | Self::LBody => {
+                StructRoleType::BlockLevel(BlockLevelRoleSubtype::List)
+            }
+            Self::Table
+            | Self::TR
+            | Self::TH
+            | Self::TD
+            | Self::THead
+            | Self::TBody
+            | Self::TFoot => StructRoleType::BlockLevel(BlockLevelRoleSubtype::Table),
+            Self::Span
+            | Self::Quote
+            | Self::Note
+            | Self::Reference
+            | Self::BibEntry
+            | Self::Code
+            | Self::Ruby
+            | Self::Warichu => {
+                StructRoleType::InlineLevel(InlineLevelRoleSubtype::Generic)
+            }
+            Self::Link => StructRoleType::InlineLevel(InlineLevelRoleSubtype::Link),
+            Self::Annot => {
+                StructRoleType::InlineLevel(InlineLevelRoleSubtype::Annotation)
+            }
+            Self::RB | Self::RT | Self::RP | Self::WT | Self::WP => {
+                StructRoleType::InlineLevel(InlineLevelRoleSubtype::RubyWarichu)
+            }
+            Self::Figure | Self::Formula | Self::Form => StructRoleType::Illustration,
+        }
+    }
+}
+
+/// Type of the PDF 1.7 [structure element](StructRole) in the document,
+/// determining layout, permitted attributes, and nesting.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum StructRoleType {
+    /// Elements used solely to group other elements together.
+    Grouping,
+    /// Elements laid out across the block axis, also known as BLSE.
+    BlockLevel(BlockLevelRoleSubtype),
+    /// Elements laid out across the inline axis, also known as ILSE.
+    InlineLevel(InlineLevelRoleSubtype),
+    /// Elements whose contents consist of one or more graphics objects.
+    Illustration,
+}
+
+/// Subtypes of block-level structure roles, determining the layout and
+/// permitted attributes of the element.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum BlockLevelRoleSubtype {
+    /// Block-level elements containing predominantly text content.
+    ParagraphLike,
+    /// List-related elements, such as lists and list items.
+    List,
+    /// Table-related elements, such as tables and table rows.
+    Table,
+}
+
+/// Subtypes of inline-level PDF 1.7 structure roles, determining the layout and
+/// permitted attributes of the element.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum InlineLevelRoleSubtype {
+    /// Generic inline elements, such as spans, quotes, and code.
+    Generic,
+    /// Links.
+    Link,
+    /// Superimposed annotations.
+    Annotation,
+    /// Ruby and Warichu annotations, which are used for CJK text.
+    RubyWarichu,
+}
+
+impl TryFrom<StructRole> for StructRole2 {
+    type Error = ();
+
+    fn try_from(value: StructRole) -> Result<Self, Self::Error> {
+        value.into_pdf_2_0().ok_or(())
+    }
+}
+
+/// PDF 2.0 roles the structure element fulfills in the document.
+///
+/// These are the predefined standard roles in PDF 2.0, matching the
+/// `https://www.iso.org/pdf2/ssn` namespace. The writer may write their own
+/// types and then provide a mapping using [`Namespace::role_map_ns`]. PDF 2.0+.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum StructRole2 {
+    /// The whole document.
+    Document,
+    /// An incomplete fragment of another document.
+    DocumentFragment,
+    /// A part of a document that may contain multiple articles or sections.
+    Part,
+    /// Section of a larger document.
+    Sect,
+    /// Generic subdivision.
+    Div,
+    /// Content distinct from other content within the parent, such as callouts,
+    /// sidebars, commentary, or background information.
+    Aside,
+    /// Element only present for grouping purposes that shall not be exported.
+    NonStruct,
+    /// A paragraph
+    P,
+    /// Heading with a specific level.
+    Heading(NonZeroU16),
+    /// Strongly structured heading.
+    StructuredHeading,
+    /// A title of a document.
+    Title,
+    /// A foot- or endnote.
+    FENote,
+    /// A subdivision within a block level element.
+    Sub,
+    /// Label for a list item.
+    Lbl,
+    /// A generic inline element.
+    Span,
+    /// An emphasized inline element.
+    Em,
+    /// An inline element with heightened (strong) importance.
+    Strong,
+    /// A link.
+    Link,
+    /// An association between an annotation and the content it belongs to. PDF
+    /// 1.5+
+    Annot,
+    /// Form widget.
+    Form,
+    /// Ruby annotation for CJK text. PDF 1.5+
+    Ruby,
+    /// Base text of a Ruby annotation. PDF 1.5+
+    RB,
+    /// Annotation text of a Ruby annotation. PDF 1.5+
+    RT,
+    /// Warichu annotation for CJK text. PDF 1.5+
+    Warichu,
+    /// Text of a Warichu annotation. PDF 1.5+
+    WT,
+    /// Punctuation of a Warichu annotation. PDF 1.5+
+    WP,
+    /// A list.
+    L,
+    /// A list item.
+    LI,
+    /// Description of the list item.
+    LBody,
+    /// A table.
+    Table,
+    /// A table row.
+    TR,
+    /// A table header cell.
+    TH,
+    /// A table data cell.
+    TD,
+    /// A table header row group.
+    THead,
+    /// A table data row group.
+    TBody,
+    /// A table footer row group.
+    TFoot,
+    /// An image or figure caption.
+    Caption,
+    /// Item of graphical content.
+    Figure,
+    /// Mathematical formula.
+    Formula,
+    /// An artifact not part of the logical content of the document.
+    Artifact,
+}
+
+impl StructRole2 {
+    pub(crate) fn to_name_bytes(self) -> Cow<'static, [u8]> {
+        match self {
+            Self::Document => Cow::Borrowed(b"Document"),
+            Self::DocumentFragment => Cow::Borrowed(b"DocumentFragment"),
+            Self::Part => Cow::Borrowed(b"Part"),
+            Self::Sect => Cow::Borrowed(b"Sect"),
+            Self::Div => Cow::Borrowed(b"Div"),
+            Self::Aside => Cow::Borrowed(b"Aside"),
+            Self::NonStruct => Cow::Borrowed(b"NonStruct"),
+            Self::P => Cow::Borrowed(b"P"),
+            Self::Heading(level) => {
+                let name = format!("H{}", level.get());
+                Cow::Owned(name.into_bytes())
+            }
+            Self::StructuredHeading => Cow::Borrowed(b"H"),
+            Self::Title => Cow::Borrowed(b"Title"),
+            Self::FENote => Cow::Borrowed(b"FENote"),
+            Self::Sub => Cow::Borrowed(b"Sub"),
+            Self::Lbl => Cow::Borrowed(b"Lbl"),
+            Self::Span => Cow::Borrowed(b"Span"),
+            Self::Em => Cow::Borrowed(b"Em"),
+            Self::Strong => Cow::Borrowed(b"Strong"),
+            Self::Link => Cow::Borrowed(b"Link"),
+            Self::Annot => Cow::Borrowed(b"Annot"),
+            Self::Form => Cow::Borrowed(b"Form"),
+            Self::Ruby => Cow::Borrowed(b"Ruby"),
+            Self::RB => Cow::Borrowed(b"RB"),
+            Self::RT => Cow::Borrowed(b"RT"),
+            Self::Warichu => Cow::Borrowed(b"Warichu"),
+            Self::WT => Cow::Borrowed(b"WT"),
+            Self::WP => Cow::Borrowed(b"WP"),
+            Self::L => Cow::Borrowed(b"L"),
+            Self::LI => Cow::Borrowed(b"LI"),
+            Self::LBody => Cow::Borrowed(b"LBody"),
+            Self::Table => Cow::Borrowed(b"Table"),
+            Self::TR => Cow::Borrowed(b"TR"),
+            Self::TH => Cow::Borrowed(b"TH"),
+            Self::TD => Cow::Borrowed(b"TD"),
+            Self::THead => Cow::Borrowed(b"THead"),
+            Self::TBody => Cow::Borrowed(b"TBody"),
+            Self::TFoot => Cow::Borrowed(b"TFoot"),
+            Self::Caption => Cow::Borrowed(b"Caption"),
+            Self::Figure => Cow::Borrowed(b"Figure"),
+            Self::Formula => Cow::Borrowed(b"Formula"),
+            Self::Artifact => Cow::Borrowed(b"Artifact"),
+        }
+    }
+
+    /// Return the corresponding PDF 1.7 [`StructRole`] for this role or `None`.
+    pub fn into_pdf_1_7(self) -> Option<StructRole> {
+        match self {
+            Self::Document => Some(StructRole::Document),
+            Self::DocumentFragment => None,
+            Self::Part => Some(StructRole::Part),
+            Self::Sect => Some(StructRole::Sect),
+            Self::Div => Some(StructRole::Div),
+            Self::Aside => None,
+            Self::NonStruct => Some(StructRole::NonStruct),
+            Self::P => Some(StructRole::P),
+            Self::Heading(n) if n.get() == 1 => Some(StructRole::H1),
+            Self::Heading(n) if n.get() == 2 => Some(StructRole::H2),
+            Self::Heading(n) if n.get() == 3 => Some(StructRole::H3),
+            Self::Heading(n) if n.get() == 4 => Some(StructRole::H4),
+            Self::Heading(n) if n.get() == 5 => Some(StructRole::H5),
+            Self::Heading(n) if n.get() == 6 => Some(StructRole::H6),
+            Self::Heading(_) => None,
+            Self::StructuredHeading => None,
+            Self::Title => None,
+            Self::FENote => None,
+            Self::Sub => None,
+            Self::Lbl => Some(StructRole::Lbl),
+            Self::Span => Some(StructRole::Span),
+            Self::Em => None,
+            Self::Strong => None,
+            Self::Link => Some(StructRole::Link),
+            Self::Annot => Some(StructRole::Annot),
+            Self::Form => Some(StructRole::Form),
+            Self::Ruby => Some(StructRole::Ruby),
+            Self::RB => Some(StructRole::RB),
+            Self::RT => Some(StructRole::RT),
+            Self::Warichu => Some(StructRole::Warichu),
+            Self::WT => Some(StructRole::WT),
+            Self::WP => Some(StructRole::WP),
+            Self::L => Some(StructRole::L),
+            Self::LI => Some(StructRole::LI),
+            Self::LBody => Some(StructRole::LBody),
+            Self::Table => Some(StructRole::Table),
+            Self::TR => Some(StructRole::TR),
+            Self::TH => Some(StructRole::TH),
+            Self::TD => Some(StructRole::TD),
+            Self::THead => Some(StructRole::THead),
+            Self::TBody => Some(StructRole::TBody),
+            Self::TFoot => Some(StructRole::TFoot),
+            Self::Caption => Some(StructRole::Caption),
+            Self::Figure => Some(StructRole::Figure),
+            Self::Formula => Some(StructRole::Formula),
+            Self::Artifact => None,
+        }
+    }
+
+    /// Return the closest equivalent role in the PDF 1.7 namespace.
+    ///
+    /// Returns `None` if the role exactly matches a PDF 1.7 role (see
+    /// [`Self::into_pdf_1_7`]).
+    ///
+    /// There are three parameters governing the role mapping:
+    ///
+    /// - `map_hn_to_h6`: Are headings with levels higher than 6 are mapped to
+    ///   [`StructRole::H6`] (`true`) or [`StructRole::P`] (`false`)
+    /// - `map_title_to_h1`: Is the `Title` role mapped to [`StructRole::H1`]
+    ///   (`true`) or to [`StructRole::P`] (`false`)
+    /// - `map_sub_to_span`: Is the `Sub` role mapped to [`StructRole::Span`]
+    ///   (`true`) or to [`StructRole::Div`] (`false`)
+    pub fn role_mapped_1_7(
+        self,
+        map_hn_to_h6: bool,
+        map_title_to_h1: bool,
+        map_sub_to_span: bool,
+    ) -> Option<StructRole> {
+        match self {
+            Self::Document => None,
+            Self::DocumentFragment => Some(StructRole::Div),
+            Self::Part => None,
+            Self::Sect => None,
+            Self::Div => None,
+            Self::Aside => Some(StructRole::Div),
+            Self::NonStruct => None,
+            Self::P => None,
+            Self::Heading(n) if (1u16..=6).contains(&n.get()) => None,
+            Self::Heading(_) => {
+                Some(if map_hn_to_h6 { StructRole::H6 } else { StructRole::P })
+            }
+            Self::StructuredHeading => Some(StructRole::P),
+            Self::Title => {
+                Some(if map_title_to_h1 { StructRole::H1 } else { StructRole::P })
+            }
+            Self::FENote => Some(StructRole::Note),
+            Self::Sub => {
+                Some(if map_sub_to_span { StructRole::Span } else { StructRole::Div })
+            }
+            Self::Lbl => None,
+            Self::Span => None,
+            Self::Em => Some(StructRole::Span),
+            Self::Strong => Some(StructRole::Span),
+            Self::Link => None,
+            Self::Annot => None,
+            Self::Form => None,
+            Self::Ruby => None,
+            Self::RB => None,
+            Self::RT => None,
+            Self::Warichu => None,
+            Self::WT => None,
+            Self::WP => None,
+            Self::L => None,
+            Self::LI => None,
+            Self::LBody => None,
+            Self::Table => None,
+            Self::TR => None,
+            Self::TH => None,
+            Self::TD => None,
+            Self::THead => None,
+            Self::TBody => None,
+            Self::TFoot => None,
+            Self::Caption => None,
+            Self::Figure => None,
+            Self::Formula => None,
+            Self::Artifact => Some(StructRole::Private),
+        }
+    }
+
+    /// Return the type of the structure element.
+    pub fn role_type(self) -> StructRoleType2 {
+        match self {
+            Self::Document | Self::DocumentFragment => StructRoleType2::Document,
+            Self::Part | Self::Sect | Self::Div | Self::Aside | Self::NonStruct => {
+                StructRoleType2::Grouping
+            }
+            Self::P
+            | Self::Heading(_)
+            | Self::StructuredHeading
+            | Self::Title
+            | Self::FENote => StructRoleType2::BlockLevel,
+            Self::Sub => StructRoleType2::SubBlockLevel,
+            Self::Lbl
+            | Self::Span
+            | Self::Em
+            | Self::Strong
+            | Self::Link
+            | Self::Annot
+            | Self::Form => {
+                StructRoleType2::InlineLevel(InlineLevelRoleSubtype2::Generic)
+            }
+            Self::Ruby | Self::RB | Self::RT | Self::Warichu | Self::WT | Self::WP => {
+                StructRoleType2::InlineLevel(InlineLevelRoleSubtype2::RubyWarichu)
+            }
+            Self::L | Self::LI | Self::LBody => StructRoleType2::List,
+            Self::Table
+            | Self::TR
+            | Self::TH
+            | Self::TD
+            | Self::THead
+            | Self::TBody
+            | Self::TFoot => StructRoleType2::Table,
+            Self::Caption => StructRoleType2::Caption,
+            Self::Figure => StructRoleType2::Figure,
+            Self::Formula => StructRoleType2::Formula,
+            Self::Artifact => StructRoleType2::Artifact,
+        }
+    }
+}
+
+impl TryFrom<StructRole2> for StructRole {
+    type Error = ();
+
+    fn try_from(value: StructRole2) -> Result<Self, Self::Error> {
+        value.into_pdf_1_7().ok_or(())
+    }
+}
+
+/// Type of the PDF 2.0 [structure element](StructRole2) in the document,
+/// determining layout, permitted attributes, and nesting.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum StructRoleType2 {
+    /// Elements representing the whole document or a fragment of it.
+    Document,
+    /// Elements used solely to group other elements together.
+    Grouping,
+    /// Elements laid out across the block axis, also known as BLSE.
+    BlockLevel,
+    /// Elements that appear as sub-divisions of a block-level element.
+    SubBlockLevel,
+    /// Elements laid out across the inline axis, also known as ILSE.
+    InlineLevel(InlineLevelRoleSubtype2),
+    /// Elements related to lists.
+    List,
+    /// Elements related to tables.
+    Table,
+    /// Figure captions.
+    Caption,
+    /// Figures, such as images and illustrations.
+    Figure,
+    /// Mathematical formulas.
+    Formula,
+    /// Artifacts not part of the logical content of the document.
+    Artifact,
+}
+
+/// Subtypes of inline-level structure roles for PDF 2.0, determining the layout and
+/// permitted attributes of the element.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum InlineLevelRoleSubtype2 {
+    /// Generic inline element.
+    Generic,
+    /// Ruby or Warichu annotation.
+    RubyWarichu,
+}
 
 /// Which phonetic alphabet to use for the `/Phonetic` key in the
 /// [`StructElement`] dictionary.
