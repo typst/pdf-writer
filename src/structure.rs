@@ -94,7 +94,7 @@ impl Catalog<'_> {
     /// Write the `/Version` attribute to override the PDF version stated in the
     /// header. PDF 1.4+.
     pub fn version(&mut self, major: u8, minor: u8) -> &mut Self {
-        self.pair(Name(b"Version"), Name(format!("{}.{}", major, minor).as_bytes()));
+        self.pair(Name(b"Version"), Name(format!("{major}.{minor}").as_bytes()));
         self
     }
 
@@ -240,7 +240,7 @@ impl DeveloperExtension<'_> {
     /// Write the `/BaseVersion` attribute to specify the version of PDF this
     /// extension is based on. Required.
     pub fn base_version(&mut self, major: u8, minor: u8) -> &mut Self {
-        self.pair(Name(b"BaseVersion"), Name(format!("{}.{}", major, minor).as_bytes()));
+        self.pair(Name(b"BaseVersion"), Name(format!("{major}.{minor}").as_bytes()));
         self
     }
 

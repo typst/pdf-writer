@@ -69,7 +69,7 @@ impl Buf {
             #[inline(never)]
             fn write_extreme(buf: &mut Buf, value: f32) {
                 use std::io::Write;
-                write!(buf.inner, "{}", value).unwrap();
+                write!(buf.inner, "{value}").unwrap();
             }
 
             write_extreme(self, value);
