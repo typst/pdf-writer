@@ -181,7 +181,9 @@ pub mod types {
     pub use object::Predictor;
     pub use renditions::{MediaClipType, RenditionType, TempFileType};
     pub use structure::{
-        Direction, NumberingStyle, OutlineItemFlags, PageLayout, PageMode, StructRole,
+        BlockLevelRoleSubtype, Direction, InlineLevelRoleSubtype,
+        InlineLevelRoleSubtype2, NumberingStyle, OutlineItemFlags, PageLayout, PageMode,
+        PhoneticAlphabet, StructRole, StructRole2, StructRoleType, StructRoleType2,
         TabOrder, TrappingStatus,
     };
     pub use transitions::{TransitionAngle, TransitionStyle};
