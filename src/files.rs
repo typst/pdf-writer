@@ -160,7 +160,7 @@ impl EmbeddingParams<'_> {
 deref!('a, EmbeddingParams<'a> => Dict<'a>, dict);
 
 /// How an embedded file relates to the PDF document it is embedded in.
-/// PDF/A-3 and PDF/A-4f.
+/// PDF 1.7 with PDF/A-3, PDF 2.0+ (including PDF/A-4f).
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AssociationKind {
     /// The PDF document was created from this source file.
@@ -171,6 +171,12 @@ pub enum AssociationKind {
     Alternative,
     /// Additional resources for this document.
     Supplement,
+    /// An encrypted file. PDF 2.0+.
+    EncryptedPayload,
+    /// Data associated with the `AcroForm`. PDF 2.0+.
+    FormData,
+    /// A machine-readable schema. PDF 2.0+.
+    Schema,
     /// There is no clear relationship or it is not known.
     Unspecified,
 }
@@ -182,6 +188,9 @@ impl AssociationKind {
             Self::Data => Name(b"Data"),
             Self::Alternative => Name(b"Alternative"),
             Self::Supplement => Name(b"Supplement"),
+            Self::EncryptedPayload => Name(b"EncryptedPayload"),
+            Self::FormData => Name(b"FormData"),
+            Self::Schema => Name(b"Schema"),
             Self::Unspecified => Name(b"Unspecified"),
         }
     }
