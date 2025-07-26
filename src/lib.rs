@@ -338,7 +338,7 @@ impl Pdf {
                 written += 1;
             }
 
-            write!(buf.inner, "{:010} 00000 n\r\n", offset).unwrap();
+            write!(buf.inner, "{offset:010} 00000 n\r\n").unwrap();
             written += 1;
         }
 
@@ -366,7 +366,7 @@ impl Pdf {
 
         // Write where the cross-reference table starts.
         buf.extend(b"\nstartxref\n");
-        write!(buf.inner, "{}", xref_offset).unwrap();
+        write!(buf.inner, "{xref_offset}").unwrap();
 
         // Write the end of file marker.
         buf.extend(b"\n%%EOF");
