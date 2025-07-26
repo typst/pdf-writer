@@ -60,6 +60,12 @@ impl<'a> Attributes<'a> {
         ArtifactAttributes::start_with_dict(self.dict)
     }
 
+    /// Set the `/O` attribute to `FENote` to start writing attributes for
+    /// footnote elements. PDF/UA-2
+    pub fn note(self) -> FENoteAttributes<'a> {
+        FENoteAttributes::start_with_dict(self.dict)
+    }
+
     /// Set the `/O` attribute to `NSO` and set the `/NS` attribute to an
     /// indirect reference to a [`Namespace`] dictionary to start writing
     /// attributes for a namespace. PDF 2.0+
@@ -948,6 +954,51 @@ impl<'a> ArtifactAttributes<'a> {
 
 deref!('a, ArtifactAttributes<'a> => Dict<'a>, dict);
 
+/// Writer for a _foot- and endnote attributes dictionary_. PDF/UA-2
+///
+/// This struct is created by [`Attributes::note`].
+pub struct FENoteAttributes<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(FENoteAttributes: |obj| Self::start_with_dict(obj.dict()));
+
+impl<'a> FENoteAttributes<'a> {
+    pub(crate) fn start_with_dict(mut dict: Dict<'a>) -> Self {
+        dict.pair(Name(b"O"), AttributeOwner::FENote.to_name(true));
+        Self { dict }
+    }
+
+    /// Write the `/NoteType` attribute to set the type of note.
+    pub fn note_type(&mut self, note_type: NoteType) -> &mut Self {
+        self.dict.pair(Name(b"NoteType"), note_type.to_name());
+        self
+    }
+}
+
+deref!('a, FENoteAttributes<'a> => Dict<'a>, dict);
+
+/// The type of foot- or endnote.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum NoteType {
+    /// A footnote.
+    Footnote,
+    /// An endnote.
+    Endnote,
+    /// The type is not specified.
+    None,
+}
+
+impl NoteType {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::Footnote => Name(b"Footnote"),
+            Self::Endnote => Name(b"Endnote"),
+            Self::None => Name(b"None"),
+        }
+    }
+}
+
 /// Owner of the attribute dictionary.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum AttributeOwner {
@@ -983,6 +1034,8 @@ pub enum AttributeOwner {
     Rdfa1_1,
     /// ARIA 1.1 accessibility attributes for assistive technology. PDF 2.0+.
     Aria1_1,
+    /// Attribute governing the interpretation of `FENote` elements. PDF/UA-2.
+    FENote,
     /// The attribute owner is a namespace. PDF 2.0+.
     NSO,
     /// User-defined attributes. Requires to set the `/UserProperties` attribute
@@ -1016,6 +1069,7 @@ impl AttributeOwner {
             Self::Css3 => Name(b"CSS-3"),
             Self::Rdfa1_1 => Name(b"RDFa-1.10"),
             Self::Aria1_1 => Name(b"ARIA-1.1"),
+            Self::FENote => Name(b"FENote"),
             Self::NSO => Name(b"NSO"),
             Self::User => Name(b"UserProperties"),
         }
