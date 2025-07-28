@@ -1116,22 +1116,21 @@ pub enum StructRole2 {
     Strong,
     /// A link.
     Link,
-    /// An association between an annotation and the content it belongs to. PDF
-    /// 1.5+
+    /// An association between an annotation and the content it belongs to.
     Annot,
     /// Form widget.
     Form,
-    /// Ruby annotation for CJK text. PDF 1.5+
+    /// Ruby annotation for CJK text.
     Ruby,
-    /// Base text of a Ruby annotation. PDF 1.5+
+    /// Base text of a Ruby annotation.
     RB,
-    /// Annotation text of a Ruby annotation. PDF 1.5+
+    /// Annotation text of a Ruby annotation.
     RT,
-    /// Warichu annotation for CJK text. PDF 1.5+
+    /// Warichu annotation for CJK text.
     Warichu,
-    /// Text of a Warichu annotation. PDF 1.5+
+    /// Text of a Warichu annotation.
     WT,
-    /// Punctuation of a Warichu annotation. PDF 1.5+
+    /// Punctuation of a Warichu annotation.
     WP,
     /// A list.
     L,
@@ -1214,125 +1213,88 @@ impl StructRole2 {
         }
     }
 
-    /// Return the corresponding PDF 1.7 [`StructRole`] for this role or `None`.
-    pub fn into_pdf_1_7(self) -> Option<StructRole> {
+    /// How the type should be represented in PDF 1.7.
+    ///
+    /// The `opts` parameter allows to control how certain roles are represented
+    /// in PDF 1.7. You can also use its default constructor.
+    pub fn compatibility_1_7(self, opts: RoleMapOpts) -> StructRole2Compat {
         match self {
-            Self::Document => Some(StructRole::Document),
-            Self::DocumentFragment => None,
-            Self::Part => Some(StructRole::Part),
-            Self::Sect => Some(StructRole::Sect),
-            Self::Div => Some(StructRole::Div),
-            Self::Aside => None,
-            Self::NonStruct => Some(StructRole::NonStruct),
-            Self::P => Some(StructRole::P),
-            Self::Heading(n) if n.get() == 1 => Some(StructRole::H1),
-            Self::Heading(n) if n.get() == 2 => Some(StructRole::H2),
-            Self::Heading(n) if n.get() == 3 => Some(StructRole::H3),
-            Self::Heading(n) if n.get() == 4 => Some(StructRole::H4),
-            Self::Heading(n) if n.get() == 5 => Some(StructRole::H5),
-            Self::Heading(n) if n.get() == 6 => Some(StructRole::H6),
-            Self::Heading(_) => None,
-            Self::StructuredHeading => None,
-            Self::Title => None,
-            Self::FENote => None,
-            Self::Sub => None,
-            Self::Lbl => Some(StructRole::Lbl),
-            Self::Span => Some(StructRole::Span),
-            Self::Em => None,
-            Self::Strong => None,
-            Self::Link => Some(StructRole::Link),
-            Self::Annot => Some(StructRole::Annot),
-            Self::Form => Some(StructRole::Form),
-            Self::Ruby => Some(StructRole::Ruby),
-            Self::RB => Some(StructRole::RB),
-            Self::RT => Some(StructRole::RT),
-            Self::Warichu => Some(StructRole::Warichu),
-            Self::WT => Some(StructRole::WT),
-            Self::WP => Some(StructRole::WP),
-            Self::L => Some(StructRole::L),
-            Self::LI => Some(StructRole::LI),
-            Self::LBody => Some(StructRole::LBody),
-            Self::Table => Some(StructRole::Table),
-            Self::TR => Some(StructRole::TR),
-            Self::TH => Some(StructRole::TH),
-            Self::TD => Some(StructRole::TD),
-            Self::THead => Some(StructRole::THead),
-            Self::TBody => Some(StructRole::TBody),
-            Self::TFoot => Some(StructRole::TFoot),
-            Self::Caption => Some(StructRole::Caption),
-            Self::Figure => Some(StructRole::Figure),
-            Self::Formula => Some(StructRole::Formula),
-            Self::Artifact => None,
-        }
-    }
-
-    /// Return the closest equivalent role in the PDF 1.7 namespace.
-    ///
-    /// Returns `None` if the role exactly matches a PDF 1.7 role (see
-    /// [`Self::into_pdf_1_7`]).
-    ///
-    /// There are three parameters governing the role mapping:
-    ///
-    /// - `map_hn_to_h6`: Are headings with levels higher than 6 are mapped to
-    ///   [`StructRole::H6`] (`true`) or [`StructRole::P`] (`false`)
-    /// - `map_title_to_h1`: Is the `Title` role mapped to [`StructRole::H1`]
-    ///   (`true`) or to [`StructRole::P`] (`false`)
-    /// - `map_sub_to_span`: Is the `Sub` role mapped to [`StructRole::Span`]
-    ///   (`true`) or to [`StructRole::Div`] (`false`)
-    pub fn role_mapped_1_7(
-        self,
-        map_hn_to_h6: bool,
-        map_title_to_h1: bool,
-        map_sub_to_span: bool,
-    ) -> Option<StructRole> {
-        match self {
-            Self::Document => None,
-            Self::DocumentFragment => Some(StructRole::Div),
-            Self::Part => None,
-            Self::Sect => None,
-            Self::Div => None,
-            Self::Aside => Some(StructRole::Div),
-            Self::NonStruct => None,
-            Self::P => None,
-            Self::Heading(n) if (1u16..=6).contains(&n.get()) => None,
-            Self::Heading(_) => {
-                Some(if map_hn_to_h6 { StructRole::H6 } else { StructRole::P })
+            Self::Document => StructRole2Compat::Compatible(StructRole::Document),
+            Self::DocumentFragment => StructRole2Compat::RoleMapping(StructRole::Div),
+            Self::Part => StructRole2Compat::Compatible(StructRole::Part),
+            Self::Sect => StructRole2Compat::Compatible(StructRole::Sect),
+            Self::Div => StructRole2Compat::Compatible(StructRole::Div),
+            Self::Aside => StructRole2Compat::RoleMapping(StructRole::Div),
+            Self::NonStruct => StructRole2Compat::Compatible(StructRole::NonStruct),
+            Self::P => StructRole2Compat::Compatible(StructRole::P),
+            Self::Heading(n) if n.get() == 1 => {
+                StructRole2Compat::Compatible(StructRole::H1)
             }
-            Self::StructuredHeading => Some(StructRole::P),
-            Self::Title => {
-                Some(if map_title_to_h1 { StructRole::H1 } else { StructRole::P })
+            Self::Heading(n) if n.get() == 2 => {
+                StructRole2Compat::Compatible(StructRole::H2)
             }
-            Self::FENote => Some(StructRole::Note),
-            Self::Sub => {
-                Some(if map_sub_to_span { StructRole::Span } else { StructRole::Div })
+            Self::Heading(n) if n.get() == 3 => {
+                StructRole2Compat::Compatible(StructRole::H3)
             }
-            Self::Lbl => None,
-            Self::Span => None,
-            Self::Em => Some(StructRole::Span),
-            Self::Strong => Some(StructRole::Span),
-            Self::Link => None,
-            Self::Annot => None,
-            Self::Form => None,
-            Self::Ruby => None,
-            Self::RB => None,
-            Self::RT => None,
-            Self::Warichu => None,
-            Self::WT => None,
-            Self::WP => None,
-            Self::L => None,
-            Self::LI => None,
-            Self::LBody => None,
-            Self::Table => None,
-            Self::TR => None,
-            Self::TH => None,
-            Self::TD => None,
-            Self::THead => None,
-            Self::TBody => None,
-            Self::TFoot => None,
-            Self::Caption => None,
-            Self::Figure => None,
-            Self::Formula => None,
-            Self::Artifact => Some(StructRole::Private),
+            Self::Heading(n) if n.get() == 4 => {
+                StructRole2Compat::Compatible(StructRole::H4)
+            }
+            Self::Heading(n) if n.get() == 5 => {
+                StructRole2Compat::Compatible(StructRole::H5)
+            }
+            Self::Heading(n) if n.get() == 6 => {
+                StructRole2Compat::Compatible(StructRole::H6)
+            }
+            Self::Heading(_) => StructRole2Compat::RoleMapping(
+                if opts.contains(RoleMapOpts::map_hn_to_h6) {
+                    StructRole::H6
+                } else {
+                    StructRole::P
+                },
+            ),
+            Self::StructuredHeading => StructRole2Compat::RoleMapping(StructRole::P),
+            Self::Title => StructRole2Compat::RoleMapping(
+                if opts.contains(RoleMapOpts::map_title_to_h1) {
+                    StructRole::H1
+                } else {
+                    StructRole::P
+                },
+            ),
+            Self::FENote => StructRole2Compat::RoleMapping(StructRole::Note),
+            Self::Sub => StructRole2Compat::RoleMapping(
+                if opts.contains(RoleMapOpts::map_sub_to_span) {
+                    StructRole::Span
+                } else {
+                    StructRole::Div
+                },
+            ),
+            Self::Lbl => StructRole2Compat::Compatible(StructRole::Lbl),
+            Self::Span => StructRole2Compat::Compatible(StructRole::Span),
+            Self::Em => StructRole2Compat::RoleMapping(StructRole::Span),
+            Self::Strong => StructRole2Compat::RoleMapping(StructRole::Span),
+            Self::Link => StructRole2Compat::Compatible(StructRole::Link),
+            Self::Annot => StructRole2Compat::Compatible(StructRole::Annot),
+            Self::Form => StructRole2Compat::Compatible(StructRole::Form),
+            Self::Ruby => StructRole2Compat::Compatible(StructRole::Ruby),
+            Self::RB => StructRole2Compat::Compatible(StructRole::RB),
+            Self::RT => StructRole2Compat::Compatible(StructRole::RT),
+            Self::Warichu => StructRole2Compat::Compatible(StructRole::Warichu),
+            Self::WT => StructRole2Compat::Compatible(StructRole::WT),
+            Self::WP => StructRole2Compat::Compatible(StructRole::WP),
+            Self::L => StructRole2Compat::Compatible(StructRole::L),
+            Self::LI => StructRole2Compat::Compatible(StructRole::LI),
+            Self::LBody => StructRole2Compat::Compatible(StructRole::LBody),
+            Self::Table => StructRole2Compat::Compatible(StructRole::Table),
+            Self::TR => StructRole2Compat::Compatible(StructRole::TR),
+            Self::TH => StructRole2Compat::Compatible(StructRole::TH),
+            Self::TD => StructRole2Compat::Compatible(StructRole::TD),
+            Self::THead => StructRole2Compat::Compatible(StructRole::THead),
+            Self::TBody => StructRole2Compat::Compatible(StructRole::TBody),
+            Self::TFoot => StructRole2Compat::Compatible(StructRole::TFoot),
+            Self::Caption => StructRole2Compat::Compatible(StructRole::Caption),
+            Self::Figure => StructRole2Compat::Compatible(StructRole::Figure),
+            Self::Formula => StructRole2Compat::Compatible(StructRole::Formula),
+            Self::Artifact => StructRole2Compat::RoleMapping(StructRole::Private),
         }
     }
 
@@ -1377,11 +1339,75 @@ impl StructRole2 {
     }
 }
 
+bitflags::bitflags! {
+    /// Options for mapping PDF 2.0 [`StructRole2`] to PDF 1.7 [`StructRole`].
+    pub struct RoleMapOpts: u8 {
+        /// Whether to map headings with levels higher than 6 to [`StructRole::H6`]
+        /// (`true`) or [`StructRole::P`] (`false`).
+        const map_hn_to_h6 = 1 << 0;
+        /// Whether to map the `Title` role to [`StructRole::H1`] (`true`) or
+        /// [`StructRole::P`] (`false`).
+        const map_title_to_h1 = 1 << 1;
+        /// Whether to map the `Sub` role to [`StructRole::Span`] (`true`) or
+        /// [`StructRole::Div`] (`false`).
+        const map_sub_to_span = 1 << 2;
+    }
+}
+
+impl Default for RoleMapOpts {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+/// How a particular PDF 2.0 [`StructRole2`] can be represented in PDF 1.7.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum StructRole2Compat {
+    /// The role is a direct match with this PDF 1.7 role.
+    Compatible(StructRole),
+    /// The has no direct match with a PDF 1.7 role, but can be mapped to
+    /// a PDF 1.7 role with a similar meaning.
+    RoleMapping(StructRole),
+}
+
+impl StructRole2Compat {
+    /// Return the corresponding PDF 1.7 [`StructRole`] for this role or `None`
+    /// if there is no exact match.
+    pub fn into_pdf_1_7(self) -> Option<StructRole> {
+        match self {
+            Self::Compatible(role) => Some(role),
+            Self::RoleMapping(_) => None,
+        }
+    }
+
+    /// Return the closest equivalent role in the PDF 1.7 namespace.
+    ///
+    /// Returns `None` if the role exactly matches a PDF 1.7 role (see
+    /// [`Self::into_pdf_1_7`]).
+    pub fn role_mapped_1_7(self) -> Option<StructRole> {
+        match self {
+            Self::Compatible(_) => None,
+            Self::RoleMapping(role) => Some(role),
+        }
+    }
+
+    /// Return the inner role.
+    pub fn role(self) -> StructRole {
+        match self {
+            Self::Compatible(role) => role,
+            Self::RoleMapping(role) => role,
+        }
+    }
+}
+
 impl TryFrom<StructRole2> for StructRole {
     type Error = ();
 
     fn try_from(value: StructRole2) -> Result<Self, Self::Error> {
-        value.into_pdf_1_7().ok_or(())
+        value
+            .compatibility_1_7(RoleMapOpts::default())
+            .into_pdf_1_7()
+            .ok_or(())
     }
 }
 
