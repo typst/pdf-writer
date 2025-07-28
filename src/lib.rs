@@ -183,8 +183,8 @@ pub mod types {
     pub use structure::{
         BlockLevelRoleSubtype, Direction, InlineLevelRoleSubtype,
         InlineLevelRoleSubtype2, NumberingStyle, OutlineItemFlags, PageLayout, PageMode,
-        PhoneticAlphabet, StructRole, StructRole2, StructRoleType, StructRoleType2,
-        TabOrder, TrappingStatus,
+        PhoneticAlphabet, RoleMapOpts, StructRole, StructRole2, StructRole2Compat,
+        StructRoleType, StructRoleType2, TabOrder, TrappingStatus,
     };
     pub use transitions::{TransitionAngle, TransitionStyle};
     pub use xobject::SMaskInData;
