@@ -1,4 +1,5 @@
-use std::{borrow::Cow, num::NonZeroU16};
+use std::io::{Cursor, Write};
+use std::num::NonZeroU16;
 
 use super::*;
 use crate::color::SeparationInfo;
@@ -444,7 +445,7 @@ impl StructElement<'_> {
     /// dictionary. You can create this dictionary by using [`Chunk::namespace`]
     /// and then calling [`Namespace::pdf_2_ns`] on the returned writer.
     pub fn kind_2(&mut self, role: StructRole2, pdf_2_ns: Ref) -> &mut Self {
-        self.dict.pair(Name(b"S"), Name(&role.to_name_bytes()));
+        self.dict.pair(Name(b"S"), Name(role.to_name_bytes(&mut [0; 6])));
         self.namespace(pdf_2_ns)
     }
 
@@ -1163,51 +1164,53 @@ pub enum StructRole2 {
 }
 
 impl StructRole2 {
-    pub(crate) fn to_name_bytes(self) -> Cow<'static, [u8]> {
+    pub(crate) fn to_name_bytes(self, buf: &mut [u8; 6]) -> &[u8] {
         match self {
-            Self::Document => Cow::Borrowed(b"Document"),
-            Self::DocumentFragment => Cow::Borrowed(b"DocumentFragment"),
-            Self::Part => Cow::Borrowed(b"Part"),
-            Self::Sect => Cow::Borrowed(b"Sect"),
-            Self::Div => Cow::Borrowed(b"Div"),
-            Self::Aside => Cow::Borrowed(b"Aside"),
-            Self::NonStruct => Cow::Borrowed(b"NonStruct"),
-            Self::P => Cow::Borrowed(b"P"),
+            Self::Document => b"Document",
+            Self::DocumentFragment => b"DocumentFragment",
+            Self::Part => b"Part",
+            Self::Sect => b"Sect",
+            Self::Div => b"Div",
+            Self::Aside => b"Aside",
+            Self::NonStruct => b"NonStruct",
+            Self::P => b"P",
             Self::Heading(level) => {
-                let name = format!("H{}", level.get());
-                Cow::Owned(name.into_bytes())
+                let mut cursor = Cursor::new(buf.as_mut_slice());
+                write!(&mut cursor, "H{}", level.get()).unwrap();
+                let pos = cursor.position() as usize;
+                &buf[..pos]
             }
-            Self::StructuredHeading => Cow::Borrowed(b"H"),
-            Self::Title => Cow::Borrowed(b"Title"),
-            Self::FENote => Cow::Borrowed(b"FENote"),
-            Self::Sub => Cow::Borrowed(b"Sub"),
-            Self::Lbl => Cow::Borrowed(b"Lbl"),
-            Self::Span => Cow::Borrowed(b"Span"),
-            Self::Em => Cow::Borrowed(b"Em"),
-            Self::Strong => Cow::Borrowed(b"Strong"),
-            Self::Link => Cow::Borrowed(b"Link"),
-            Self::Annot => Cow::Borrowed(b"Annot"),
-            Self::Form => Cow::Borrowed(b"Form"),
-            Self::Ruby => Cow::Borrowed(b"Ruby"),
-            Self::RB => Cow::Borrowed(b"RB"),
-            Self::RT => Cow::Borrowed(b"RT"),
-            Self::Warichu => Cow::Borrowed(b"Warichu"),
-            Self::WT => Cow::Borrowed(b"WT"),
-            Self::WP => Cow::Borrowed(b"WP"),
-            Self::L => Cow::Borrowed(b"L"),
-            Self::LI => Cow::Borrowed(b"LI"),
-            Self::LBody => Cow::Borrowed(b"LBody"),
-            Self::Table => Cow::Borrowed(b"Table"),
-            Self::TR => Cow::Borrowed(b"TR"),
-            Self::TH => Cow::Borrowed(b"TH"),
-            Self::TD => Cow::Borrowed(b"TD"),
-            Self::THead => Cow::Borrowed(b"THead"),
-            Self::TBody => Cow::Borrowed(b"TBody"),
-            Self::TFoot => Cow::Borrowed(b"TFoot"),
-            Self::Caption => Cow::Borrowed(b"Caption"),
-            Self::Figure => Cow::Borrowed(b"Figure"),
-            Self::Formula => Cow::Borrowed(b"Formula"),
-            Self::Artifact => Cow::Borrowed(b"Artifact"),
+            Self::StructuredHeading => b"H",
+            Self::Title => b"Title",
+            Self::FENote => b"FENote",
+            Self::Sub => b"Sub",
+            Self::Lbl => b"Lbl",
+            Self::Span => b"Span",
+            Self::Em => b"Em",
+            Self::Strong => b"Strong",
+            Self::Link => b"Link",
+            Self::Annot => b"Annot",
+            Self::Form => b"Form",
+            Self::Ruby => b"Ruby",
+            Self::RB => b"RB",
+            Self::RT => b"RT",
+            Self::Warichu => b"Warichu",
+            Self::WT => b"WT",
+            Self::WP => b"WP",
+            Self::L => b"L",
+            Self::LI => b"LI",
+            Self::LBody => b"LBody",
+            Self::Table => b"Table",
+            Self::TR => b"TR",
+            Self::TH => b"TH",
+            Self::TD => b"TD",
+            Self::THead => b"THead",
+            Self::TBody => b"TBody",
+            Self::TFoot => b"TFoot",
+            Self::Caption => b"Caption",
+            Self::Figure => b"Figure",
+            Self::Formula => b"Formula",
+            Self::Artifact => b"Artifact",
         }
     }
 
@@ -2309,3 +2312,15 @@ impl<'a> Metadata<'a> {
 }
 
 deref!('a, Metadata<'a> => Stream<'a>, stream);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_max_heading_name() {
+        let mut buf = [0; 6];
+        let name = Name(StructRole2::Heading(NonZeroU16::MAX).to_name_bytes(&mut buf));
+        assert_eq!(Name(b"H65535"), name);
+    }
+}
