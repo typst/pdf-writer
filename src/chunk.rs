@@ -233,7 +233,7 @@ impl Chunk {
     }
 
     /// Start writing a named destination dictionary.
-    pub fn destinations(&mut self, id: Ref) -> TypedDict<'_, Destination> {
+    pub fn destinations(&mut self, id: Ref) -> TypedDict<'_, Destination<'_>> {
         self.indirect(id).dict().typed()
     }
 

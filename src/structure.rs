@@ -127,7 +127,7 @@ impl Catalog<'_> {
     ///
     /// The dictionary maps a vendor name to an extension dictionary. The Adobe
     /// PDF extensions use the Name prefix `ADBE`.
-    pub fn extensions(&mut self) -> TypedDict<'_, DeveloperExtension> {
+    pub fn extensions(&mut self) -> TypedDict<'_, DeveloperExtension<'_>> {
         self.insert(Name(b"Extensions")).dict().typed()
     }
 
@@ -145,13 +145,13 @@ impl Catalog<'_> {
     /// dictionary.](writers::OutputIntent)
     ///
     /// Must be present in PDF/X documents, encouraged in PDF/A documents.
-    pub fn output_intents(&mut self) -> TypedArray<'_, OutputIntent> {
+    pub fn output_intents(&mut self) -> TypedArray<'_, OutputIntent<'_>> {
         self.insert(Name(b"OutputIntents")).array().typed()
     }
 
     /// Start writing the `/AF` array to specify the associated files of the
     /// document. PDF 2.0+ or PDF/A-3.
-    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec<'_>> {
         self.insert(Name(b"AF")).array().typed()
     }
 }
@@ -408,7 +408,7 @@ impl StructTreeRoot<'_> {
 
     /// Start writing the `/AF` attribute to specify one or multiple files
     /// associated with the entire structure tree. PDF 2.0+.
-    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec<'_>> {
         self.dict.insert(Name(b"AF")).array().typed()
     }
 }
@@ -521,13 +521,13 @@ impl StructElement<'_> {
 
     /// Start writing the `/A` attribute to specify the attributes of this
     /// structure element.
-    pub fn attributes(&mut self) -> TypedArray<'_, Attributes> {
+    pub fn attributes(&mut self) -> TypedArray<'_, Attributes<'_>> {
         self.dict.insert(Name(b"A")).array().typed()
     }
 
     /// Start writing the `/C` attribute to associate the structure element with
     /// an attribute class.
-    pub fn attribute_class(&mut self) -> TypedArray<'_, Name> {
+    pub fn attribute_class(&mut self) -> TypedArray<'_, Name<'_>> {
         self.dict.insert(Name(b"C")).array().typed()
     }
 
@@ -572,7 +572,7 @@ impl StructElement<'_> {
 
     /// Start writing the `/AF` array to specify the associated files of the
     /// element. PDF 2.0+ or PDF/A-3.
-    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec<'_>> {
         self.insert(Name(b"AF")).array().typed()
     }
 
@@ -751,7 +751,7 @@ impl ClassMap<'_> {
     }
 
     /// Start writing an array of attribute dictionaries for a class name.
-    pub fn multiple(&mut self, name: Name) -> TypedArray<'_, Attributes> {
+    pub fn multiple(&mut self, name: Name) -> TypedArray<'_, Attributes<'_>> {
         self.dict.insert(name).array().typed()
     }
 }
@@ -2001,7 +2001,7 @@ impl Page<'_> {
 
     /// Start writing the `/AF` array to specify the associated files of the
     /// page. PDF 2.0+ or PDF/A-3.
-    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec<'_>> {
         self.insert(Name(b"AF")).array().typed()
     }
 }
