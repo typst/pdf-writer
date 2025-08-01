@@ -28,7 +28,7 @@ impl<'a> Attributes<'a> {
 
     /// Set the `/O` attribute to user-defined and start writing the `/P` array
     /// with user properties. PDF 1.6+
-    pub fn user(&mut self) -> TypedArray<'_, UserProperty> {
+    pub fn user(&mut self) -> TypedArray<'_, UserProperty<'_>> {
         self.pair(Name(b"O"), AttributeOwner::User.to_name(false));
         self.insert(Name(b"P")).array().typed()
     }
@@ -868,7 +868,7 @@ impl<'a> TableAttributes<'a> {
 
     /// Write the `/Headers` attribute to refer to the header cells of the
     /// table. PDF 1.6+.
-    pub fn headers(&mut self) -> TypedArray<'_, Str> {
+    pub fn headers(&mut self) -> TypedArray<'_, Str<'_>> {
         self.dict.insert(Name(b"Headers")).array().typed()
     }
 

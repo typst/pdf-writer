@@ -231,7 +231,7 @@ impl Annotation<'_> {
 
     /// Start writing the `/AF` array to specify the associated files of the
     /// annotation. PDF 2.0+ or PDF/A-3.
-    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec> {
+    pub fn associated_files(&mut self) -> TypedArray<'_, FileSpec<'_>> {
         self.insert(Name(b"AF")).array().typed()
     }
 }

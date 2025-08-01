@@ -654,7 +654,7 @@ impl DeviceNAttrs<'_> {
     ///
     /// Required if the `/Subtype` attribute is `NChannel`. Required for spot
     /// colors in PDF/A-2, PDF/A-3, and PDF/A-4.
-    pub fn colorants(&mut self) -> TypedDict<'_, Dict> {
+    pub fn colorants(&mut self) -> TypedDict<'_, Dict<'_>> {
         self.dict.insert(Name(b"Colorants")).dict().typed()
     }
 

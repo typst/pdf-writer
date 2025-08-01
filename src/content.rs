@@ -1264,7 +1264,7 @@ impl Resources<'_> {
     /// This allows to write property lists with indirect objects for
     /// marked-content sequences. These properties can be used by property lists
     /// using the [`MarkContent::properties_named`] method. PDF 1.2+.
-    pub fn properties(&mut self) -> TypedDict<'_, PropertyList> {
+    pub fn properties(&mut self) -> TypedDict<'_, PropertyList<'_>> {
         self.insert(Name(b"Properties")).dict().typed()
     }
 }
