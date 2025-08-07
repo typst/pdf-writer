@@ -155,34 +155,30 @@ impl<'a> LayoutAttributes<'a> {
     }
 
     /// Write the `/BorderColor` attribute.
-    pub fn border_color(&mut self, color: [f32; 3]) -> &mut Self {
-        self.dict.insert(Name(b"BorderColor")).array().typed().items(color);
+    pub fn border_color(&mut self, color: Sides<[f32; 3]>) -> &mut Self {
+        let obj = self.dict.insert(Name(b"BorderColor"));
+        color.write_iter(obj);
         self
     }
 
     /// Write the `/BorderStyle` attribute.
-    pub fn border_style(&mut self, style: [LayoutBorderStyle; 4]) -> &mut Self {
-        self.dict
-            .insert(Name(b"BorderStyle"))
-            .array()
-            .typed()
-            .items(style.into_iter().map(LayoutBorderStyle::to_name));
+    pub fn border_style(&mut self, style: Sides<LayoutBorderStyle>) -> &mut Self {
+        let obj = self.dict.insert(Name(b"BorderStyle"));
+        style.write_map_primitive(obj, LayoutBorderStyle::to_name);
         self
     }
 
     /// Write the `/BorderThickness` attribute.
-    pub fn border_thickness(&mut self, thickness: [f32; 4]) -> &mut Self {
-        self.dict
-            .insert(Name(b"BorderThickness"))
-            .array()
-            .typed()
-            .items(thickness);
+    pub fn border_thickness(&mut self, thickness: Sides<f32>) -> &mut Self {
+        let obj = self.dict.insert(Name(b"BorderThickness"));
+        thickness.write_primitive(obj);
         self
     }
 
     /// Write the `/Padding` attribute.
-    pub fn padding(&mut self, padding: [f32; 4]) -> &mut Self {
-        self.dict.insert(Name(b"Padding")).array().typed().items(padding);
+    pub fn padding(&mut self, padding: Sides<f32>) -> &mut Self {
+        let obj = self.dict.insert(Name(b"Padding"));
+        padding.write_primitive(obj);
         self
     }
 
@@ -190,6 +186,104 @@ impl<'a> LayoutAttributes<'a> {
     pub fn color(&mut self, color: [f32; 3]) -> &mut Self {
         self.dict.insert(Name(b"Color")).array().typed().items(color);
         self
+    }
+}
+
+/// A value that applies to the four sides of a rectangular container.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
+pub struct Sides<T> {
+    /// The value before the rectangle, in the block progression direction. In
+    /// the LTR writing mode, this is the top side.
+    pub before: T,
+    /// The value after the rectangle, in the block progression direction. In
+    /// the LTR writing mode, this is the bottom side.
+    pub after: T,
+    /// The value at the inline start edge of the rectangle. In the LTR writing
+    /// mode, this is the left side.
+    pub start: T,
+    /// The value at the inline end edge of the rectangle. In the LTR writing
+    /// mode, this is the right side.
+    pub end: T,
+}
+
+impl<T> Sides<T> {
+    /// Create a new `Sides` struct with the given values for each side.
+    pub fn new(before: T, after: T, start: T, end: T) -> Self {
+        Self { before, after, start, end }
+    }
+
+    /// Create a new `Sides` struct with an array ordered as `[before, after,
+    /// start, end]`, just like in the PDF specification.
+    pub fn from_array(array: [T; 4]) -> Self {
+        let [before, after, start, end] = array;
+        Self { before, after, start, end }
+    }
+
+    /// Create a new `Sides` with the same value for all sides.
+    pub fn uniform(value: T) -> Self
+    where
+        T: Clone,
+    {
+        Self {
+            before: value.clone(),
+            after: value.clone(),
+            start: value.clone(),
+            end: value,
+        }
+    }
+
+    /// Check if all sides have the same value.
+    fn is_uniform(&self) -> bool
+    where
+        T: PartialEq,
+    {
+        self.before == self.after && self.before == self.start && self.before == self.end
+    }
+
+    /// Get the sides as an array ordered as `[before, after, start, end]`.
+    fn into_array(self) -> [T; 4] {
+        [self.before, self.after, self.start, self.end]
+    }
+
+    /// Write the sides of a primitive type.
+    fn write_primitive(self, obj: Obj<'_>)
+    where
+        T: Primitive + PartialEq,
+    {
+        self.write_map_primitive(obj, |side| side);
+    }
+
+    /// Write the sides of a value that can be mapped to a primitive type with a
+    /// closure.
+    fn write_map_primitive<P>(self, obj: Obj<'_>, mut to_primitive: impl FnMut(T) -> P)
+    where
+        T: PartialEq,
+        P: Primitive,
+    {
+        if self.is_uniform() {
+            obj.primitive(to_primitive(self.before));
+        } else {
+            let mut array = obj.array();
+            for side in self.into_array() {
+                array.push().primitive(to_primitive(side));
+            }
+        }
+    }
+
+    /// Write the sides of an iterable type containing primitive values.
+    fn write_iter<P>(self, obj: Obj<'_>)
+    where
+        T: IntoIterator<Item = P> + PartialEq,
+        P: Primitive,
+    {
+        if self.is_uniform() {
+            obj.array().typed().items(self.before);
+        } else {
+            let mut array = obj.array();
+            for side in self.into_array() {
+                array.push().array().typed().items(side);
+            }
+        }
     }
 }
 
@@ -390,18 +484,16 @@ impl LayoutAttributes<'_> {
     }
 
     /// Write the `/TBorderStyle` attribute. PDF 1.5+.
-    pub fn table_border_style(&mut self, style: [LayoutBorderStyle; 4]) -> &mut Self {
-        self.dict
-            .insert(Name(b"TBorderStyle"))
-            .array()
-            .typed()
-            .items(style.into_iter().map(LayoutBorderStyle::to_name));
+    pub fn table_border_style(&mut self, style: Sides<LayoutBorderStyle>) -> &mut Self {
+        let obj = self.dict.insert(Name(b"TBorderStyle"));
+        style.write_map_primitive(obj, LayoutBorderStyle::to_name);
         self
     }
 
     /// Write the `/TPadding` attribute. PDF 1.5+.
-    pub fn table_padding(&mut self, padding: f32) -> &mut Self {
-        self.dict.pair(Name(b"TPadding"), padding);
+    pub fn table_padding(&mut self, padding: Sides<f32>) -> &mut Self {
+        let obj = self.dict.insert(Name(b"TPadding"));
+        padding.write_primitive(obj);
         self
     }
 }
