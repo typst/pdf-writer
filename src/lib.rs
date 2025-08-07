@@ -159,7 +159,7 @@ pub mod types {
     pub use attributes::{
         AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
         LayoutBorderStyle, LayoutTextPosition, LineHeight, ListNumbering, NoteType,
-        Placement, RubyAlign, RubyPosition, TableHeaderScope, TextAlign,
+        Placement, RubyAlign, RubyPosition, Sides, TableHeaderScope, TextAlign,
         TextDecorationType, WritingMode,
     };
     pub use color::{
