@@ -792,6 +792,8 @@ pub enum StructRole {
     Private,
     /// A paragraph
     P,
+    /// A strongly structured heading.
+    StructuredHeading,
     /// First-level heading.
     H1,
     /// Second-level heading.
@@ -881,6 +883,7 @@ impl StructRole {
             Self::NonStruct => Name(b"NonStruct"),
             Self::Private => Name(b"Private"),
             Self::P => Name(b"P"),
+            Self::StructuredHeading => Name(b"H"),
             Self::H1 => Name(b"H1"),
             Self::H2 => Name(b"H2"),
             Self::H3 => Name(b"H3"),
@@ -936,6 +939,7 @@ impl StructRole {
             Self::NonStruct => Some(StructRole2::NonStruct),
             Self::Private => None,
             Self::P => Some(StructRole2::P),
+            Self::StructuredHeading => Some(StructRole2::StructuredHeading),
             Self::H1 => Some(StructRole2::Heading(NonZeroU16::new(1).unwrap())),
             Self::H2 => Some(StructRole2::Heading(NonZeroU16::new(2).unwrap())),
             Self::H3 => Some(StructRole2::Heading(NonZeroU16::new(3).unwrap())),
@@ -989,19 +993,23 @@ impl StructRole {
             | Self::Index
             | Self::NonStruct
             | Self::Private => StructRoleType::Grouping,
-            Self::P | Self::H1 | Self::H2 | Self::H3 | Self::H4 | Self::H5 | Self::H6 => {
+            Self::P
+            | Self::StructuredHeading
+            | Self::H1
+            | Self::H2
+            | Self::H3
+            | Self::H4
+            | Self::H5
+            | Self::H6 => {
                 StructRoleType::BlockLevel(BlockLevelRoleSubtype::ParagraphLike)
             }
             Self::L | Self::LI | Self::Lbl | Self::LBody => {
                 StructRoleType::BlockLevel(BlockLevelRoleSubtype::List)
             }
-            Self::Table
-            | Self::TR
-            | Self::TH
-            | Self::TD
-            | Self::THead
-            | Self::TBody
-            | Self::TFoot => StructRoleType::BlockLevel(BlockLevelRoleSubtype::Table),
+            Self::Table => StructRoleType::BlockLevel(BlockLevelRoleSubtype::Table),
+            Self::TR | Self::TH | Self::TD | Self::THead | Self::TBody | Self::TFoot => {
+                StructRoleType::Table
+            }
             Self::Span
             | Self::Quote
             | Self::Note
@@ -1036,6 +1044,8 @@ pub enum StructRoleType {
     InlineLevel(InlineLevelRoleSubtype),
     /// Elements whose contents consist of one or more graphics objects.
     Illustration,
+    /// Elements that occur in a table, such as rows and cells.
+    Table,
 }
 
 /// Subtypes of block-level structure roles, determining the layout and
@@ -1126,6 +1136,8 @@ pub enum StructRole2 {
     RB,
     /// Annotation text of a Ruby annotation.
     RT,
+    /// Punctuation in a Ruby annotation.
+    RP,
     /// Warichu annotation for CJK text.
     Warichu,
     /// Text of a Warichu annotation.
@@ -1193,6 +1205,7 @@ impl StructRole2 {
             Self::Ruby => b"Ruby",
             Self::RB => b"RB",
             Self::RT => b"RT",
+            Self::RP => b"RP",
             Self::Warichu => b"Warichu",
             Self::WT => b"WT",
             Self::WP => b"WP",
@@ -1252,7 +1265,9 @@ impl StructRole2 {
                     StructRole::P
                 },
             ),
-            Self::StructuredHeading => StructRole2Compat::RoleMapping(StructRole::P),
+            Self::StructuredHeading => {
+                StructRole2Compat::Compatible(StructRole::StructuredHeading)
+            }
             Self::Title => StructRole2Compat::RoleMapping(
                 if opts.contains(RoleMapOpts::map_title_to_h1) {
                     StructRole::H1
@@ -1278,6 +1293,7 @@ impl StructRole2 {
             Self::Ruby => StructRole2Compat::Compatible(StructRole::Ruby),
             Self::RB => StructRole2Compat::Compatible(StructRole::RB),
             Self::RT => StructRole2Compat::Compatible(StructRole::RT),
+            Self::RP => StructRole2Compat::Compatible(StructRole::RP),
             Self::Warichu => StructRole2Compat::Compatible(StructRole::Warichu),
             Self::WT => StructRole2Compat::Compatible(StructRole::WT),
             Self::WP => StructRole2Compat::Compatible(StructRole::WP),
@@ -1320,7 +1336,13 @@ impl StructRole2 {
             | Self::Form => {
                 StructRoleType2::InlineLevel(InlineLevelRoleSubtype2::Generic)
             }
-            Self::Ruby | Self::RB | Self::RT | Self::Warichu | Self::WT | Self::WP => {
+            Self::Ruby
+            | Self::RB
+            | Self::RP
+            | Self::RT
+            | Self::Warichu
+            | Self::WT
+            | Self::WP => {
                 StructRoleType2::InlineLevel(InlineLevelRoleSubtype2::RubyWarichu)
             }
             Self::L | Self::LI | Self::LBody => StructRoleType2::List,
