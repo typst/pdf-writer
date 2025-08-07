@@ -114,7 +114,7 @@ pub mod writers {
     };
     pub use attributes::{
         ArtifactAttributes, Attributes, FENoteAttributes, FieldAttributes,
-        LayoutAttributes, ListAttributes, TableAttributes, UserProperty,
+        LayoutAttributes, ListAttributes, TableAttributes, TrackSizes, UserProperty,
     };
     pub use color::{
         ColorSpace, DeviceN, DeviceNAttrs, DeviceNMixingHints, DeviceNProcess,

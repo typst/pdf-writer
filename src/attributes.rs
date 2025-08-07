@@ -439,18 +439,42 @@ impl LayoutAttributes<'_> {
         self
     }
 
-    /// Start writing the `/ColumnWidths` array. The last number in the array is
-    /// used for all extra columns. PDF 1.6+.
-    pub fn column_widths(&mut self) -> TypedArray<'_, f32> {
-        self.dict.insert(Name(b"ColumnWidths")).array().typed()
+    /// Start writing the `/ColumnWidths` array. PDF 1.6+.
+    pub fn column_widths(&mut self) -> TrackSizes<'_> {
+        TrackSizes::start(self.dict.insert(Name(b"ColumnWidths")))
     }
 
-    /// Start writing the `/ColumnGap` array. The last number in the array is used
-    /// for all extra columns. PDF 1.6+.
-    pub fn column_gap(&mut self) -> TypedArray<'_, f32> {
-        self.dict.insert(Name(b"ColumnGap")).array().typed()
+    /// Start writing the `/ColumnGap` array. PDF 1.6+.
+    pub fn column_gap(&mut self) -> TrackSizes<'_> {
+        TrackSizes::start(self.dict.insert(Name(b"ColumnGap")))
     }
 }
+
+/// Writer for a _column tracks attribute value_. PDF 1.6+.
+///
+/// This writer is created by [`LayoutAttributes::column_widths`] and
+/// [`LayoutAttributes::column_gap`].
+pub struct TrackSizes<'a> {
+    obj: Obj<'a>,
+}
+
+writer!(TrackSizes: |obj| Self { obj });
+
+impl<'a> TrackSizes<'a> {
+    /// Write the same value for all column or gap tracks.
+    pub fn uniform(self, value: f32) {
+        self.obj.primitive(value);
+    }
+
+    /// Start writing an array of values for individual tracks. If there are
+    /// more tracks than values, the last value is used for all remaining
+    /// tracks.
+    pub fn individual(self) -> TypedArray<'a, f32> {
+        self.obj.array().typed()
+    }
+}
+
+deref!('a, TrackSizes<'a> => Obj<'a>, obj);
 
 /// The inline alignment.
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
