@@ -222,11 +222,12 @@ impl LineJoinStyle {
     }
 }
 /// How the output device should aim to render colors.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum RenderingIntent {
     /// Only consider the light source, not the output's white point.
     AbsoluteColorimetric,
     /// Consider both the light source and the output's white point.
+    #[default]
     RelativeColorimetric,
     /// Preserve saturation.
     Saturation,
@@ -502,9 +503,10 @@ impl Content {
 }
 
 /// How to render text.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TextRenderingMode {
     /// Just fill the text.
+    #[default]
     Fill,
     /// Just stroke the text.
     Stroke,
@@ -1528,9 +1530,10 @@ impl ExtGraphicsState<'_> {
 deref!('a, ExtGraphicsState<'a> => Dict<'a>, dict);
 
 /// How to blend source and backdrop.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum BlendMode {
+    #[default]
     Normal,
     Multiply,
     Screen,
@@ -1573,10 +1576,11 @@ impl BlendMode {
 }
 
 /// How to behave when overprinting for colorants with the value zero.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum OverprintMode {
     /// An overprint operation will always discard the underlying color, even if
     /// one of the colorants is zero.
+    #[default]
     OverrideAllColorants,
     /// An overprint operation will only discard the underlying colorant
     /// component (e.g. cyan in CMYK) if the new corresponding colorant is

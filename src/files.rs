@@ -161,7 +161,7 @@ deref!('a, EmbeddingParams<'a> => Dict<'a>, dict);
 
 /// How an embedded file relates to the PDF document it is embedded in.
 /// PDF 1.7 with PDF/A-3, PDF 2.0+ (including PDF/A-4f).
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum AssociationKind {
     /// The PDF document was created from this source file.
     Source,
@@ -178,6 +178,7 @@ pub enum AssociationKind {
     /// A machine-readable schema. PDF 2.0+.
     Schema,
     /// There is no clear relationship or it is not known.
+    #[default]
     Unspecified,
 }
 

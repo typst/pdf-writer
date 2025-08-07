@@ -830,9 +830,10 @@ impl<'a> Cmap<'a> {
 deref!('a, Cmap<'a> => Stream<'a>, stream);
 
 /// The writing mode of a character map.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum WMode {
+    #[default]
     Horizontal,
     Vertical,
 }

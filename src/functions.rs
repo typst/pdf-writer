@@ -104,9 +104,10 @@ deref!('a, SampledFunction<'a> => Stream<'a>, stream);
 
 /// How to interpolate between the samples in a function of the
 /// sampled type.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum InterpolationOrder {
     /// Linear spline interpolation.
+    #[default]
     Linear,
     /// Cubic spline interpolation.
     Cubic,

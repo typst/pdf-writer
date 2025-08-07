@@ -173,9 +173,10 @@ deref!('a, MediaPermissions<'a> => Dict<'a>, dict);
 
 /// The circumstances under which it is acceptable to write a temporary file in
 /// order to play a media clip.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TempFileType {
     /// Never allowed.
+    #[default]
     Never,
     /// Allowed only if the document permissions allow content extraction.
     Extract,

@@ -292,13 +292,14 @@ impl AnnotationType {
 }
 
 /// Possible icons for an annotation.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum AnnotationIcon<'a> {
     /// Speech bubble. For use with text annotations.
     Comment,
     /// For use with text annotations.
     Key,
     /// Sticky note. For use with text annotations.
+    #[default]
     Note,
     /// Question mark or manual. For use with text annotations.
     Help,
@@ -525,9 +526,10 @@ deref!('a, AppearanceCharacteristics<'a> => Dict<'a>, dict);
 
 /// The position the text of the widget annotation's caption relative to its
 /// icon.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TextPosition {
     /// Hide icon, show only caption.
+    #[default]
     CaptionOnly = 0,
     /// Hide caption, show only icon.
     IconOnly = 1,
@@ -586,9 +588,10 @@ impl IconFit<'_> {
 deref!('a, IconFit<'a> => Dict<'a>, dict);
 
 /// How the icon in a push button field should be scaled.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum IconScale {
     /// Always scale the icon.
+    #[default]
     Always,
     /// Scale the icon only when the icon is bigger than the annotation
     /// rectangle.
@@ -612,7 +615,7 @@ impl IconScale {
 }
 
 /// How the icon in a push button field should be scaled.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum IconScaleType {
     /// Scale the icon to fill the annotation rectangle exactly, without regard
     /// to its original aspect ratio (ratio of width to height).
@@ -622,6 +625,7 @@ pub enum IconScaleType {
     /// horizontal and vertical scaling factors are different, use the smaller
     /// of the two, centering the icon within the annotation rectangle in the
     /// other dimension.
+    #[default]
     Proportional,
 }
 
@@ -636,11 +640,12 @@ impl IconScaleType {
 
 /// Highlighting effect applied when a user holds the mouse button over an
 /// annotation.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum HighlightEffect {
     /// No effect.
     None,
     /// Invert the colors inside of the annotation rect.
+    #[default]
     Invert,
     /// Invert the colors on the annotation border.
     Outline,

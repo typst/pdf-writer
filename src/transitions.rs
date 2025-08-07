@@ -65,7 +65,7 @@ impl Transition<'_> {
 deref!('a, Transition<'a> => Dict<'a>, dict);
 
 /// A kind of page transition.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TransitionStyle {
     /// Split the slide down the middle.
     Split,
@@ -80,6 +80,7 @@ pub enum TransitionStyle {
     /// Like dissolve, but starts on one side.
     Glitter,
     /// No effect.
+    #[default]
     R,
     /// Changes are flown in. PDF 1.5+.
     Fly,
@@ -113,9 +114,10 @@ impl TransitionStyle {
 }
 
 /// From where to where a page transition plays.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum TransitionAngle {
+    #[default]
     LeftToRight,
     BottomToTop,
     RightToLeft,
