@@ -411,7 +411,7 @@ impl LayoutAttributes<'_> {
 pub enum BlockAlign {
     /// At the start of the block advance direction.
     #[default]
-    Begin,
+    Before,
     /// Centered.
     Middle,
     /// At the end of the block advance direction.
@@ -423,7 +423,7 @@ pub enum BlockAlign {
 impl BlockAlign {
     pub(crate) fn to_name(self) -> Name<'static> {
         match self {
-            Self::Begin => Name(b"Begin"),
+            Self::Before => Name(b"Before"),
             Self::Middle => Name(b"Middle"),
             Self::After => Name(b"After"),
             Self::Justify => Name(b"Justify"),
