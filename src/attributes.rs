@@ -224,9 +224,10 @@ impl Placement {
 }
 
 /// Writing direction.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum WritingMode {
     /// Horizontal writing mode, left-to-right.
+    #[default]
     LtrTtb,
     /// Horizontal writing mode, right-to-left.
     RtlTtb,
@@ -245,9 +246,10 @@ impl WritingMode {
 }
 
 /// Layout border style.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum LayoutBorderStyle {
     /// No border.
+    #[default]
     None,
     /// Hidden border.
     Hidden,
@@ -340,9 +342,10 @@ impl LayoutAttributes<'_> {
 }
 
 /// The text alignment.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TextAlign {
     /// At the start of the inline advance direction.
+    #[default]
     Start,
     /// Centered.
     Center,
@@ -404,9 +407,10 @@ impl LayoutAttributes<'_> {
 }
 
 /// The block alignment.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum BlockAlign {
     /// At the start of the block advance direction.
+    #[default]
     Before,
     /// Centered.
     Middle,
@@ -449,9 +453,10 @@ impl LayoutAttributes<'_> {
 }
 
 /// The inline alignment.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum InlineAlign {
     /// At the start of the inline advance direction.
+    #[default]
     Start,
     /// Centered.
     Center,
@@ -513,10 +518,11 @@ impl LayoutAttributes<'_> {
 }
 
 /// The height of a line.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub enum LineHeight {
     /// Adjust the line height automatically, taking `/BaselineShift` into
     /// account.
+    #[default]
     Normal,
     /// Adjust the line height automatically.
     Auto,
@@ -535,9 +541,10 @@ impl LineHeight {
 }
 
 /// Where the text is positioned relative to the baseline.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum LayoutTextPosition {
     /// At the baseline.
+    #[default]
     Normal,
     /// Above the baseline.
     Superscript,
@@ -556,9 +563,10 @@ impl LayoutTextPosition {
 }
 
 /// The text decoration type (over- and underlines).
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TextDecorationType {
     /// No decoration.
+    #[default]
     None,
     /// Underlined.
     Underline,
@@ -605,7 +613,7 @@ impl LayoutAttributes<'_> {
 }
 
 /// The alignment of a ruby annotation.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum RubyAlign {
     /// At the start of the inline advance direction.
     Start,
@@ -616,6 +624,7 @@ pub enum RubyAlign {
     /// Justified.
     Justify,
     /// Distribute along the full width of the line with additional space.
+    #[default]
     Distribute,
 }
 
@@ -632,9 +641,10 @@ impl RubyAlign {
 }
 
 /// The position of a ruby annotation.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum RubyPosition {
     /// Before edge of the element.
+    #[default]
     Before,
     /// After edge of the element.
     After,
@@ -700,9 +710,10 @@ impl<'a> ListAttributes<'a> {
 deref!('a, ListAttributes<'a> => Dict<'a>, dict);
 
 /// The list numbering type.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum ListNumbering {
     /// No numbering.
+    #[default]
     None,
     /// An unordered list with unspecified bullets. PDF 2.0+.
     Unordered,
@@ -817,9 +828,10 @@ impl FieldRole {
 }
 
 /// Whether a check box or radio button is checked.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum FieldState {
     /// The check box or radio button is unchecked.
+    #[default]
     Unchecked,
     /// The check box or radio button is checked.
     Checked,

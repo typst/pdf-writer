@@ -164,8 +164,10 @@ impl<'a> ImageXObject<'a> {
 deref!('a, ImageXObject<'a> => Stream<'a>, stream);
 
 /// What to do with in-data mask information in `JPXDecode` images.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum SMaskInData {
     /// Discard the mask data.
+    #[default]
     Ignore,
     /// Use the mask data.
     Use,

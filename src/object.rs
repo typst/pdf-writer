@@ -1102,10 +1102,11 @@ impl DecodeParms<'_> {
 deref!('a, DecodeParms<'a> => Dict<'a>, dict);
 
 /// Which kind of predictor to use for a `FlateDecode` or `LzwDecode` stream.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum Predictor {
     /// No prediction.
+    #[default]
     None,
     /// TIFF Predictor 2.
     Tiff,

@@ -339,9 +339,10 @@ impl Field<'_> {
 }
 
 /// The quadding (justification) of a field containing variable text.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum Quadding {
     /// Left justify the text.
+    #[default]
     Left = 0,
     /// Center justify the text.
     Center = 1,

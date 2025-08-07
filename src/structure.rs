@@ -159,9 +159,10 @@ impl Catalog<'_> {
 deref!('a, Catalog<'a> => Dict<'a>, dict);
 
 /// How the viewer should lay out the pages in the document.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum PageLayout {
     /// Only a single page at a time.
+    #[default]
     SinglePage,
     /// A single, continuously scrolling column of pages.
     OneColumn,
@@ -194,10 +195,11 @@ impl PageLayout {
 
 /// Elements of the viewer chrome that should be visible when opening the
 /// document.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum PageMode {
     /// Neither the document outline panel nor a panel with page preview images
     /// are visible.
+    #[default]
     UseNone,
     /// The document outline panel is visible.
     UseOutlines,
@@ -1473,9 +1475,10 @@ pub enum InlineLevelRoleSubtype2 {
 
 /// Which phonetic alphabet to use for the `/Phonetic` key in the
 /// [`StructElement`] dictionary.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum PhoneticAlphabet<'a> {
     /// The International Phonetic Alphabet.
+    #[default]
     Ipa,
     /// The Extended Speech Assessment Methods Phonetic Alphabet (X-SAMPA).
     XSampa,
@@ -1626,9 +1629,10 @@ deref!('a, MarkInfo<'a> => Dict<'a>, dict);
 /// Predominant reading order of text.
 ///
 /// Used to aid the viewer with the special ordering in which to display pages.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum Direction {
     /// Left-to-right.
+    #[default]
     L2R,
     /// Right-to-left as well as vertical writing systems.
     R2L,
@@ -1786,13 +1790,14 @@ deref!('a, DocumentInfo<'a> => Dict<'a>, dict);
 /// Whether a document has been adjusted with traps.
 ///
 /// Those account for colorant misregistration during the printing process.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub enum TrappingStatus {
     /// The document is fully trapped.
     Trapped,
     /// The document has not been trapped.
     NotTrapped,
     /// The document is partially trapped or the trapping status is unknown.
+    #[default]
     Unknown,
 }
 
