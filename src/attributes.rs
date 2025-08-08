@@ -703,12 +703,34 @@ impl TextDecorationType {
     }
 }
 
+/// The orientation of a glyph when the inline-progression is top-to-bottom or
+/// bottom-to-top.
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
+pub enum GlyphOrientationVertical {
+    /// Orient the glyph automatically.
+    #[default]
+    Auto,
+    /// An angle between -180 and +360 degrees in multiples of 90 degrees.
+    Angle(i32),
+}
+
+impl GlyphOrientationVertical {
+    pub(crate) fn write(self, obj: Obj) {
+        match self {
+            Self::Auto => obj.primitive(Name(b"Auto")),
+            Self::Angle(angle) => obj.primitive(angle),
+        }
+    }
+}
+
 /// Vertical Text.
 impl LayoutAttributes<'_> {
-    /// Write the `/GlyphOrientationVertical` attribute as an angle between -90
-    /// and 360 in multiples of 90. PDF 1.5+.
-    pub fn glyph_orientation_vertical(&mut self, angle: f32) -> &mut Self {
-        self.dict.pair(Name(b"GlyphOrientationVertical"), angle);
+    /// Write the `/GlyphOrientationVertical` attribute. PDF 1.5+.
+    pub fn glyph_orientation_vertical(
+        &mut self,
+        orientation: GlyphOrientationVertical,
+    ) -> &mut Self {
+        orientation.write(self.dict.insert(Name(b"GlyphOrientationVertical")));
         self
     }
 }
