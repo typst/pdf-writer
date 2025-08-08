@@ -30,11 +30,15 @@ fn main() -> std::io::Result<()> {
     // partial name and field type. Next, we set it's value and default value:
     // - The value is used to store what the user has put into the field.
     // - The default value is used when resetting the form.
+    // // Lastly, we define the appearance stream to make our input visible:
+    // `\F1 12 Tf` select our font, set size to 12 and apply.
+    // `0 g` set color to greyscale black.
     field
         .partial_name(TextStr("text"))
         .field_type(FieldType::Text)
         .text_value(TextStr("Hello"))
-        .text_default_value(TextStr("Who reset me"));
+        .text_default_value(TextStr("Who reset me"))
+        .vartext_default_appearance(Str(b"/F1 12 Tf 0 g"));
 
     // Our field is a terminal field because it has no children, so it's merged
     // with its widget annotation. The widget annotation is what declares the
@@ -105,7 +109,8 @@ fn main() -> std::io::Result<()> {
                 | FieldFlags::NO_TOGGLE_TO_OFF
                 | FieldFlags::RADIOS_IN_UNISON,
         )
-        .children(radios.map(|(id, _, _)| id));
+        .children(radios.map(|(id, _, _)| id))
+        .vartext_default_appearance(Str(b"/F2 12 Tf 0 g"));
     field.finish();
 
     // For buttons appearances are more relevant when printing as they're
@@ -186,7 +191,8 @@ fn main() -> std::io::Result<()> {
     field
         .partial_name(TextStr("choice"))
         .field_type(FieldType::Choice)
-        .field_flags(FieldFlags::COMBO | FieldFlags::EDIT);
+        .field_flags(FieldFlags::COMBO | FieldFlags::EDIT)
+        .vartext_default_appearance(Str(b"/F2 12 Tf 0 g"));
 
     // Here we define the options the user will be presented with.
     field.choice_options().options([
