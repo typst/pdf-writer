@@ -870,7 +870,8 @@ pub enum StructRole {
 }
 
 impl StructRole {
-    pub(crate) fn to_name(self) -> Name<'static> {
+    /// Convert the role into its [`Name`] serialization.
+    pub fn to_name(self) -> Name<'static> {
         match self {
             Self::Document => Name(b"Document"),
             Self::Part => Name(b"Part"),
