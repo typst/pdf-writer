@@ -447,7 +447,7 @@ impl StructElement<'_> {
     /// dictionary. You can create this dictionary by using [`Chunk::namespace`]
     /// and then calling [`Namespace::pdf_2_ns`] on the returned writer.
     pub fn kind_2(&mut self, role: StructRole2, pdf_2_ns: Ref) -> &mut Self {
-        self.dict.pair(Name(b"S"), Name(role.to_name_bytes(&mut [0; 6])));
+        self.dict.pair(Name(b"S"), role.to_name(&mut [0; 6]));
         self.namespace(pdf_2_ns)
     }
 
@@ -1178,8 +1178,12 @@ pub enum StructRole2 {
 }
 
 impl StructRole2 {
-    pub(crate) fn to_name_bytes(self, buf: &mut [u8; 6]) -> &[u8] {
-        match self {
+    /// Convert the role into its [`Name`] serialization.
+    ///
+    /// The `buf` parameter is a mutable buffer of 6 bytes that will be used to
+    /// store the name in the event that the role is a heading with a level.
+    pub fn to_name(self, buf: &mut [u8; 6]) -> Name<'_> {
+        Name(match self {
             Self::Document => b"Document",
             Self::DocumentFragment => b"DocumentFragment",
             Self::Part => b"Part",
@@ -1226,7 +1230,7 @@ impl StructRole2 {
             Self::Figure => b"Figure",
             Self::Formula => b"Formula",
             Self::Artifact => b"Artifact",
-        }
+        })
     }
 
     /// How the type should be represented in PDF 1.7.
@@ -1601,7 +1605,7 @@ impl NamespaceRoleMap<'_> {
         pdf_2_ns: Ref,
     ) -> &mut Self {
         let mut dict = self.dict.insert(name).dict();
-        dict.pair(Name(b"Role"), Name(role.to_name_bytes(&mut [0; 6])));
+        dict.pair(Name(b"Role"), role.to_name(&mut [0; 6]));
         dict.pair(Name(b"NS"), pdf_2_ns);
         dict.finish();
         self
@@ -2393,7 +2397,7 @@ mod tests {
     #[test]
     fn test_max_heading_name() {
         let mut buf = [0; 6];
-        let name = Name(StructRole2::Heading(NonZeroU16::MAX).to_name_bytes(&mut buf));
+        let name = StructRole2::Heading(NonZeroU16::MAX).to_name(&mut buf);
         assert_eq!(Name(b"H65535"), name);
     }
 }
