@@ -1,7 +1,7 @@
 [package]
 name = "pdf-writer"
 version = "0.13.0"
-authors = ["Laurenz <laurmaedje@gmail.com>"]
+authors = ["Laurenz <laurmaedje@gmail.com>", "Martin Haug <mhaug@live.de>"]
 edition = "2021"
 description = "A step-by-step PDF writer."
 repository = "https://github.com/typst/pdf-writer"
