@@ -157,9 +157,9 @@ pub mod types {
         IconScale, IconScaleType, TextPosition,
     };
     pub use attributes::{
-        AttributeOwner, BlockAlign, FieldRole, FieldState, InlineAlign,
-        LayoutBorderStyle, LayoutTextPosition, LineHeight, ListNumbering, NoteType,
-        Placement, RubyAlign, RubyPosition, Sides, TableHeaderScope, TextAlign,
+        AttributeOwner, BlockAlign, FieldRole, FieldState, GlyphOrientationVertical,
+        InlineAlign, LayoutBorderStyle, LayoutTextPosition, LineHeight, ListNumbering,
+        NoteType, Placement, RubyAlign, RubyPosition, Sides, TableHeaderScope, TextAlign,
         TextDecorationType, WritingMode,
     };
     pub use color::{
