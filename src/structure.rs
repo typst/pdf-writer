@@ -1586,6 +1586,25 @@ impl NamespaceRoleMap<'_> {
         dict.finish();
         self
     }
+
+    /// Write an entry mapping a custom structure type to an element in the
+    /// PDF 2.0 namespace.
+    ///
+    /// The `pdf_2_ns` parameter is an indirect reference to a PDF 2.0 namespace
+    /// dictionary. You can create this dictionary by using [`Chunk::namespace`]
+    /// and then calling [`Namespace::pdf_2_ns`] on the returned writer.
+    pub fn to_pdf_2_0(
+        &mut self,
+        name: Name,
+        role: StructRole2,
+        pdf_2_ns: Ref,
+    ) -> &mut Self {
+        let mut dict = self.dict.insert(name).dict();
+        dict.pair(Name(b"Role"), Name(role.to_name_bytes(&mut [0; 6])));
+        dict.pair(Name(b"NS"), pdf_2_ns);
+        dict.finish();
+        self
+    }
 }
 
 deref!('a, NamespaceRoleMap<'a> => Dict<'a>, dict);
