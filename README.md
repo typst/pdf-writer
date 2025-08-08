@@ -4,11 +4,6 @@
 
 A step-by-step PDF writer.
 
-```toml
-[dependencies]
-pdf-writer = "0.12"
-```
-
 The entry point into the API is the main `Pdf`, which constructs the document
 into one big internal buffer. The top-level writer has many methods to create
 specialized writers for specific PDF objects. These all follow the same general
