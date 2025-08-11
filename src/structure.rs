@@ -1585,10 +1585,10 @@ impl NamespaceRoleMap<'_> {
     /// namespace referenced by the namespace dictionary the value of the
     /// `ns_ref` parameter points to.
     pub fn to_namespace(&mut self, name: Name, role: Name, ns_ref: Ref) -> &mut Self {
-        let mut dict = self.dict.insert(name).dict();
-        dict.pair(Name(b"Role"), role);
-        dict.pair(Name(b"NS"), ns_ref);
-        dict.finish();
+        let mut array = self.dict.insert(name).array();
+        array.item(role);
+        array.item(ns_ref);
+        array.finish();
         self
     }
 
@@ -1604,11 +1604,7 @@ impl NamespaceRoleMap<'_> {
         role: StructRole2,
         pdf_2_ns: Ref,
     ) -> &mut Self {
-        let mut dict = self.dict.insert(name).dict();
-        dict.pair(Name(b"Role"), role.to_name(&mut [0; 6]));
-        dict.pair(Name(b"NS"), pdf_2_ns);
-        dict.finish();
-        self
+        self.to_namespace(name, role.to_name(&mut [0; 6]), pdf_2_ns)
     }
 }
 
