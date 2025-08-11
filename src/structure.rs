@@ -1523,7 +1523,7 @@ writer!(Namespace: |obj| {
 impl Namespace<'_> {
     /// Write the `/NS` attribute to specify the identifier (URI) of the namespace.
     pub fn ns(&mut self, identifier: TextStr) -> &mut Self {
-        self.dict.pair(Name(b"Name"), identifier);
+        self.dict.pair(Name(b"NS"), identifier);
         self
     }
 
