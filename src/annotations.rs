@@ -478,7 +478,7 @@ impl AppearanceCharacteristics<'_> {
 
     /// Write the `/AC` attribute. This sets the widget annotation's alternate
     /// (down) caption. Only permissible for push button fields.
-    pub fn alterante_caption(&mut self, caption: TextStr) -> &mut Self {
+    pub fn alternate_caption(&mut self, caption: TextStr) -> &mut Self {
         self.pair(Name(b"AC"), caption);
         self
     }
