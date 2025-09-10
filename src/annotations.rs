@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 
 /// Writer for an _annotation dictionary_.
 ///
@@ -30,7 +31,7 @@ impl Annotation<'_> {
 
     /// Write the `/Contents` attribute. This is the content or alt-text,
     /// depending on the [`AnnotationType`].
-    pub fn contents(&mut self, text: TextStr) -> &mut Self {
+    pub fn contents(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Contents"), text);
         self
     }
@@ -45,7 +46,7 @@ impl Annotation<'_> {
 
     /// Write the `/NM` attribute. This uniquely identifies the annotation on the
     /// page. PDF 1.3+.
-    pub fn name(&mut self, text: TextStr) -> &mut Self {
+    pub fn name(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"NM"), text);
         self
     }
@@ -175,14 +176,14 @@ impl Annotation<'_> {
 
     /// Write the `/T` attribute. This is in the title bar of markup annotations
     /// and should be the name of the annotation author. PDF 1.1+.
-    pub fn author(&mut self, text: TextStr) -> &mut Self {
+    pub fn author(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"T"), text);
         self
     }
 
     /// Write the `/Subj` attribute. This is the subject of the annotation.
     /// PDF 1.5+.
-    pub fn subject(&mut self, text: TextStr) -> &mut Self {
+    pub fn subject(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Subj"), text);
         self
     }
@@ -464,21 +465,25 @@ impl AppearanceCharacteristics<'_> {
 
     /// Write the `/CA` attribute. This sets the widget annotation's normal
     /// caption. Only permissible for button fields.
-    pub fn normal_caption(&mut self, caption: TextStr) -> &mut Self {
+    pub fn normal_caption(&mut self, caption: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"CA"), caption);
         self
     }
 
     /// Write the `/RC` attribute. This sets the widget annotation's rollover
     /// (hover) caption. Only permissible for push button fields.
-    pub fn rollover_caption(&mut self, caption: TextStr) -> &mut Self {
+    ///
+    /// Note that this may be a Rich Text string depending on the annotation
+    /// type, so you may be able to use some basic XHTML and XFA attributes.
+    /// In these cases, untrusted input must be properly escaped.
+    pub fn rollover_caption(&mut self, caption: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"RC"), caption);
         self
     }
 
     /// Write the `/AC` attribute. This sets the widget annotation's alternate
     /// (down) caption. Only permissible for push button fields.
-    pub fn alternate_caption(&mut self, caption: TextStr) -> &mut Self {
+    pub fn alternate_caption(&mut self, caption: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"AC"), caption);
         self
     }

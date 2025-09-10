@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 use crate::types::AnnotationType;
 
 /// Writer for an _interactive forms dictionary_. PDF 1.2+.
@@ -131,7 +132,7 @@ impl<'a> Field<'a> {
     /// messages). This text is also useful when extracting the document's
     /// contents in support of accessibility to users with disabilities or for
     /// other purposes. PDF 1.3+.
-    pub fn alternate_name(&mut self, alternate: TextStr) -> &mut Self {
+    pub fn alternate_name(&mut self, alternate: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"TU"), alternate);
         self
     }
@@ -291,14 +292,14 @@ impl Field<'_> {
 
     /// Write the `/V` attribute to set the value of this text field.
     /// Only permissible on text fields.
-    pub fn text_value(&mut self, value: TextStr) -> &mut Self {
+    pub fn text_value(&mut self, value: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"V"), value);
         self
     }
 
     /// Start writing the `/DV` attribute to set the default value of this text
     /// field. Only permissible on text fields.
-    pub fn text_default_value(&mut self, value: TextStr) -> &mut Self {
+    pub fn text_default_value(&mut self, value: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"DV"), value);
         self
     }
@@ -332,7 +333,11 @@ impl Field<'_> {
 
     /// Write the `/RV` attribute to set the value of this variable text field.
     /// Only permissible on fields containing variable text. PDF 1.5+.
-    pub fn vartext_rich_value(&mut self, value: TextStr) -> &mut Self {
+    ///
+    /// Note that this is a Rich Text string, so you can use some basic XHTML
+    /// and XFA attributes. That also means that untrusted input must be
+    /// properly escaped.
+    pub fn vartext_rich_value(&mut self, value: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"RV"), value);
         self
     }
@@ -443,30 +448,38 @@ writer!(ChoiceOptions: |obj| Self { array: obj.array() });
 
 impl ChoiceOptions<'_> {
     /// Add an option with the given value.
-    pub fn option(&mut self, value: TextStr) -> &mut Self {
+    pub fn option(&mut self, value: impl TextStrLike) -> &mut Self {
         self.array.item(value);
         self
     }
 
     /// Add options with the given values.
-    pub fn options<'b>(
+    pub fn options(
         &mut self,
-        values: impl IntoIterator<Item = TextStr<'b>>,
+        values: impl IntoIterator<Item = impl TextStrLike>,
     ) -> &mut Self {
         self.array.items(values);
         self
     }
 
     /// Add an option with the given value and export value.
-    pub fn export(&mut self, value: TextStr, export_value: TextStr) -> &mut Self {
-        self.array.push().array().items([export_value, value]);
+    pub fn export(
+        &mut self,
+        value: impl TextStrLike,
+        export_value: TextStr,
+    ) -> &mut Self {
+        {
+            let mut array = self.array.push().array();
+            array.item(export_value);
+            array.item(value);
+        }
         self
     }
 
     /// Add options with the given pairs of value and export value.
     pub fn exports<'b>(
         &mut self,
-        values: impl IntoIterator<Item = (TextStr<'b>, TextStr<'b>)>,
+        values: impl IntoIterator<Item = (impl TextStrLike, TextStr<'b>)>,
     ) -> &mut Self {
         for (value, export) in values {
             self.export(value, export);

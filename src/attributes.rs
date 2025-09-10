@@ -1,6 +1,6 @@
-use crate::types::{ArtifactSubtype, ArtifactType};
-
 use super::*;
+use crate::object::TextStrLike;
+use crate::types::{ArtifactSubtype, ArtifactType};
 
 /// Writer for an _attribute dictionary_. PDF 1.4+
 ///
@@ -90,7 +90,7 @@ writer!(UserProperty: |obj| Self { dict: obj.dict() });
 
 impl UserProperty<'_> {
     /// Write the `/N` attribute to set the name of the property.
-    pub fn name(&mut self, name: TextStr) -> &mut Self {
+    pub fn name(&mut self, name: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"N"), name);
         self
     }
@@ -101,12 +101,13 @@ impl UserProperty<'_> {
     }
 
     /// Write the `/F` attribute to set the format of the property.
-    pub fn format(&mut self, format: TextStr) -> &mut Self {
+    pub fn format(&mut self, format: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"F"), format);
         self
     }
 
-    /// Write the `/H` attribute to determine whether this property is hidden.
+    /// Write the `/H` attribute to determine whether this property is hidden in
+    /// the user interface.
     pub fn hidden(&mut self, hide: bool) -> &mut Self {
         self.dict.pair(Name(b"H"), hide);
         self
@@ -930,7 +931,7 @@ impl<'a> FieldAttributes<'a> {
     }
 
     /// Write the `/Desc` attribute to set the description of the form control.
-    pub fn description(&mut self, desc: TextStr) -> &mut Self {
+    pub fn description(&mut self, desc: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"Desc"), desc);
         self
     }
@@ -1031,14 +1032,14 @@ impl<'a> TableAttributes<'a> {
 
     /// Write the `/Summary` attribute to set the summary of the table. PDF
     /// 1.7+.
-    pub fn summary(&mut self, summary: TextStr) -> &mut Self {
+    pub fn summary(&mut self, summary: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"Summary"), summary);
         self
     }
 
     /// Write the `/Short` attribute to set a short form of the table header's
     /// content. PDF 2.0+.
-    pub fn short(&mut self, short: TextStr) -> &mut Self {
+    pub fn short(&mut self, short: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"Short"), short);
         self
     }

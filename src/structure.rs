@@ -3,6 +3,7 @@ use std::num::NonZeroU16;
 
 use super::*;
 use crate::color::SeparationInfo;
+use crate::object::TextStrLike;
 
 /// Writer for a _document catalog dictionary_.
 ///
@@ -540,7 +541,7 @@ impl StructElement<'_> {
     }
 
     /// Write the `/T` attribute to set a title.
-    pub fn title(&mut self, title: TextStr) -> &mut Self {
+    pub fn title(&mut self, title: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"T"), title);
         self
     }
@@ -553,21 +554,21 @@ impl StructElement<'_> {
 
     /// Write the `/Alt` attribute to provide a description of the structure
     /// element.
-    pub fn alt(&mut self, alt: TextStr) -> &mut Self {
+    pub fn alt(&mut self, alt: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"Alt"), alt);
         self
     }
 
     /// Write the `/E` attribute to set the expanded form of the abbreviation
     /// in this structure element. PDF 1.5+
-    pub fn expanded(&mut self, expanded: TextStr) -> &mut Self {
+    pub fn expanded(&mut self, expanded: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"E"), expanded);
         self
     }
 
     /// Write the `/ActualText` attribute to set the exact text replacement. PDF
     /// 1.4+
-    pub fn actual_text(&mut self, actual_text: TextStr) -> &mut Self {
+    pub fn actual_text(&mut self, actual_text: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"ActualText"), actual_text);
         self
     }
@@ -1689,7 +1690,7 @@ impl PageLabel<'_> {
     }
 
     /// Write the `/P` attribute to set the page label's prefix.
-    pub fn prefix(&mut self, prefix: TextStr) -> &mut Self {
+    pub fn prefix(&mut self, prefix: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"P"), prefix);
         self
     }
@@ -1743,40 +1744,40 @@ writer!(DocumentInfo: |obj| Self { dict: obj.dict() });
 
 impl DocumentInfo<'_> {
     /// Write the `/Title` attribute to set the document's title. PDF 1.1+.
-    pub fn title(&mut self, title: TextStr) -> &mut Self {
+    pub fn title(&mut self, title: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Title"), title);
         self
     }
 
     /// Write the `/Author` attribute to set the document's author.
-    pub fn author(&mut self, author: TextStr) -> &mut Self {
+    pub fn author(&mut self, author: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Author"), author);
         self
     }
 
     /// Write the `/Subject` attribute to set the document's subject. PDF 1.1+.
-    pub fn subject(&mut self, subject: TextStr) -> &mut Self {
+    pub fn subject(&mut self, subject: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Subject"), subject);
         self
     }
 
     /// Write the `/Keywords` attribute to set terms associated to the document.
     /// PDF 1.1+.
-    pub fn keywords(&mut self, keywords: TextStr) -> &mut Self {
+    pub fn keywords(&mut self, keywords: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Keywords"), keywords);
         self
     }
 
     /// Write the `/Creator` attribute to set the name of the product that
     /// converted or wrote the file that this PDF has been converted from.
-    pub fn creator(&mut self, creator: TextStr) -> &mut Self {
+    pub fn creator(&mut self, creator: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Creator"), creator);
         self
     }
 
     /// Write the `/Producer` attribute to set the name of the product that
     /// converted or wrote this PDF.
-    pub fn producer(&mut self, producer: TextStr) -> &mut Self {
+    pub fn producer(&mut self, producer: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Producer"), producer);
         self
     }
@@ -2107,7 +2108,7 @@ writer!(OutlineItem: |obj| Self { dict: obj.dict() });
 
 impl OutlineItem<'_> {
     /// Write the `/Title` attribute.
-    pub fn title(&mut self, title: TextStr) -> &mut Self {
+    pub fn title(&mut self, title: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Title"), title);
         self
     }

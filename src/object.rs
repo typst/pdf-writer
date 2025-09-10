@@ -124,6 +124,11 @@ impl Primitive for Str<'_> {
 ///
 /// This is written as a [`Str`] containing either bare ASCII (if possible) or a
 /// byte order mark followed by UTF-16-BE bytes.
+///
+/// The natural language is inherited from the document catalog's
+/// [`/Lang` key](crate::Catalog::lang). If you need to specify another language
+/// or if the string contains multiple natural languages, see
+/// [`TextStrWithLang`].
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TextStr<'a>(pub &'a str);
 
@@ -136,16 +141,151 @@ impl Primitive for TextStr<'_> {
             Str(self.0.as_bytes()).write(buf);
         } else {
             buf.reserve(6 + 4 * self.0.len());
-            buf.push(b'<');
-            buf.push_hex(254);
-            buf.push_hex(255);
+            write_utf16be_text_str_header(buf);
             for value in self.0.encode_utf16() {
                 buf.push_hex_u16(value);
             }
-            buf.push(b'>');
+            write_utf16be_text_str_footer(buf);
         }
     }
 }
+
+/// An identifier for the natural language in a section of a
+/// [`TextStrWithLang`].
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct LanguageIdentifier {
+    /// A two-byte ISO 639 language code.
+    lang: [u8; 2],
+    /// A two-byte ISO 3166 country code.
+    region: Option<[u8; 2]>,
+}
+
+impl LanguageIdentifier {
+    /// Create a new language identifier.
+    ///
+    /// Language and region codes are not checked for validity.
+    pub fn new(lang: [u8; 2], region: Option<[u8; 2]>) -> Self {
+        Self { lang, region }
+    }
+
+    /// Create a new language identifier from a language, with an unset region.
+    ///
+    /// The method returns `Some` if the argument has two alphanumeric ASCII
+    /// bytes.
+    pub fn from_lang(lang: &str) -> Option<Self> {
+        let lang = Self::str_to_code(lang)?;
+        Some(Self::new(lang, None))
+    }
+
+    /// Create a new language identifier from a language and a region
+    ///
+    /// The method returns `Some` if both arguments have two alphanumeric ASCII
+    /// bytes.
+    pub fn from_lang_region(lang: &str, region: &str) -> Option<Self> {
+        let lang = Self::str_to_code(lang)?;
+        let region = Self::str_to_code(region)?;
+        Some(Self::new(lang, Some(region)))
+    }
+
+    /// Returns the length of the language identifier. It does not include the
+    /// enclosing escape bytes.
+    fn len(self) -> usize {
+        if self.region.is_some() {
+            4
+        } else {
+            2
+        }
+    }
+
+    fn str_to_code(string: &str) -> Option<[u8; 2]> {
+        if string.chars().all(|c| c.is_ascii_alphanumeric()) {
+            string.as_bytes().try_into().ok()
+        } else {
+            None
+        }
+    }
+}
+
+/// A text string with a natural language specified.
+///
+///
+/// This is written as a string containing either bare ASCII (if possible) or a
+/// byte order mark followed by UTF-16-BE bytes. Both forms are interspersed by
+/// the requisite ASCII language escape sequences.
+///
+/// For a text string with an undefined natural language, see [`TextStr`].
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct TextStrWithLang<'a, 'b>(pub &'b [(LanguageIdentifier, &'a str)]);
+
+impl<'a, 'b> Primitive for TextStrWithLang<'a, 'b> {
+    fn write(self, buf: &mut Buf) {
+        let mut len = 0;
+        let mut buf_len = 6;
+
+        for (lang, text) in self.0 {
+            // Each language tag is enclosed in two escape characters, plus the
+            // two-letter language code and optional two-letter region code.
+            len += text.len() + lang.len() + 2;
+            // Each hexadecimal character is four bytes long, plus four bytes
+            // for the escape sequence. The language tag is encoded in
+            // hexadecimal, so each byte becomes two hexadecimal characters.
+            buf_len += 4 * text.len() + lang.len() * 2 + 4;
+        }
+
+        buf.limits.register_str_len(len);
+
+        // Escape sequences for languages may only appear in Unicode-encoded
+        // text strings, see clause 7.9.2.2 of ISO 32000-1:2008.
+        buf.reserve(buf_len);
+        write_utf16be_text_str_header(buf);
+
+        for (lang, text) in self.0 {
+            write_utf16be_lang_code(*lang, buf);
+            for value in text.encode_utf16() {
+                buf.push_hex_u16(value);
+            }
+        }
+
+        write_utf16be_text_str_footer(buf);
+    }
+}
+
+fn write_utf16be_text_str_header(buf: &mut Buf) {
+    buf.push(b'<');
+    buf.push_hex(254);
+    buf.push_hex(255);
+}
+
+fn write_utf16be_text_str_footer(buf: &mut Buf) {
+    buf.push(b'>');
+}
+
+fn write_utf16be_lang_code(lang: LanguageIdentifier, buf: &mut Buf) {
+    // The escape character U+001B encloses the language tag. It must not
+    // otherwise appear in a text string and the spec offers no opportunity to
+    // escape it. In the future, `pdf-writer` may offer a constructor for
+    // [`TextStrWithLang`] and [`TextStr`] that either checks for it or replaces
+    // it with the object replacement character U+FFFD.
+    buf.push_hex_u16(0x001B);
+    buf.push_hex_u16(u16::from(lang.lang[0]));
+    buf.push_hex_u16(u16::from(lang.lang[1]));
+    if let Some(region) = lang.region {
+        buf.push_hex_u16(u16::from(region[0]));
+        buf.push_hex_u16(u16::from(region[1]));
+    }
+    buf.push_hex_u16(0x001B);
+}
+
+/// A trait for types that can be used everywhere a text string is expected.
+/// This includes both [`TextStr`] and [`TextStrWithLang`].
+///
+/// Methods that accept an implementor of this trait expect strings in natural
+/// language for which a language specification makes sense, often for use in
+/// the UI or with AT.
+pub trait TextStrLike: Primitive {}
+
+impl<'a> TextStrLike for TextStr<'a> {}
+impl<'a, 'b> TextStrLike for TextStrWithLang<'a, 'b> {}
 
 /// A name object.
 ///

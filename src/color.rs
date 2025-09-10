@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 
 /// CIE XYZ coordinates of the D65 noon daylight white.
 const CIE_D65: [f32; 3] = [0.9505, 1.0, 1.0888];
@@ -1261,7 +1262,7 @@ impl OutputIntent<'_> {
     /// Write the `/OutputCondition` attribute.
     ///
     /// A human-readable description of the output condition.
-    pub fn output_condition(&mut self, condition: TextStr) -> &mut Self {
+    pub fn output_condition(&mut self, condition: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"OutputCondition"), condition);
         self
     }
@@ -1269,7 +1270,10 @@ impl OutputIntent<'_> {
     /// Write the `/OutputConditionIdentifier` attribute.
     ///
     /// A well-known identifier for the output condition.
-    pub fn output_condition_identifier(&mut self, identifier: TextStr) -> &mut Self {
+    pub fn output_condition_identifier(
+        &mut self,
+        identifier: impl TextStrLike,
+    ) -> &mut Self {
         self.dict.pair(Name(b"OutputConditionIdentifier"), identifier);
         self
     }
@@ -1285,7 +1289,7 @@ impl OutputIntent<'_> {
     /// Write the `/Info` attribute.
     ///
     /// A human-readable string with additional info about the intended output device.
-    pub fn info(&mut self, info: TextStr) -> &mut Self {
+    pub fn info(&mut self, info: impl TextStrLike) -> &mut Self {
         self.dict.pair(Name(b"Info"), info);
         self
     }

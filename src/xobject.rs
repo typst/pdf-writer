@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 use crate::types::RenderingIntent;
 
 /// Writer for an _image XObject stream_.
@@ -361,7 +362,7 @@ impl Reference<'_> {
 
     /// Write the `/Page` attribute to set the page label. Setting the attribute
     /// through either this function or [`Self::page_number`] is required.
-    pub fn page_label(&mut self, label: TextStr) -> &mut Self {
+    pub fn page_label(&mut self, label: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Page"), label);
         self
     }
