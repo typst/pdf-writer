@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 
 /// A builder for a content stream.
 pub struct Content {
@@ -995,7 +996,7 @@ impl<'a> PropertyList<'a> {
     /// Write the `/ActualText` attribute to indicate the text replacement of
     /// this marked content sequence. PDF 1.5+.
     #[inline]
-    pub fn actual_text(&mut self, text: TextStr) -> &mut Self {
+    pub fn actual_text(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"ActualText"), text);
         self
     }

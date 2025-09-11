@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 
 /// Writer for a _file specification dictionary_.
 ///
@@ -44,7 +45,7 @@ impl FileSpec<'_> {
     }
 
     /// Write the `/Desc` attribute to set a file description. PDF 1.6+.
-    pub fn description(&mut self, desc: TextStr) -> &mut Self {
+    pub fn description(&mut self, desc: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"Desc"), desc);
         self
     }

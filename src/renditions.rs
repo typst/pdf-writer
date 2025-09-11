@@ -1,4 +1,5 @@
 use super::*;
+use crate::object::TextStrLike;
 
 /// Writer for an _rendition dictionary_.
 ///
@@ -22,7 +23,7 @@ impl Rendition<'_> {
 
     /// Write the `/N` attribute. Specify the name of the rendition for use in a
     /// user interface and for name tree lookup by JavaScript actions.
-    pub fn name(&mut self, text: TextStr) -> &mut Self {
+    pub fn name(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"N"), text);
         self
     }
@@ -84,7 +85,7 @@ impl MediaClip<'_> {
 
     /// Write the `/N` attribute. Specifies the name of the media clip, for use
     /// in the user interface.
-    pub fn name(&mut self, text: TextStr) -> &mut Self {
+    pub fn name(&mut self, text: impl TextStrLike) -> &mut Self {
         self.pair(Name(b"N"), text);
         self
     }
