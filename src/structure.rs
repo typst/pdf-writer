@@ -1267,7 +1267,7 @@ impl StructRole2 {
                 StructRole2Compat::Compatible(StructRole::H6)
             }
             Self::Heading(_) => StructRole2Compat::RoleMapping(
-                if opts.contains(RoleMapOpts::map_hn_to_h6) {
+                if opts.contains(RoleMapOpts::MAP_HN_TO_H6) {
                     StructRole::H6
                 } else {
                     StructRole::P
@@ -1277,7 +1277,7 @@ impl StructRole2 {
                 StructRole2Compat::Compatible(StructRole::StructuredHeading)
             }
             Self::Title => StructRole2Compat::RoleMapping(
-                if opts.contains(RoleMapOpts::map_title_to_h1) {
+                if opts.contains(RoleMapOpts::MAP_TITLE_TO_H1) {
                     StructRole::H1
                 } else {
                     StructRole::P
@@ -1285,7 +1285,7 @@ impl StructRole2 {
             ),
             Self::FENote => StructRole2Compat::RoleMapping(StructRole::Note),
             Self::Sub => StructRole2Compat::RoleMapping(
-                if opts.contains(RoleMapOpts::map_sub_to_span) {
+                if opts.contains(RoleMapOpts::MAP_SUB_TO_SPAN) {
                     StructRole::Span
                 } else {
                     StructRole::Div
@@ -1374,13 +1374,13 @@ bitflags::bitflags! {
     pub struct RoleMapOpts: u8 {
         /// Whether to map headings with levels higher than 6 to [`StructRole::H6`]
         /// (`true`) or [`StructRole::P`] (`false`).
-        const map_hn_to_h6 = 1 << 0;
+        const MAP_HN_TO_H6 = 1 << 0;
         /// Whether to map the `Title` role to [`StructRole::H1`] (`true`) or
         /// [`StructRole::P`] (`false`).
-        const map_title_to_h1 = 1 << 1;
+        const MAP_TITLE_TO_H1 = 1 << 1;
         /// Whether to map the `Sub` role to [`StructRole::Span`] (`true`) or
         /// [`StructRole::Div`] (`false`).
-        const map_sub_to_span = 1 << 2;
+        const MAP_SUB_TO_SPAN = 1 << 2;
     }
 }
 
