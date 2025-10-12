@@ -1,3 +1,4 @@
+use crate::chunk::WriteSettings;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
@@ -575,21 +576,22 @@ pub struct Obj<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
+    settings: WriteSettings,
 }
 
 impl<'a> Obj<'a> {
     /// Start a new direct object.
     #[inline]
-    pub(crate) fn direct(buf: &'a mut Buf, indent: u8) -> Self {
-        Self { buf, indirect: false, indent }
+    pub(crate) fn direct(buf: &'a mut Buf, indent: u8, settings: WriteSettings) -> Self {
+        Self { buf, indirect: false, indent, settings }
     }
 
     /// Start a new indirect object.
     #[inline]
-    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref) -> Self {
+    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref, settings: WriteSettings) -> Self {
         buf.push_int(id.get());
         buf.extend(b" 0 obj\n");
-        Self { buf, indirect: true, indent: 0 }
+        Self { buf, indirect: true, indent: 0, settings }
     }
 
     /// Write a primitive object.
@@ -597,7 +599,11 @@ impl<'a> Obj<'a> {
     pub fn primitive<T: Primitive>(self, value: T) {
         value.write(self.buf);
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n");
+
+            if self.settings.pretty {
+                self.buf.extend(b"\n");
+            }
         }
     }
 
@@ -655,6 +661,7 @@ pub struct Array<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
+    settings: WriteSettings,
     len: i32,
 }
 
@@ -664,6 +671,7 @@ writer!(Array: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent,
+        settings: obj.settings,
         len: 0,
     }
 });
@@ -688,7 +696,7 @@ impl<'a> Array<'a> {
             self.buf.push(b' ');
         }
         self.len += 1;
-        Obj::direct(self.buf, self.indent)
+        Obj::direct(self.buf, self.indent, self.settings)
     }
 
     /// Write an item with a primitive value.
@@ -725,7 +733,11 @@ impl Drop for Array<'_> {
         self.buf.limits.register_array_len(self.len() as usize);
         self.buf.push(b']');
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n");
+
+            if self.settings.pretty {
+                self.buf.extend(b"\n");
+            }
         }
     }
 }
@@ -802,6 +814,7 @@ pub struct Dict<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
+    settings: WriteSettings,
     len: i32,
 }
 
@@ -811,6 +824,7 @@ writer!(Dict: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent.saturating_add(2),
+        settings: obj.settings,
         len: 0,
     }
 });
@@ -832,16 +846,19 @@ impl<'a> Dict<'a> {
     #[inline]
     pub fn insert(&mut self, key: Name) -> Obj<'_> {
         self.len += 1;
-        self.buf.push(b'\n');
 
-        for _ in 0..self.indent {
-            self.buf.push(b' ');
+        if self.settings.pretty {
+            self.buf.push(b'\n');
+
+            for _ in 0..self.indent {
+                self.buf.push(b' ');
+            }
         }
 
         self.buf.push_val(key);
         self.buf.push(b' ');
 
-        Obj::direct(self.buf, self.indent)
+        Obj::direct(self.buf, self.indent, self.settings)
     }
 
     /// Write a pair with a primitive value.
@@ -876,15 +893,21 @@ impl Drop for Dict<'_> {
     fn drop(&mut self) {
         self.buf.limits.register_dict_entries(self.len as usize);
 
-        if self.len != 0 {
+        if self.len != 0 && self.settings.pretty {
             self.buf.push(b'\n');
             for _ in 0..self.indent - 2 {
                 self.buf.push(b' ');
             }
         }
+
         self.buf.extend(b">>");
+
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n");
+
+            if self.settings.pretty {
+                self.buf.extend(b"\n");
+            }
         }
     }
 }
@@ -1005,11 +1028,19 @@ impl Drop for Stream<'_> {
         let dict_len = self.dict.len as usize;
         self.dict.buf.limits.register_dict_entries(dict_len);
 
-        self.dict.buf.extend(b"\n>>");
+        if self.dict.settings.pretty {
+            self.dict.buf.extend(b"\n");
+        }
+
+        self.dict.buf.extend(b">>");
         self.dict.buf.extend(b"\nstream\n");
         self.dict.buf.extend(self.data.as_ref());
         self.dict.buf.extend(b"\nendstream");
-        self.dict.buf.extend(b"\nendobj\n\n");
+        self.dict.buf.extend(b"\nendobj\n");
+
+        if self.dict.settings.pretty {
+            self.dict.buf.extend(b"\n");
+        }
     }
 }
 

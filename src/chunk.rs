@@ -1,5 +1,16 @@
 use super::*;
 
+#[derive(Debug, Clone, Copy)]
+pub struct WriteSettings {
+    pub pretty: bool,
+}
+
+impl Default for WriteSettings {
+    fn default() -> Self {
+        Self { pretty: false }
+    }
+}
+
 /// A builder for a collection of indirect PDF objects.
 ///
 /// This type holds written top-level indirect PDF objects. Typically, you won't
@@ -14,6 +25,7 @@ use super::*;
 pub struct Chunk {
     pub(crate) buf: Buf,
     pub(crate) offsets: Vec<(Ref, usize)>,
+    pub(crate) settings: WriteSettings,
 }
 
 impl Chunk {
@@ -25,7 +37,19 @@ impl Chunk {
 
     /// Create a new chunk with the specified initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Buf::with_capacity(capacity), offsets: vec![] }
+        Self {
+            buf: Buf::with_capacity(capacity),
+            offsets: vec![],
+            settings: Default::default(),
+        }
+    }
+
+    /// TODO
+    pub fn new_with(settings: WriteSettings) -> Self {
+        let mut chunk = Self::new();
+        chunk.settings = settings;
+
+        chunk
     }
 
     /// The number of bytes that were written so far.
@@ -148,7 +172,7 @@ impl Chunk {
     /// Start writing an indirectly referenceable object.
     pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
         self.offsets.push((id, self.buf.len()));
-        Obj::indirect(&mut self.buf, id)
+        Obj::indirect(&mut self.buf, id, self.settings)
     }
 
     /// Start writing an indirectly referenceable stream.

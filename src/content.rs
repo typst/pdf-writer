@@ -1,9 +1,11 @@
 use super::*;
+use crate::chunk::WriteSettings;
 use crate::object::TextStrLike;
 
 /// A builder for a content stream.
 pub struct Content {
     buf: Buf,
+    settings: WriteSettings,
     q_depth: usize,
 }
 
@@ -16,15 +18,27 @@ impl Content {
         Self::with_capacity(1024)
     }
 
+    /// TODO
+    pub fn new_with(settings: WriteSettings) -> Self {
+        let mut content = Self::new();
+        content.settings = settings;
+
+        content
+    }
+
     /// Create a new content stream with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Buf::with_capacity(capacity), q_depth: 0 }
+        Self {
+            buf: Buf::with_capacity(capacity),
+            q_depth: 0,
+            settings: Default::default(),
+        }
     }
 
     /// Start writing an arbitrary operation.
     #[inline]
     pub fn op<'a>(&'a mut self, operator: &'a str) -> Operation<'a> {
-        Operation::start(&mut self.buf, operator)
+        Operation::start(&mut self.buf, operator, self.settings)
     }
 
     /// Return the buffer of the content stream.
@@ -51,12 +65,13 @@ pub struct Operation<'a> {
     buf: &'a mut Buf,
     op: &'a str,
     first: bool,
+    settings: WriteSettings,
 }
 
 impl<'a> Operation<'a> {
     #[inline]
-    pub(crate) fn start(buf: &'a mut Buf, op: &'a str) -> Self {
-        Self { buf, op, first: true }
+    pub(crate) fn start(buf: &'a mut Buf, op: &'a str, settings: WriteSettings) -> Self {
+        Self { buf, op, first: true, settings }
     }
 
     /// Write a primitive operand.
@@ -86,7 +101,7 @@ impl<'a> Operation<'a> {
             self.buf.push(b' ');
         }
         self.first = false;
-        Obj::direct(self.buf, 0)
+        Obj::direct(self.buf, 0, self.settings)
     }
 }
 

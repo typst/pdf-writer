@@ -18,7 +18,11 @@ pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref)
         target.buf.push_int(gen);
         target.buf.extend(b" obj\n");
         patch_object(slice, &mut target.buf, mapping);
-        target.buf.extend(b"\nendobj\n\n");
+        target.buf.extend(b"\nendobj\n");
+
+        if target.settings.pretty {
+            target.buf.extend(b"\n");
+        }
     }
 }
 
