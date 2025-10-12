@@ -346,7 +346,7 @@ impl Pdf {
         // Write the trailer dictionary.
         buf.extend(b"trailer\n");
 
-        let mut trailer = Obj::direct(&mut buf, 0, settings).dict();
+        let mut trailer = Obj::direct(&mut buf, 0, settings, false).dict();
         trailer.pair(Name(b"Size"), xref_len);
 
         if let Some(catalog_id) = self.catalog_id {

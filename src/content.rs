@@ -101,7 +101,8 @@ impl<'a> Operation<'a> {
             self.buf.push(b' ');
         }
         self.first = false;
-        Obj::direct(self.buf, 0, self.settings)
+        // TODO: Refine padding?
+        Obj::direct(self.buf, 0, self.settings, false)
     }
 }
 

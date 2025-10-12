@@ -8,6 +8,9 @@ use super::*;
 
 /// A primitive PDF object.
 pub trait Primitive {
+    /// Whether the primitive object starts with one of the delimiters.
+    const HAS_DELIMITER: bool;
+
     /// Write the object into a buffer.
     fn write(self, buf: &mut Buf);
 }
@@ -16,6 +19,8 @@ impl<T: Primitive> Primitive for &T
 where
     T: Copy,
 {
+    const HAS_DELIMITER: bool = T::HAS_DELIMITER;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         (*self).write(buf);
@@ -23,6 +28,8 @@ where
 }
 
 impl Primitive for bool {
+    const HAS_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         if self {
@@ -34,6 +41,8 @@ impl Primitive for bool {
 }
 
 impl Primitive for i32 {
+    const HAS_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_int(self);
@@ -41,6 +50,8 @@ impl Primitive for i32 {
 }
 
 impl Primitive for f32 {
+    const HAS_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_float(self);
@@ -70,6 +81,8 @@ impl Str<'_> {
 }
 
 impl Primitive for Str<'_> {
+    const HAS_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
 
@@ -134,6 +147,8 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
+    const HAS_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
 
@@ -219,6 +234,8 @@ impl LanguageIdentifier {
 pub struct TextStrWithLang<'a, 'b>(pub &'b [(LanguageIdentifier, &'a str)]);
 
 impl<'a, 'b> Primitive for TextStrWithLang<'a, 'b> {
+    const HAS_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         let mut len = 0;
         let mut buf_len = 6;
@@ -295,6 +312,8 @@ impl<'a, 'b> TextStrLike for TextStrWithLang<'a, 'b> {}
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
+    const HAS_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.limits.register_name_len(self.0.len());
 
@@ -342,6 +361,8 @@ fn is_regular_character(byte: u8) -> bool {
 pub struct Null;
 
 impl Primitive for Null {
+    const HAS_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.extend(b"null");
@@ -391,6 +412,8 @@ impl Ref {
 }
 
 impl Primitive for Ref {
+    const HAS_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_int(self.0.get());
@@ -427,6 +450,8 @@ impl Rect {
 }
 
 impl Primitive for Rect {
+    const HAS_DELIMITER: bool = true;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push(b'[');
@@ -542,6 +567,8 @@ impl Date {
 }
 
 impl Primitive for Date {
+    const HAS_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.extend(b"(D:");
 
@@ -577,13 +604,25 @@ pub struct Obj<'a> {
     indirect: bool,
     indent: u8,
     settings: WriteSettings,
+    needs_padding: bool,
 }
 
 impl<'a> Obj<'a> {
     /// Start a new direct object.
     #[inline]
-    pub(crate) fn direct(buf: &'a mut Buf, indent: u8, settings: WriteSettings) -> Self {
-        Self { buf, indirect: false, indent, settings }
+    pub(crate) fn direct(
+        buf: &'a mut Buf,
+        indent: u8,
+        settings: WriteSettings,
+        needs_padding: bool,
+    ) -> Self {
+        Self {
+            buf,
+            indirect: false,
+            indent,
+            settings,
+            needs_padding,
+        }
     }
 
     /// Start a new indirect object.
@@ -591,12 +630,22 @@ impl<'a> Obj<'a> {
     pub(crate) fn indirect(buf: &'a mut Buf, id: Ref, settings: WriteSettings) -> Self {
         buf.push_int(id.get());
         buf.extend(b" 0 obj\n");
-        Self { buf, indirect: true, indent: 0, settings }
+        Self {
+            buf,
+            indirect: true,
+            indent: 0,
+            settings,
+            needs_padding: false,
+        }
     }
 
     /// Write a primitive object.
     #[inline]
     pub fn primitive<T: Primitive>(self, value: T) {
+        if self.needs_padding && !T::HAS_DELIMITER {
+            self.buf.extend(b" ");
+        }
+
         value.write(self.buf);
         if self.indirect {
             self.buf.extend(b"\nendobj\n");
@@ -692,11 +741,18 @@ impl<'a> Array<'a> {
     /// Start writing an arbitrary item.
     #[inline]
     pub fn push(&mut self) -> Obj<'_> {
-        if self.len != 0 {
-            self.buf.push(b' ');
-        }
+        let needs_padding = if self.len != 0 {
+            if self.settings.pretty {
+                self.buf.push(b' ');
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        };
         self.len += 1;
-        Obj::direct(self.buf, self.indent, self.settings)
+        Obj::direct(self.buf, self.indent, self.settings, needs_padding)
     }
 
     /// Write an item with a primitive value.
@@ -856,9 +912,14 @@ impl<'a> Dict<'a> {
         }
 
         self.buf.push_val(key);
-        self.buf.push(b' ');
+        let needs_padding = if self.settings.pretty {
+            self.buf.push(b' ');
+            false
+        } else {
+            true
+        };
 
-        Obj::direct(self.buf, self.indent, self.settings)
+        Obj::direct(self.buf, self.indent, self.settings, needs_padding)
     }
 
     /// Write a pair with a primitive value.
