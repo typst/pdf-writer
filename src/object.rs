@@ -4,9 +4,13 @@ use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
 
 use super::*;
+use crate::chunk::WriteSettings;
 
 /// A primitive PDF object.
 pub trait Primitive {
+    /// Whether the primitive object starts with one of the PDF delimiter characters.
+    const STARTS_WITH_DELIMITER: bool;
+
     /// Write the object into a buffer.
     fn write(self, buf: &mut Buf);
 }
@@ -15,6 +19,8 @@ impl<T: Primitive> Primitive for &T
 where
     T: Copy,
 {
+    const STARTS_WITH_DELIMITER: bool = T::STARTS_WITH_DELIMITER;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         (*self).write(buf);
@@ -22,6 +28,8 @@ where
 }
 
 impl Primitive for bool {
+    const STARTS_WITH_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         if self {
@@ -33,6 +41,8 @@ impl Primitive for bool {
 }
 
 impl Primitive for i32 {
+    const STARTS_WITH_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_int(self);
@@ -40,6 +50,8 @@ impl Primitive for i32 {
 }
 
 impl Primitive for f32 {
+    const STARTS_WITH_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_float(self);
@@ -69,6 +81,8 @@ impl Str<'_> {
 }
 
 impl Primitive for Str<'_> {
+    const STARTS_WITH_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
 
@@ -133,6 +147,8 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
+    const STARTS_WITH_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
 
@@ -218,6 +234,8 @@ impl LanguageIdentifier {
 pub struct TextStrWithLang<'a, 'b>(pub &'b [(LanguageIdentifier, &'a str)]);
 
 impl<'a, 'b> Primitive for TextStrWithLang<'a, 'b> {
+    const STARTS_WITH_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         let mut len = 0;
         let mut buf_len = 6;
@@ -294,6 +312,8 @@ impl<'a, 'b> TextStrLike for TextStrWithLang<'a, 'b> {}
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
+    const STARTS_WITH_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.limits.register_name_len(self.0.len());
 
@@ -336,11 +356,18 @@ fn is_regular_character(byte: u8) -> bool {
     )
 }
 
+#[inline]
+pub(crate) fn is_delimiter_character(byte: u8) -> bool {
+    matches!(byte, b'(' | b')' | b'<' | b'>' | b'[' | b']' | b'/' | b'%')
+}
+
 /// The null object.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Null;
 
 impl Primitive for Null {
+    const STARTS_WITH_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.extend(b"null");
@@ -390,6 +417,8 @@ impl Ref {
 }
 
 impl Primitive for Ref {
+    const STARTS_WITH_DELIMITER: bool = false;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push_int(self.0.get());
@@ -426,6 +455,8 @@ impl Rect {
 }
 
 impl Primitive for Rect {
+    const STARTS_WITH_DELIMITER: bool = true;
+
     #[inline]
     fn write(self, buf: &mut Buf) {
         buf.push(b'[');
@@ -541,6 +572,8 @@ impl Date {
 }
 
 impl Primitive for Date {
+    const STARTS_WITH_DELIMITER: bool = true;
+
     fn write(self, buf: &mut Buf) {
         buf.extend(b"(D:");
 
@@ -575,31 +608,77 @@ pub struct Obj<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
+    write_settings: WriteSettings,
+    needs_padding: bool,
 }
 
 impl<'a> Obj<'a> {
     /// Start a new direct object.
     #[inline]
-    pub(crate) fn direct(buf: &'a mut Buf, indent: u8) -> Self {
-        Self { buf, indirect: false, indent }
+    pub(crate) fn direct(
+        buf: &'a mut Buf,
+        indent: u8,
+        write_settings: WriteSettings,
+        needs_padding: bool,
+    ) -> Self {
+        Self {
+            buf,
+            indirect: false,
+            indent,
+            write_settings,
+            needs_padding,
+        }
     }
 
     /// Start a new indirect object.
     #[inline]
-    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref) -> Self {
+    pub(crate) fn indirect(
+        buf: &'a mut Buf,
+        id: Ref,
+        write_settings: WriteSettings,
+    ) -> Self {
         buf.push_int(id.get());
         buf.extend(b" 0 obj\n");
-        Self { buf, indirect: true, indent: 0 }
+        Self {
+            buf,
+            indirect: true,
+            indent: 0,
+            write_settings,
+            needs_padding: false,
+        }
     }
 
     /// Write a primitive object.
     #[inline]
     pub fn primitive<T: Primitive>(self, value: T) {
+        // Normally, we need to separate different PDF objects by a whitespace. the key to the
+        // optimizations applied here are explained in 7.2.3 in the PDF reference:
+        // > The delimiter characters (, ), <, >, [, ], /, and % are special. They
+        // > delimit syntactic entities such as arrays, names, and comments. Any of these
+        // > delimiters terminates the entity preceding it and is not included in the entity.
+        // Therefore, if either the previous byte is a delimiter character or the current token
+        // starts with one, we don't need to add a whitespace for padding.
+
+        let ends_with_delimiter =
+            self.buf.last().copied().is_some_and(is_delimiter_character);
+
+        if self.needs_padding && !T::STARTS_WITH_DELIMITER && !ends_with_delimiter {
+            self.buf.extend(b" ");
+        }
+
         value.write(self.buf);
+
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n");
+
+            if self.write_settings.pretty {
+                self.buf.extend(b"\n");
+            }
         }
     }
+
+    // Note: Arrays and dictionaries always start with a delimiter, so we don't need to do any case
+    // distinction, unlike in `primitive`.
 
     /// Start writing an array.
     #[inline]
@@ -655,6 +734,7 @@ pub struct Array<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
+    settings: WriteSettings,
     len: i32,
 }
 
@@ -664,6 +744,7 @@ writer!(Array: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent,
+        settings: obj.write_settings,
         len: 0,
     }
 });
@@ -684,11 +765,20 @@ impl<'a> Array<'a> {
     /// Start writing an arbitrary item.
     #[inline]
     pub fn push(&mut self) -> Obj<'_> {
-        if self.len != 0 {
-            self.buf.push(b' ');
-        }
+        let needs_padding = if self.len != 0 {
+            if self.settings.pretty {
+                self.buf.push(b' ');
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        };
+
         self.len += 1;
-        Obj::direct(self.buf, self.indent)
+
+        Obj::direct(self.buf, self.indent, self.settings, needs_padding)
     }
 
     /// Write an item with a primitive value.
@@ -725,7 +815,11 @@ impl Drop for Array<'_> {
         self.buf.limits.register_array_len(self.len() as usize);
         self.buf.push(b']');
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n");
+
+            if self.settings.pretty {
+                self.buf.extend(b"\n");
+            }
         }
     }
 }
@@ -802,6 +896,7 @@ pub struct Dict<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
+    settings: WriteSettings,
     len: i32,
 }
 
@@ -811,6 +906,7 @@ writer!(Dict: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent.saturating_add(2),
+        settings: obj.write_settings,
         len: 0,
     }
 });
@@ -832,16 +928,27 @@ impl<'a> Dict<'a> {
     #[inline]
     pub fn insert(&mut self, key: Name) -> Obj<'_> {
         self.len += 1;
-        self.buf.push(b'\n');
 
-        for _ in 0..self.indent {
-            self.buf.push(b' ');
+        // Keys always start with a delimiter since they are names, so we never need
+        // padding unless `pretty` is activated.
+        if self.settings.pretty {
+            self.buf.push(b'\n');
+
+            for _ in 0..self.indent {
+                self.buf.push(b' ');
+            }
         }
 
         self.buf.push_val(key);
-        self.buf.push(b' ');
 
-        Obj::direct(self.buf, self.indent)
+        let needs_padding = if self.settings.pretty {
+            self.buf.push(b' ');
+            false
+        } else {
+            true
+        };
+
+        Obj::direct(self.buf, self.indent, self.settings, needs_padding)
     }
 
     /// Write a pair with a primitive value.
@@ -876,15 +983,21 @@ impl Drop for Dict<'_> {
     fn drop(&mut self) {
         self.buf.limits.register_dict_entries(self.len as usize);
 
-        if self.len != 0 {
+        if self.len != 0 && self.settings.pretty {
             self.buf.push(b'\n');
             for _ in 0..self.indent - 2 {
                 self.buf.push(b' ');
             }
         }
+
         self.buf.extend(b">>");
+
         if self.indirect {
-            self.buf.extend(b"\nendobj\n\n");
+            self.buf.extend(b"\nendobj\n");
+
+            if self.settings.pretty {
+                self.buf.extend(b"\n");
+            }
         }
     }
 }
@@ -1005,11 +1118,19 @@ impl Drop for Stream<'_> {
         let dict_len = self.dict.len as usize;
         self.dict.buf.limits.register_dict_entries(dict_len);
 
-        self.dict.buf.extend(b"\n>>");
+        if self.dict.settings.pretty {
+            self.dict.buf.extend(b"\n");
+        }
+
+        self.dict.buf.extend(b">>");
         self.dict.buf.extend(b"\nstream\n");
         self.dict.buf.extend(self.data.as_ref());
         self.dict.buf.extend(b"\nendstream");
-        self.dict.buf.extend(b"\nendobj\n\n");
+        self.dict.buf.extend(b"\nendobj\n");
+
+        if self.dict.settings.pretty {
+            self.dict.buf.extend(b"\n");
+        }
     }
 }
 
@@ -1564,5 +1685,46 @@ mod tests {
             b"<<\n  /Size 2\n>>",
             b"startxref\n94\n%%EOF",
         )
+    }
+
+    #[test]
+    fn test_arrays_no_pretty() {
+        test_obj_no_pretty!(|obj| obj.array(), b"[]");
+        test_obj_no_pretty!(
+            |obj| {
+                let mut arr = obj.array();
+
+                arr.item(12)
+                    .item(Name(b"Hi"))
+                    .item(Name(b"Hi2"))
+                    .item(false)
+                    .item(TextStr("A string"));
+
+                arr.push().dict().pair(Name(b"Test1"), 23);
+
+                arr.item(Null).item(23.40);
+
+                arr
+            },
+            b"[12/Hi/Hi2 false(A string)<</Test1 23>>null 23.4]"
+        );
+    }
+
+    #[test]
+    fn test_dicts_no_pretty() {
+        test_obj_no_pretty!(|obj| obj.dict(), b"<<>>");
+        test_obj_no_pretty!(
+            |obj| {
+                let mut dict = obj.dict();
+                dict.pair(Name(b"Key1"), 12)
+                     .pair(Name(b"Key2"), Name(b"Hi"))
+                     .pair(Name(b"Key3"), false)
+                     .pair(Name(b"Key4"), TextStr("A string"));
+                dict.insert(Name(b"Key5")).array().item(23).item(Name(b"Value"));
+                dict.pair(Name(b"Key6"), Null)
+                     .pair(Name(b"Key7"), 23.40)
+            },
+            b"<</Key1 12/Key2/Hi/Key3 false/Key4(A string)/Key5[23/Value]/Key6 null/Key7 23.4>>"
+        );
     }
 }

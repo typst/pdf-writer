@@ -1,9 +1,11 @@
 use super::*;
-use crate::object::TextStrLike;
+use crate::chunk::WriteSettings;
+use crate::object::{is_delimiter_character, TextStrLike};
 
 /// A builder for a content stream.
 pub struct Content {
     buf: Buf,
+    write_settings: WriteSettings,
     q_depth: usize,
 }
 
@@ -16,15 +18,27 @@ impl Content {
         Self::with_capacity(1024)
     }
 
+    /// Create a new content stream with the given write settings.
+    pub fn new_with(write_settings: WriteSettings) -> Self {
+        let mut content = Self::new();
+        content.write_settings = write_settings;
+
+        content
+    }
+
     /// Create a new content stream with the specified initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Buf::with_capacity(capacity), q_depth: 0 }
+        Self {
+            buf: Buf::with_capacity(capacity),
+            q_depth: 0,
+            write_settings: Default::default(),
+        }
     }
 
     /// Start writing an arbitrary operation.
     #[inline]
     pub fn op<'a>(&'a mut self, operator: &'a str) -> Operation<'a> {
-        Operation::start(&mut self.buf, operator)
+        Operation::start(&mut self.buf, operator, self.write_settings)
     }
 
     /// Return the buffer of the content stream.
@@ -51,12 +65,17 @@ pub struct Operation<'a> {
     buf: &'a mut Buf,
     op: &'a str,
     first: bool,
+    write_settings: WriteSettings,
 }
 
 impl<'a> Operation<'a> {
     #[inline]
-    pub(crate) fn start(buf: &'a mut Buf, op: &'a str) -> Self {
-        Self { buf, op, first: true }
+    pub(crate) fn start(
+        buf: &'a mut Buf,
+        op: &'a str,
+        write_settings: WriteSettings,
+    ) -> Self {
+        Self { buf, op, first: true, write_settings }
     }
 
     /// Write a primitive operand.
@@ -79,25 +98,46 @@ impl<'a> Operation<'a> {
         self
     }
 
-    /// Start writing an an arbitrary object operand.
+    /// Start writing an arbitrary object operand.
     #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
-        if !self.first {
-            self.buf.push(b' ');
-        }
+        // In case we are writing the first object, we want a newline to separate it from
+        // previous operations (looks nicer). Otherwise, a space is sufficient.
+        let pad_byte = if self.first { b'\n' } else { b' ' };
+
+        // Similarly to how chunks are handled, we always add padding when pretty-writing
+        // is enabled, and only lazily add padding depending on whether it's really necessary
+        // if not.
+        let needs_padding = if self.write_settings.pretty {
+            if !self.buf.is_empty() {
+                self.buf.push(pad_byte);
+            }
+
+            false
+        } else {
+            true
+        };
+
         self.first = false;
-        Obj::direct(self.buf, 0)
+        Obj::direct(self.buf, 0, self.write_settings, needs_padding)
     }
 }
 
 impl Drop for Operation<'_> {
     #[inline]
     fn drop(&mut self) {
-        if !self.first {
-            self.buf.push(b' ');
+        let pad_byte = if self.first { b'\n' } else { b' ' };
+
+        // For example, in case we previously wrote a BT operator and then a [] operand in the
+        // next operation, we don't need to pad them.
+        if (self.write_settings.pretty
+            || self.buf.last().is_some_and(|b| !is_delimiter_character(*b)))
+            && !self.buf.is_empty()
+        {
+            self.buf.push(pad_byte);
         }
+
         self.buf.extend(self.op.as_bytes());
-        self.buf.push(b'\n');
     }
 }
 
@@ -1706,6 +1746,46 @@ mod tests {
         assert_eq!(
             content.finish().into_vec(),
             b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
+        );
+    }
+
+    #[test]
+    fn test_content_array_no_pretty() {
+        let mut content = Content::new_with(WriteSettings { pretty: false });
+
+        content.set_font(Name(b"F1"), 12.0);
+        content.set_font(Name(b"F2"), 15.0);
+        content.begin_text();
+        content.show_positioned().items();
+        content
+            .show_positioned()
+            .items()
+            .show(Str(b"AB"))
+            .adjust(2.0)
+            .show(Str(b"CD"))
+            .adjust(4.0)
+            .show(Str(b"EF"));
+        content.end_text();
+
+        assert_eq!(
+            content.finish().into_vec(),
+            b"/F1 12 Tf/F2 15 Tf\nBT[]TJ[(AB)2(CD)4(EF)]TJ\nET"
+        );
+    }
+
+    #[test]
+    fn test_content_dict_no_pretty() {
+        let mut content = Content::new_with(WriteSettings { pretty: false });
+
+        let mut mc = content.begin_marked_content_with_properties(Name(b"Test"));
+        let mut properties = mc.properties();
+        properties.actual_text(TextStr("Actual")).identify(1);
+        properties.artifact().kind(ArtifactType::Background);
+        mc.finish();
+
+        assert_eq!(
+            content.finish().into_vec(),
+            b"/Test<</ActualText(Actual)/MCID 1/Type/Background>>BDC"
         );
     }
 }

@@ -1,5 +1,21 @@
 use super::*;
 
+/// Settings that should be applied while writing a PDF file.
+#[derive(Debug, Clone, Copy)]
+pub struct WriteSettings {
+    /// Whether to enable pretty-writing. In this case, `pdf-writer` will serialize PDFs in such
+    /// a way that they are easier to read by humans by applying more padding and indentation, at
+    /// the cost of larger file sizes. If disabled, `pdf-writer` will serialize objects as compactly
+    /// as possible, leading to better file sizes but making it harder to inspect the file manually.
+    pub pretty: bool,
+}
+
+impl Default for WriteSettings {
+    fn default() -> Self {
+        Self { pretty: true }
+    }
+}
+
 /// A builder for a collection of indirect PDF objects.
 ///
 /// This type holds written top-level indirect PDF objects. Typically, you won't
@@ -14,6 +30,7 @@ use super::*;
 pub struct Chunk {
     pub(crate) buf: Buf,
     pub(crate) offsets: Vec<(Ref, usize)>,
+    pub(crate) write_settings: WriteSettings,
 }
 
 impl Chunk {
@@ -25,7 +42,19 @@ impl Chunk {
 
     /// Create a new chunk with the specified initial capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { buf: Buf::with_capacity(capacity), offsets: vec![] }
+        Self {
+            buf: Buf::with_capacity(capacity),
+            offsets: vec![],
+            write_settings: Default::default(),
+        }
+    }
+
+    /// Create a new chunk with the given write settings.
+    pub fn new_with(write_settings: WriteSettings) -> Self {
+        let mut chunk = Self::new();
+        chunk.write_settings = write_settings;
+
+        chunk
     }
 
     /// The number of bytes that were written so far.
@@ -33,6 +62,11 @@ impl Chunk {
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.buf.len()
+    }
+
+    /// Reserve an additional number of bytes in the buffer.
+    pub fn reserve(&mut self, additional: usize) {
+        self.buf.reserve(additional);
     }
 
     /// The bytes already written so far.
@@ -148,7 +182,7 @@ impl Chunk {
     /// Start writing an indirectly referenceable object.
     pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
         self.offsets.push((id, self.buf.len()));
-        Obj::indirect(&mut self.buf, id)
+        Obj::indirect(&mut self.buf, id, self.write_settings)
     }
 
     /// Start writing an indirectly referenceable stream.
