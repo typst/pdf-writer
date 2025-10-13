@@ -49,7 +49,7 @@ impl Chunk {
         }
     }
 
-    /// TODO
+    /// Create a new chunk with the given write settings.
     pub fn new_with(write_settings: WriteSettings) -> Self {
         let mut chunk = Self::new();
         chunk.write_settings = write_settings;
@@ -62,6 +62,11 @@ impl Chunk {
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.buf.len()
+    }
+
+    /// Reserve an additional number of bytes in the buffer.
+    pub fn reserve(&mut self, additional: usize) {
+        self.buf.reserve(additional);
     }
 
     /// The bytes already written so far.
