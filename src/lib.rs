@@ -198,12 +198,13 @@ pub use self::object::{
     Rect, Ref, Rewrite, Str, Stream, TextStr, TextStrLike, TextStrWithLang, TypedArray,
     TypedDict, Writer,
 };
-use self::writers::*;
 
-use crate::chunk::WriteSettings;
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
+use crate::chunk::WriteSettings;
+
+use self::writers::*;
 
 /// A builder for a PDF file.
 ///
