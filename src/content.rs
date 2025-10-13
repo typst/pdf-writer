@@ -102,7 +102,7 @@ impl<'a> Operation<'a> {
     #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
         // In case we are writing the first object, we want a newline to separate it from
-        // previous operations. Otherwise, a space is sufficient.
+        // previous operations (looks nicer). Otherwise, a space is sufficient.
         let pad_byte = if self.first { b'\n' } else { b' ' };
 
         // Similarly to how chunks are handled, we always add padding when pretty-writing
