@@ -651,7 +651,7 @@ impl<'a> Obj<'a> {
     /// Write a primitive object.
     #[inline]
     pub fn primitive<T: Primitive>(self, value: T) {
-        // Normally, we need to separate different PDF objects by a whitespace. he key to the
+        // Normally, we need to separate different PDF objects by a whitespace. the key to the
         // optimizations applied here are explained in 7.2.3 in the PDF reference:
         // > The delimiter characters (, ), <, >, [, ], /, and % are special. They
         // > delimit syntactic entities such as arrays, names, and comments. Any of these
