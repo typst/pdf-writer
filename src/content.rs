@@ -101,20 +101,18 @@ impl<'a> Operation<'a> {
     /// Start writing an arbitrary object operand.
     #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
-        let needs_padding = if !self.first {
-            if self.write_settings.pretty {
-                self.buf.push(b' ');
-                false
-            } else {
-                true
-            }
+        // In case we are writing the first object, we want a newline to separate it from
+        // previous operations. Otherwise, a space is sufficient.
+        let pad_byte = if self.first { b'\n' } else { b' ' };
+
+        // Similarly to how chunks are handled, we always add padding when pretty-writing
+        // is enabled, and only lazily add padding depending on whether it's really necessary
+        // if not.
+        let needs_padding = if self.write_settings.pretty {
+            self.buf.push(pad_byte);
+            false
         } else {
-            if self.write_settings.pretty {
-                self.buf.push(b'\n');
-                false
-            } else {
-                true
-            }
+            true
         };
 
         self.first = false;
@@ -125,19 +123,16 @@ impl<'a> Operation<'a> {
 impl Drop for Operation<'_> {
     #[inline]
     fn drop(&mut self) {
-        if !self.first {
-            if self.write_settings.pretty
-                || self.buf.last().is_some_and(|b| !is_delimiter_character(*b))
-            {
-                self.buf.push(b' ');
-            }
-        } else {
-            if self.write_settings.pretty
-                || self.buf.last().is_some_and(|b| !is_delimiter_character(*b))
-            {
-                self.buf.push(b'\n');
-            }
+        let pad_byte = if self.first { b'\n' } else { b' ' };
+
+        // For example, in case we previously wrote a BT operator and then a [] operand in the
+        // next operation, we don't need to pad them.
+        if self.write_settings.pretty
+            || self.buf.last().is_some_and(|b| !is_delimiter_character(*b))
+        {
+            self.buf.push(pad_byte);
         }
+
         self.buf.extend(self.op.as_bytes());
     }
 }
@@ -1773,7 +1768,7 @@ mod tests {
             b"/F1 12 Tf/F2 15 Tf\nBT[]TJ[(AB)2(CD)4(EF)]TJ\nET"
         );
     }
-    
+
     #[test]
     fn test_content_dict_no_pretty() {
         let mut content = Content::new_with(WriteSettings { pretty: false });
