@@ -1,15 +1,15 @@
-use crate::chunk::WriteSettings;
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
 
 use super::*;
+use crate::chunk::WriteSettings;
 
 /// A primitive PDF object.
 pub trait Primitive {
     /// Whether the primitive object starts with one of the PDF delimiter characters.
-    const HAS_DELIMITER: bool;
+    const STARTS_WITH_DELIMITER: bool;
 
     /// Write the object into a buffer.
     fn write(self, buf: &mut Buf);
@@ -19,7 +19,7 @@ impl<T: Primitive> Primitive for &T
 where
     T: Copy,
 {
-    const HAS_DELIMITER: bool = T::HAS_DELIMITER;
+    const STARTS_WITH_DELIMITER: bool = T::STARTS_WITH_DELIMITER;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -28,7 +28,7 @@ where
 }
 
 impl Primitive for bool {
-    const HAS_DELIMITER: bool = false;
+    const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -41,7 +41,7 @@ impl Primitive for bool {
 }
 
 impl Primitive for i32 {
-    const HAS_DELIMITER: bool = false;
+    const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -50,7 +50,7 @@ impl Primitive for i32 {
 }
 
 impl Primitive for f32 {
-    const HAS_DELIMITER: bool = false;
+    const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -81,7 +81,7 @@ impl Str<'_> {
 }
 
 impl Primitive for Str<'_> {
-    const HAS_DELIMITER: bool = true;
+    const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
@@ -147,7 +147,7 @@ impl Primitive for Str<'_> {
 pub struct TextStr<'a>(pub &'a str);
 
 impl Primitive for TextStr<'_> {
-    const HAS_DELIMITER: bool = true;
+    const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
         buf.limits.register_str_len(self.0.len());
@@ -234,7 +234,7 @@ impl LanguageIdentifier {
 pub struct TextStrWithLang<'a, 'b>(pub &'b [(LanguageIdentifier, &'a str)]);
 
 impl<'a, 'b> Primitive for TextStrWithLang<'a, 'b> {
-    const HAS_DELIMITER: bool = true;
+    const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
         let mut len = 0;
@@ -312,7 +312,7 @@ impl<'a, 'b> TextStrLike for TextStrWithLang<'a, 'b> {}
 pub struct Name<'a>(pub &'a [u8]);
 
 impl Primitive for Name<'_> {
-    const HAS_DELIMITER: bool = true;
+    const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
         buf.limits.register_name_len(self.0.len());
@@ -366,7 +366,7 @@ pub(crate) fn is_delimiter_character(byte: u8) -> bool {
 pub struct Null;
 
 impl Primitive for Null {
-    const HAS_DELIMITER: bool = false;
+    const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -417,7 +417,7 @@ impl Ref {
 }
 
 impl Primitive for Ref {
-    const HAS_DELIMITER: bool = false;
+    const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -455,7 +455,7 @@ impl Rect {
 }
 
 impl Primitive for Rect {
-    const HAS_DELIMITER: bool = true;
+    const STARTS_WITH_DELIMITER: bool = true;
 
     #[inline]
     fn write(self, buf: &mut Buf) {
@@ -572,7 +572,7 @@ impl Date {
 }
 
 impl Primitive for Date {
-    const HAS_DELIMITER: bool = true;
+    const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
         buf.extend(b"(D:");
@@ -654,7 +654,7 @@ impl<'a> Obj<'a> {
         let ends_with_delimiter =
             self.buf.last().copied().is_some_and(is_delimiter_character);
 
-        if self.needs_padding && !T::HAS_DELIMITER && !ends_with_delimiter {
+        if self.needs_padding && !T::STARTS_WITH_DELIMITER && !ends_with_delimiter {
             self.buf.extend(b" ");
         }
 
