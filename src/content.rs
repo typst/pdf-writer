@@ -1735,4 +1735,45 @@ mod tests {
             b"/F1 12 Tf\nBT\n[] TJ\n[(AB) 2 (CD)] TJ\nET"
         );
     }
+
+    #[test]
+    fn test_content_array_no_pretty() {
+        let mut content = Content::new_with(WriteSettings { pretty: false });
+
+        content.set_font(Name(b"F1"), 12.0);
+        content.begin_text();
+        content.show_positioned().items();
+        content
+            .show_positioned()
+            .items()
+            .show(Str(b"AB"))
+            .adjust(2.0)
+            .show(Str(b"CD"))
+            .adjust(4.0)
+            .show(Str(b"EF"));
+        content.end_text();
+
+        assert_eq!(
+            content.finish().into_vec(),
+            b"/F1 12 Tf\nBT\n[] TJ\n[(AB)2(CD)4(EF)] TJ\nET"
+        );
+    }
+    
+    // TODO: Dont' write newlines between operations if not necessary?
+
+    #[test]
+    fn test_content_dict_no_pretty() {
+        let mut content = Content::new_with(WriteSettings { pretty: false });
+
+        let mut mc = content.begin_marked_content_with_properties(Name(b"Test"));
+        let mut properties = mc.properties();
+        properties.actual_text(TextStr("Actual")).identify(1);
+        properties.artifact().kind(ArtifactType::Background);
+        mc.finish();
+
+        assert_eq!(
+            content.finish().into_vec(),
+            b"/Test<</ActualText(Actual)/MCID 1/Type/Background>> BDC"
+        );
+    }
 }
