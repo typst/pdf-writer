@@ -1773,6 +1773,7 @@ mod tests {
             b"/F1 12 Tf/F2 15 Tf\nBT[]TJ[(AB)2(CD)4(EF)]TJ\nET"
         );
     }
+    
     #[test]
     fn test_content_dict_no_pretty() {
         let mut content = Content::new_with(WriteSettings { pretty: false });
