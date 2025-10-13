@@ -8,7 +8,7 @@ use super::*;
 
 /// A primitive PDF object.
 pub trait Primitive {
-    /// Whether the primitive object starts with one of the delimiters.
+    /// Whether the primitive object starts with one of the PDF delimiter characters.
     const HAS_DELIMITER: bool;
 
     /// Write the object into a buffer.
