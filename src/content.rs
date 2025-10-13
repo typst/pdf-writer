@@ -1,6 +1,6 @@
 use super::*;
 use crate::chunk::WriteSettings;
-use crate::object::TextStrLike;
+use crate::object::{is_delimiter_character, TextStrLike};
 
 /// A builder for a content stream.
 pub struct Content {
@@ -121,7 +121,11 @@ impl Drop for Operation<'_> {
     #[inline]
     fn drop(&mut self) {
         if !self.first {
-            self.buf.push(b' ');
+            if self.write_settings.pretty
+                || self.buf.last().is_some_and(|b| !is_delimiter_character(*b))
+            {
+                self.buf.push(b' ');
+            }
         }
         self.buf.extend(self.op.as_bytes());
         self.buf.push(b'\n');
@@ -1755,12 +1759,9 @@ mod tests {
 
         assert_eq!(
             content.finish().into_vec(),
-            b"/F1 12 Tf\nBT\n[] TJ\n[(AB)2(CD)4(EF)] TJ\nET"
+            b"/F1 12 Tf\nBT\n[]TJ\n[(AB)2(CD)4(EF)]TJ\nET"
         );
     }
-    
-    // TODO: Dont' write newlines between operations if not necessary?
-
     #[test]
     fn test_content_dict_no_pretty() {
         let mut content = Content::new_with(WriteSettings { pretty: false });
@@ -1773,7 +1774,7 @@ mod tests {
 
         assert_eq!(
             content.finish().into_vec(),
-            b"/Test<</ActualText(Actual)/MCID 1/Type/Background>> BDC"
+            b"/Test<</ActualText(Actual)/MCID 1/Type/Background>>BDC"
         );
     }
 }

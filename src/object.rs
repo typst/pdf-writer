@@ -357,7 +357,7 @@ fn is_regular_character(byte: u8) -> bool {
 }
 
 #[inline]
-fn is_delimiter_character(byte: u8) -> bool {
+pub(crate) fn is_delimiter_character(byte: u8) -> bool {
     matches!(byte, b'(' | b')' | b'<' | b'>' | b'[' | b']' | b'/' | b'%')
 }
 
@@ -651,8 +651,9 @@ impl<'a> Obj<'a> {
     /// Write a primitive object.
     #[inline]
     pub fn primitive<T: Primitive>(self, value: T) {
-        let ends_with_delimiter = self.buf.last().copied().is_some_and(is_delimiter_character);
-        
+        let ends_with_delimiter =
+            self.buf.last().copied().is_some_and(is_delimiter_character);
+
         if self.needs_padding && !T::HAS_DELIMITER && !ends_with_delimiter {
             self.buf.extend(b" ");
         }
