@@ -98,15 +98,22 @@ impl<'a> Operation<'a> {
         self
     }
 
-    /// Start writing an an arbitrary object operand.
+    /// Start writing an arbitrary object operand.
     #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
-        if !self.first {
-            self.buf.push(b' ');
-        }
+        let needs_padding = if !self.first {
+            if self.write_settings.pretty {
+                self.buf.push(b' ');
+                false
+            } else {
+                true
+            }
+        } else {
+            false
+        };
+
         self.first = false;
-        // TODO: Refine padding?
-        Obj::direct(self.buf, 0, self.write_settings, false)
+        Obj::direct(self.buf, 0, self.write_settings, needs_padding)
     }
 }
 
