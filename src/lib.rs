@@ -202,6 +202,7 @@ pub use self::object::{
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
+
 use crate::chunk::WriteSettings;
 
 use self::writers::*;

@@ -109,7 +109,10 @@ impl<'a> Operation<'a> {
         // is enabled, and only lazily add padding depending on whether it's really necessary
         // if not.
         let needs_padding = if self.write_settings.pretty {
-            self.buf.push(pad_byte);
+            if !self.buf.is_empty() {
+                self.buf.push(pad_byte);
+            }
+
             false
         } else {
             true
@@ -127,8 +130,9 @@ impl Drop for Operation<'_> {
 
         // For example, in case we previously wrote a BT operator and then a [] operand in the
         // next operation, we don't need to pad them.
-        if self.write_settings.pretty
-            || self.buf.last().is_some_and(|b| !is_delimiter_character(*b))
+        if (self.write_settings.pretty
+            || self.buf.last().is_some_and(|b| !is_delimiter_character(*b)))
+            && !self.buf.is_empty()
         {
             self.buf.push(pad_byte);
         }
