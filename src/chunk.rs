@@ -5,7 +5,7 @@ use super::*;
 pub struct WriteSettings {
     /// Whether to enable pretty-writing. In this case, `pdf-writer` will serialize PDFs in such
     /// a way that they are easier to read by humans by applying more padding and indentation, at
-    /// the cost of higher file sizes. If disabled, `pdf-writer` will serialize objects as compactly
+    /// the cost of larger file sizes. If disabled, `pdf-writer` will serialize objects as compactly
     /// as possible, leading to better file sizes but making it harder to inspect the file manually.
     pub pretty: bool,
 }
