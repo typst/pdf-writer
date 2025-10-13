@@ -1686,4 +1686,37 @@ mod tests {
             b"startxref\n94\n%%EOF",
         )
     }
+
+    #[test]
+    fn test_arrays_no_pretty() {
+        test_obj_no_pretty!(|obj| obj.array(), b"[]");
+        test_obj_no_pretty!(
+            |obj| obj
+                .array()
+                .item(12)
+                .item(Name(b"Hi"))
+                .item(Name(b"Hi2"))
+                .item(false)
+                .item(TextStr("A string"))
+                .item(Null)
+                .item(23.40),
+            b"[12/Hi/Hi2 false(A String)null 23.4]"
+        );
+    }
+
+    #[test]
+    fn test_dicts_no_pretty() {
+        test_obj_no_pretty!(|obj| obj.dict(), b"<<>>");
+        test_obj_no_pretty!(
+            |obj| obj
+                .dict()
+                .pair(Name(b"Key1"), 12)
+                .pair(Name(b"Key2"), Name(b"Hi"))
+                .pair(Name(b"Key3"), false)
+                .pair(Name(b"Key4"), TextStr("A string"))
+                .pair(Name(b"Key5"), Null)
+                .pair(Name(b"Key6"), 23.40),
+            b"<</Key1 12/Key2/Hi/Key3 false/Key4(A string)/Key5 null/Key6 23.4>>"
+        );
+    }
 }

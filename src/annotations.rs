@@ -796,10 +796,13 @@ mod tests {
     #[test]
     fn test_annotations() {
         test!(
-            crate::tests::slice(|w| {
-                w.annotation(Ref::new(1)).rect(Rect::new(0.0, 0.0, 1.0, 1.0));
-                w.annotation(Ref::new(2)).rect(Rect::new(1.0, 1.0, 0.0, 0.0));
-            }),
+            crate::tests::slice(
+                |w| {
+                    w.annotation(Ref::new(1)).rect(Rect::new(0.0, 0.0, 1.0, 1.0));
+                    w.annotation(Ref::new(2)).rect(Rect::new(1.0, 1.0, 0.0, 0.0));
+                },
+                WriteSettings::default()
+            ),
             b"1 0 obj",
             b"<<",
             b"  /Type /Annot",

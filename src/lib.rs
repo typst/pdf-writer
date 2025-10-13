@@ -199,11 +199,11 @@ pub use self::object::{
     TypedDict, Writer,
 };
 
+use self::writers::*;
+use crate::chunk::WriteSettings;
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
-
-use self::writers::*;
 
 /// A builder for a PDF file.
 ///
@@ -225,6 +225,14 @@ impl Pdf {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self::with_capacity(8 * 1024)
+    }
+
+    /// Create a new PDF with the given write settings.
+    pub fn new_with(write_settings: WriteSettings) -> Self {
+        let mut pdf = Self::new();
+        pdf.write_settings = write_settings;
+
+        pdf
     }
 
     /// Create a new PDF with the specified initial buffer capacity.
@@ -412,11 +420,11 @@ mod tests {
     }
 
     /// Return the slice of bytes written during the execution of `f`.
-    pub fn slice<F>(f: F) -> Vec<u8>
+    pub fn slice<F>(f: F, write_settings: WriteSettings) -> Vec<u8>
     where
         F: FnOnce(&mut Pdf),
     {
-        let mut w = Pdf::new();
+        let mut w = Pdf::new_with(write_settings);
         let start = w.len();
         f(&mut w);
         let end = w.len();
@@ -425,12 +433,16 @@ mod tests {
     }
 
     /// Return the slice of bytes written for an object.
-    pub fn slice_obj<F>(f: F) -> Vec<u8>
+    pub fn slice_obj<F>(f: F, write_settings: WriteSettings) -> Vec<u8>
     where
         F: FnOnce(Obj<'_>),
     {
-        let buf = slice(|w| f(w.indirect(Ref::new(1))));
-        buf[8..buf.len() - 9].to_vec()
+        let buf = slice(|w| f(w.indirect(Ref::new(1))), write_settings);
+        if write_settings.pretty {
+            buf[8..buf.len() - 9].to_vec()
+        } else {
+            buf[8..buf.len() - 8].to_vec()
+        }
     }
 
     #[test]
