@@ -1745,6 +1745,7 @@ mod tests {
         let mut content = Content::new_with(WriteSettings { pretty: false });
 
         content.set_font(Name(b"F1"), 12.0);
+        content.set_font(Name(b"F2"), 15.0);
         content.begin_text();
         content.show_positioned().items();
         content
@@ -1759,7 +1760,7 @@ mod tests {
 
         assert_eq!(
             content.finish().into_vec(),
-            b"/F1 12 Tf\nBT\n[]TJ\n[(AB)2(CD)4(EF)]TJ\nET"
+            b"/F1 12 Tf\n/F2 15 Tf\nBT\n[]TJ\n[(AB)2(CD)4(EF)]TJ\nET"
         );
     }
     #[test]
