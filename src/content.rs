@@ -109,7 +109,12 @@ impl<'a> Operation<'a> {
                 true
             }
         } else {
-            false
+            if self.write_settings.pretty {
+                self.buf.push(b'\n');
+                false
+            } else {
+                true
+            }
         };
 
         self.first = false;
@@ -126,9 +131,14 @@ impl Drop for Operation<'_> {
             {
                 self.buf.push(b' ');
             }
+        } else {
+            if self.write_settings.pretty
+                || self.buf.last().is_some_and(|b| !is_delimiter_character(*b))
+            {
+                self.buf.push(b'\n');
+            }
         }
         self.buf.extend(self.op.as_bytes());
-        self.buf.push(b'\n');
     }
 }
 
@@ -1760,7 +1770,7 @@ mod tests {
 
         assert_eq!(
             content.finish().into_vec(),
-            b"/F1 12 Tf\n/F2 15 Tf\nBT\n[]TJ\n[(AB)2(CD)4(EF)]TJ\nET"
+            b"/F1 12 Tf/F2 15 Tf\nBT[]TJ[(AB)2(CD)4(EF)]TJ\nET"
         );
     }
     #[test]
