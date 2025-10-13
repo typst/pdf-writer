@@ -298,7 +298,7 @@ impl Pdf {
     ///
     /// Panics if any indirect reference id was used twice.
     pub fn finish(self) -> Vec<u8> {
-        let Chunk { mut buf, mut offsets, settings } = self.chunk;
+        let Chunk { mut buf, mut offsets, write_settings } = self.chunk;
 
         offsets.sort();
 
@@ -346,7 +346,7 @@ impl Pdf {
         // Write the trailer dictionary.
         buf.extend(b"trailer\n");
 
-        let mut trailer = Obj::direct(&mut buf, 0, settings, false).dict();
+        let mut trailer = Obj::direct(&mut buf, 0, write_settings, false).dict();
         trailer.pair(Name(b"Size"), xref_len);
 
         if let Some(catalog_id) = self.catalog_id {

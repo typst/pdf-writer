@@ -603,7 +603,7 @@ pub struct Obj<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
-    settings: WriteSettings,
+    write_settings: WriteSettings,
     needs_padding: bool,
 }
 
@@ -613,28 +613,32 @@ impl<'a> Obj<'a> {
     pub(crate) fn direct(
         buf: &'a mut Buf,
         indent: u8,
-        settings: WriteSettings,
+        write_settings: WriteSettings,
         needs_padding: bool,
     ) -> Self {
         Self {
             buf,
             indirect: false,
             indent,
-            settings,
+            write_settings,
             needs_padding,
         }
     }
 
     /// Start a new indirect object.
     #[inline]
-    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref, settings: WriteSettings) -> Self {
+    pub(crate) fn indirect(
+        buf: &'a mut Buf,
+        id: Ref,
+        write_settings: WriteSettings,
+    ) -> Self {
         buf.push_int(id.get());
         buf.extend(b" 0 obj\n");
         Self {
             buf,
             indirect: true,
             indent: 0,
-            settings,
+            write_settings,
             needs_padding: false,
         }
     }
@@ -650,7 +654,7 @@ impl<'a> Obj<'a> {
         if self.indirect {
             self.buf.extend(b"\nendobj\n");
 
-            if self.settings.pretty {
+            if self.write_settings.pretty {
                 self.buf.extend(b"\n");
             }
         }
@@ -720,7 +724,7 @@ writer!(Array: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent,
-        settings: obj.settings,
+        settings: obj.write_settings,
         len: 0,
     }
 });
@@ -880,7 +884,7 @@ writer!(Dict: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent.saturating_add(2),
-        settings: obj.settings,
+        settings: obj.write_settings,
         len: 0,
     }
 });
