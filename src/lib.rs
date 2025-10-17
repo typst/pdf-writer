@@ -304,14 +304,14 @@ impl Pdf {
         trailer_data.write_into_dict(&mut trailer, xref_len);
         trailer.finish();
 
-        finish_trailer(buf, xref_offset)
+        finish_trailer(buf, xref_offset, &[b'\n'])
     }
 
     /// TODO
     pub fn finish_with_xref_stream(
         self,
         xref_id: Ref,
-        hook: Option<Box<dyn FnOnce(&[u8]) -> (Vec<u8>, Filter)>>,
+        hook: Option<Box<dyn FnOnce(&[u8]) -> (Vec<u8>, XRefFilter)>>,
     ) -> Vec<u8> {
         let Chunk { mut buf, mut offsets } = self.chunk;
         let trailer_data = self.trailer_data;
@@ -336,7 +336,18 @@ impl Pdf {
         stream.pair(Name(b"Type"), Name(b"XRef"));
 
         if let Some(filter) = filter {
-            stream.filter(filter);
+            match filter {
+                XRefFilter::Single(filter) => {
+                    stream.filter(filter);
+                }
+                XRefFilter::Multiple(filters) => {
+                    let mut arr = stream.insert(Name(b"Filter")).array();
+                    
+                    for filter in filters {
+                        arr.item(filter.to_name());
+                    }
+                }
+            }
         }
 
         trailer_data.write_into_dict(stream.deref_mut(), xref_len);
@@ -350,13 +361,22 @@ impl Pdf {
 
         stream.finish();
 
-        finish_trailer(buf, xref_offset)
+        finish_trailer(buf, xref_offset, &[])
     }
 }
 
-fn finish_trailer(mut buf: Buf, xref_offset: usize) -> Vec<u8> {
+/// The filters used for the xref stream.
+pub enum XRefFilter {
+    /// A single filter.
+    Single(Filter),
+    /// An array of filters.
+    Multiple(Vec<Filter>),
+}
+
+fn finish_trailer(mut buf: Buf, xref_offset: usize, pad: &[u8]) -> Vec<u8> {
+    buf.extend(pad);
     // Write startxref pointing to the xref stream
-    buf.extend(b"\nstartxref\n");
+    buf.extend(b"startxref\n");
     write!(buf.inner, "{}", xref_offset).unwrap();
 
     // Write EOF marker
@@ -475,6 +495,7 @@ impl XRefStreamWriter {
     fn write(&mut self, entry_type: u8, offset: usize, gen_number: u16) {
         let offset_bytes = (offset as u64).to_be_bytes();
 
+        let start = self.buf.len();
         self.buf.push(entry_type);
         self.buf.extend(
             offset_bytes
@@ -482,6 +503,7 @@ impl XRefStreamWriter {
                 .skip(offset_bytes.len() - self.field_width as usize),
         );
         self.buf.extend_from_slice(&gen_number.to_be_bytes());
+        eprintln!("{:?}", &self.buf[start..]);
     }
 }
 
@@ -658,5 +680,25 @@ mod tests {
         assert_eq!(determine_field_width(u16::MAX as usize), 2);
         assert_eq!(determine_field_width(u16::MAX as usize + 1), 3);
         assert_eq!(determine_field_width(u32::MAX as usize), 4);
+    }
+
+    #[test]
+    fn test_xref_stream() {
+        let mut w = Pdf::new();
+        w.indirect(Ref::new(1)).primitive(1);
+        w.indirect(Ref::new(2)).primitive(2);
+        w.indirect(Ref::new(5)).primitive(5);
+        test!(
+            w.finish_with_xref_stream(Ref::new(6), None),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"1 0 obj\n1\nendobj\n",
+            b"2 0 obj\n2\nendobj\n",
+            b"5 0 obj\n5\nendobj\n",
+            b"6 0 obj\n<<\n  /Length 28\n  /Type /XRef\n  /Size 7\n  /W [1 1 2]\n>>\nstream",
+            // [0, 3, 255, 255], [1, 16, 0, 0], [1, 34, 0, 0], [0, 4, 0, 0], [0, 0, 0, 0], [1, 52, 0, 0], [1, 70, 0, 0]
+            b"\x00\x03\xFF\xFF\x01\x10\x00\x00\x01\x22\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x01\x34\x00\x00\x01\x46\x00\x00",
+            b"endstream\nendobj\n",
+            b"startxref\n70\n%%EOF",
+        )
     }
 }
