@@ -307,7 +307,25 @@ impl Pdf {
         finish_trailer(buf, xref_offset, &[b'\n'])
     }
 
-    /// TODO
+    /// Write the cross-reference stream and file trailer and return the
+    /// underlying buffer. This method is functionally the same as [`Pdf::finish`], 
+    /// the difference being that the cross-reference information is written as a
+    /// cross-reference stream instead of a cross-reference table. Cross-reference stream
+    /// usually allow for smaller file sizes since they can also be compressed (see below),
+    /// but are only available from PDF 1.5 onwards. It is also necessary to call
+    /// this method instead of [`Pdf::finish`] in case object stream are used anywhere
+    /// in the document.
+    /// 
+    /// `xref_id` will be the object identifier used for the cross-reference stream. As in other
+    /// cases, the identifier needs to be unique throughout the whole document. 
+    /// 
+    /// In addition to that, you can optionally pass a closure to the `hook` parameter: The
+    /// input of the closure will be the raw content of the xref stream, and the output should be
+    /// the filtered as well as a single filter or a lists of filter that need to be applied to
+    /// unfilter the data. In case you don't want to apply additional compression, you can simply
+    /// pass `None` to the closure.
+    ///
+    /// Panics if any indirect reference id was used twice.
     pub fn finish_with_xref_stream(
         self,
         xref_id: Ref,
