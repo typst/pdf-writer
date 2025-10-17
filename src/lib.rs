@@ -342,7 +342,7 @@ impl Pdf {
                 }
                 XRefFilter::Multiple(filters) => {
                     let mut arr = stream.insert(Name(b"Filter")).array();
-                    
+
                     for filter in filters {
                         arr.item(filter.to_name());
                     }
@@ -495,7 +495,6 @@ impl XRefStreamWriter {
     fn write(&mut self, entry_type: u8, offset: usize, gen_number: u16) {
         let offset_bytes = (offset as u64).to_be_bytes();
 
-        let start = self.buf.len();
         self.buf.push(entry_type);
         self.buf.extend(
             offset_bytes
@@ -503,7 +502,6 @@ impl XRefStreamWriter {
                 .skip(offset_bytes.len() - self.field_width as usize),
         );
         self.buf.extend_from_slice(&gen_number.to_be_bytes());
-        eprintln!("{:?}", &self.buf[start..]);
     }
 }
 
@@ -699,6 +697,38 @@ mod tests {
             b"\x00\x03\xFF\xFF\x01\x10\x00\x00\x01\x22\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x01\x34\x00\x00\x01\x46\x00\x00",
             b"endstream\nendobj\n",
             b"startxref\n70\n%%EOF",
+        )
+    }
+
+    #[test]
+    fn test_xref_stream_single_filter() {
+        let mut w = Pdf::new();
+        w.indirect(Ref::new(1)).primitive(1);
+        test!(
+            w.finish_with_xref_stream(Ref::new(2), Some(Box::new(|_| (b"ABCDEFGH".to_vec(), XRefFilter::Single(Filter::FlateDecode))))),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"1 0 obj\n1\nendobj\n",
+            b"2 0 obj\n<<\n  /Length 8\n  /Type /XRef\n  /Filter /FlateDecode\n  /Size 3\n  /W [1 1 2]\n>>\nstream",
+            // [0, 0, 255, 255], [1, 16, 0, 0], [1, 34, 0, 0]
+            b"ABCDEFGH",
+            b"endstream\nendobj\n",
+            b"startxref\n34\n%%EOF",
+        )
+    }
+
+    #[test]
+    fn test_xref_stream_multiple_filters() {
+        let mut w = Pdf::new();
+        w.indirect(Ref::new(1)).primitive(1);
+        test!(
+            w.finish_with_xref_stream(Ref::new(2), Some(Box::new(|_| (b"ABCDEFGH".to_vec(), XRefFilter::Multiple(vec![Filter::AsciiHexDecode, Filter::FlateDecode]))))),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"1 0 obj\n1\nendobj\n",
+            b"2 0 obj\n<<\n  /Length 8\n  /Type /XRef\n  /Filter [/ASCIIHexDecode /FlateDecode]\n  /Size 3\n  /W [1 1 2]\n>>\nstream",
+            // [0, 0, 255, 255], [1, 16, 0, 0], [1, 34, 0, 0]
+            b"ABCDEFGH",
+            b"endstream\nendobj\n",
+            b"startxref\n34\n%%EOF",
         )
     }
 }
