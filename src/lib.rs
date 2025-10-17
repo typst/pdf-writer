@@ -310,7 +310,7 @@ impl Pdf {
     /// Write the cross-reference stream and file trailer and return the
     /// underlying buffer. This method is functionally the same as [`Pdf::finish`],
     /// the difference being that the cross-reference information is written as a
-    /// cross-reference stream instead of a cross-reference table. Cross-reference stream
+    /// cross-reference stream instead of a cross-reference table. Cross-reference streams
     /// usually allow for smaller file sizes since they can also be compressed (see below),
     /// but are only available from PDF 1.5 onwards. It is also necessary to call
     /// this method instead of [`Pdf::finish`] in case object stream are used anywhere
