@@ -731,4 +731,26 @@ mod tests {
             b"startxref\n34\n%%EOF",
         )
     }
+
+    #[test]
+    fn test_xref_width2() {
+        let mut w = Pdf::new();
+        w.stream(Ref::new(1), &[b'0'; 256]);
+        w.indirect(Ref::new(2)).primitive(1);
+        test!(
+            w.finish_with_xref_stream(Ref::new(3), None),
+            b"%PDF-1.7\n%\x80\x80\x80\x80\n",
+            b"1 0 obj\n<<\n  /Length 256\n>>\nstream",
+            b"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000\
+            000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\
+            000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+            b"endstream\nendobj\n",
+            b"2 0 obj\n1\nendobj\n",
+            b"3 0 obj\n<<\n  /Length 20\n  /Type /XRef\n  /Size 4\n  /W [1 2 2]\n>>\nstream",
+            // [0, 0, 0, 255, 255], [1, 0, 16, 0, 0], [1, 0, 34, 0, 0], [1, 1, 32, 0, 0]
+            b"\x00\x00\x00\xFF\xFF\x01\x00\x10\x00\x00\x01\x01\x46\x00\x00\x01\x01\x58\x00\x00",
+            b"endstream\nendobj\n",
+            b"startxref\n344\n%%EOF",
+        )
+    }
 }
