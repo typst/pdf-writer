@@ -53,7 +53,6 @@ impl Chunk {
     pub fn new_with(write_settings: WriteSettings) -> Self {
         let mut chunk = Self::new();
         chunk.write_settings = write_settings;
-
         chunk
     }
 
