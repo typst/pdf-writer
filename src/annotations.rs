@@ -801,7 +801,7 @@ mod tests {
                     w.annotation(Ref::new(1)).rect(Rect::new(0.0, 0.0, 1.0, 1.0));
                     w.annotation(Ref::new(2)).rect(Rect::new(1.0, 1.0, 0.0, 0.0));
                 },
-                WriteSettings::default()
+                Settings::default()
             ),
             b"1 0 obj",
             b"<<",
