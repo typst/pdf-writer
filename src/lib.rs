@@ -323,7 +323,7 @@ impl Pdf {
     /// input of the closure will be the raw content of the xref stream, and the output should be
     /// the filtered data as well as a single filter or a lists of filters that need to be applied to
     /// unfilter the data. In case you don't want to apply additional compression, you can simply
-    /// pass `None` to the closure.
+    /// pass `None` as the hook.
     ///
     /// Panics if any indirect reference id was used twice.
     pub fn finish_with_xref_stream(
