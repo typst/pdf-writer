@@ -55,7 +55,6 @@ impl Chunk {
     pub fn with_settings(settings: Settings) -> Self {
         let mut chunk = Self::new();
         chunk.settings = settings;
-
         chunk
     }
 

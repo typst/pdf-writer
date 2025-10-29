@@ -124,7 +124,7 @@ impl Drop for Operation<'_> {
     fn drop(&mut self) {
         let pad_byte = if self.first { b'\n' } else { b' ' };
 
-        // For example, in case we previously wrote a BT operator and then a [] operand in the
+        // For example, in case we previously wrote a BT operator and then a `[]` operand in the
         // next operation, we don't need to pad them.
         if (self.settings.pretty
             || self.buf.last().is_some_and(|b| !is_delimiter_character(*b)))
