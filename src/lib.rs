@@ -203,7 +203,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
-use crate::chunk::WriteSettings;
+use crate::chunk::Settings;
 
 use self::writers::*;
 
@@ -230,9 +230,9 @@ impl Pdf {
     }
 
     /// Create a new PDF with the given write settings.
-    pub fn with_settings(write_settings: WriteSettings) -> Self {
+    pub fn with_settings(settings: Settings) -> Self {
         let mut pdf = Self::new();
-        pdf.write_settings = write_settings;
+        pdf.settings = settings;
 
         pdf
     }
@@ -308,7 +308,7 @@ impl Pdf {
     ///
     /// Panics if any indirect reference id was used twice.
     pub fn finish(self) -> Vec<u8> {
-        let Chunk { mut buf, mut offsets, write_settings } = self.chunk;
+        let Chunk { mut buf, mut offsets, settings } = self.chunk;
 
         offsets.sort();
 
@@ -356,7 +356,7 @@ impl Pdf {
         // Write the trailer dictionary.
         buf.extend(b"trailer\n");
 
-        let mut trailer = Obj::direct(&mut buf, 0, write_settings, false).dict();
+        let mut trailer = Obj::direct(&mut buf, 0, settings, false).dict();
         trailer.pair(Name(b"Size"), xref_len);
 
         if let Some(catalog_id) = self.catalog_id {
@@ -422,11 +422,11 @@ mod tests {
     }
 
     /// Return the slice of bytes written during the execution of `f`.
-    pub fn slice<F>(f: F, write_settings: WriteSettings) -> Vec<u8>
+    pub fn slice<F>(f: F, settings: Settings) -> Vec<u8>
     where
         F: FnOnce(&mut Pdf),
     {
-        let mut w = Pdf::with_settings(write_settings);
+        let mut w = Pdf::with_settings(settings);
         let start = w.len();
         f(&mut w);
         let end = w.len();
@@ -435,12 +435,12 @@ mod tests {
     }
 
     /// Return the slice of bytes written for an object.
-    pub fn slice_obj<F>(f: F, write_settings: WriteSettings) -> Vec<u8>
+    pub fn slice_obj<F>(f: F, settings: Settings) -> Vec<u8>
     where
         F: FnOnce(Obj<'_>),
     {
-        let buf = slice(|w| f(w.indirect(Ref::new(1))), write_settings);
-        if write_settings.pretty {
+        let buf = slice(|w| f(w.indirect(Ref::new(1))), settings);
+        if settings.pretty {
             buf[8..buf.len() - 9].to_vec()
         } else {
             buf[8..buf.len() - 8].to_vec()

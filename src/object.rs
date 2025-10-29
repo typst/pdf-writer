@@ -4,7 +4,7 @@ use std::mem::ManuallyDrop;
 use std::num::NonZeroI32;
 
 use super::*;
-use crate::chunk::WriteSettings;
+use crate::chunk::Settings;
 
 /// A primitive PDF object.
 pub trait Primitive {
@@ -608,7 +608,7 @@ pub struct Obj<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
-    write_settings: WriteSettings,
+    settings: Settings,
     needs_padding: bool,
 }
 
@@ -618,32 +618,28 @@ impl<'a> Obj<'a> {
     pub(crate) fn direct(
         buf: &'a mut Buf,
         indent: u8,
-        write_settings: WriteSettings,
+        settings: Settings,
         needs_padding: bool,
     ) -> Self {
         Self {
             buf,
             indirect: false,
             indent,
-            write_settings,
+            settings,
             needs_padding,
         }
     }
 
     /// Start a new indirect object.
     #[inline]
-    pub(crate) fn indirect(
-        buf: &'a mut Buf,
-        id: Ref,
-        write_settings: WriteSettings,
-    ) -> Self {
+    pub(crate) fn indirect(buf: &'a mut Buf, id: Ref, settings: Settings) -> Self {
         buf.push_int(id.get());
         buf.extend(b" 0 obj\n");
         Self {
             buf,
             indirect: true,
             indent: 0,
-            write_settings,
+            settings,
             needs_padding: false,
         }
     }
@@ -671,7 +667,7 @@ impl<'a> Obj<'a> {
         if self.indirect {
             self.buf.extend(b"\nendobj\n");
 
-            if self.write_settings.pretty {
+            if self.settings.pretty {
                 self.buf.extend(b"\n");
             }
         }
@@ -734,7 +730,7 @@ pub struct Array<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
-    settings: WriteSettings,
+    settings: Settings,
     len: i32,
 }
 
@@ -744,7 +740,7 @@ writer!(Array: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent,
-        settings: obj.write_settings,
+        settings: obj.settings,
         len: 0,
     }
 });
@@ -896,7 +892,7 @@ pub struct Dict<'a> {
     buf: &'a mut Buf,
     indirect: bool,
     indent: u8,
-    settings: WriteSettings,
+    settings: Settings,
     len: i32,
 }
 
@@ -906,7 +902,7 @@ writer!(Dict: |obj| {
         buf: obj.buf,
         indirect: obj.indirect,
         indent: obj.indent.saturating_add(2),
-        settings: obj.write_settings,
+        settings: obj.settings,
         len: 0,
     }
 });

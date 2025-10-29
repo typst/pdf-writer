@@ -2,7 +2,7 @@ use super::*;
 
 /// Settings that should be applied while writing a PDF file.
 #[derive(Debug, Clone, Copy)]
-pub struct WriteSettings {
+pub struct Settings {
     /// Whether to enable pretty-writing. In this case, `pdf-writer` will serialize PDFs in such
     /// a way that they are easier to read by humans by applying more padding and indentation, at
     /// the cost of larger file sizes. If disabled, `pdf-writer` will serialize objects as compactly
@@ -10,7 +10,7 @@ pub struct WriteSettings {
     pub pretty: bool,
 }
 
-impl Default for WriteSettings {
+impl Default for Settings {
     fn default() -> Self {
         Self { pretty: true }
     }
@@ -30,7 +30,7 @@ impl Default for WriteSettings {
 pub struct Chunk {
     pub(crate) buf: Buf,
     pub(crate) offsets: Vec<(Ref, usize)>,
-    pub(crate) write_settings: WriteSettings,
+    pub(crate) settings: Settings,
 }
 
 impl Chunk {
@@ -45,14 +45,14 @@ impl Chunk {
         Self {
             buf: Buf::with_capacity(capacity),
             offsets: vec![],
-            write_settings: Default::default(),
+            settings: Default::default(),
         }
     }
 
     /// Create a new chunk with the given write settings.
-    pub fn with_settings(write_settings: WriteSettings) -> Self {
+    pub fn with_settings(settings: Settings) -> Self {
         let mut chunk = Self::new();
-        chunk.write_settings = write_settings;
+        chunk.settings = settings;
 
         chunk
     }
@@ -182,7 +182,7 @@ impl Chunk {
     /// Start writing an indirectly referenceable object.
     pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
         self.offsets.push((id, self.buf.len()));
-        Obj::indirect(&mut self.buf, id, self.write_settings)
+        Obj::indirect(&mut self.buf, id, self.settings)
     }
 
     /// Start writing an indirectly referenceable stream.

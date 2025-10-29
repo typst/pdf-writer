@@ -1,11 +1,11 @@
 use super::*;
-use crate::chunk::WriteSettings;
+use crate::chunk::Settings;
 use crate::object::{is_delimiter_character, TextStrLike};
 
 /// A builder for a content stream.
 pub struct Content {
     buf: Buf,
-    write_settings: WriteSettings,
+    settings: Settings,
     q_depth: usize,
 }
 
@@ -19,9 +19,9 @@ impl Content {
     }
 
     /// Create a new content stream with the given write settings.
-    pub fn with_settings(write_settings: WriteSettings) -> Self {
+    pub fn with_settings(settings: Settings) -> Self {
         let mut content = Self::new();
-        content.write_settings = write_settings;
+        content.settings = settings;
 
         content
     }
@@ -31,14 +31,14 @@ impl Content {
         Self {
             buf: Buf::with_capacity(capacity),
             q_depth: 0,
-            write_settings: Default::default(),
+            settings: Default::default(),
         }
     }
 
     /// Start writing an arbitrary operation.
     #[inline]
     pub fn op<'a>(&'a mut self, operator: &'a str) -> Operation<'a> {
-        Operation::start(&mut self.buf, operator, self.write_settings)
+        Operation::start(&mut self.buf, operator, self.settings)
     }
 
     /// Return the buffer of the content stream.
@@ -65,17 +65,13 @@ pub struct Operation<'a> {
     buf: &'a mut Buf,
     op: &'a str,
     first: bool,
-    write_settings: WriteSettings,
+    settings: Settings,
 }
 
 impl<'a> Operation<'a> {
     #[inline]
-    pub(crate) fn start(
-        buf: &'a mut Buf,
-        op: &'a str,
-        write_settings: WriteSettings,
-    ) -> Self {
-        Self { buf, op, first: true, write_settings }
+    pub(crate) fn start(buf: &'a mut Buf, op: &'a str, settings: Settings) -> Self {
+        Self { buf, op, first: true, settings }
     }
 
     /// Write a primitive operand.
@@ -108,7 +104,7 @@ impl<'a> Operation<'a> {
         // Similarly to how chunks are handled, we always add padding when pretty-writing
         // is enabled, and only lazily add padding depending on whether it's really necessary
         // if not.
-        let needs_padding = if self.write_settings.pretty {
+        let needs_padding = if self.settings.pretty {
             if !self.buf.is_empty() {
                 self.buf.push(pad_byte);
             }
@@ -119,7 +115,7 @@ impl<'a> Operation<'a> {
         };
 
         self.first = false;
-        Obj::direct(self.buf, 0, self.write_settings, needs_padding)
+        Obj::direct(self.buf, 0, self.settings, needs_padding)
     }
 }
 
@@ -130,7 +126,7 @@ impl Drop for Operation<'_> {
 
         // For example, in case we previously wrote a BT operator and then a [] operand in the
         // next operation, we don't need to pad them.
-        if (self.write_settings.pretty
+        if (self.settings.pretty
             || self.buf.last().is_some_and(|b| !is_delimiter_character(*b)))
             && !self.buf.is_empty()
         {
@@ -1751,7 +1747,7 @@ mod tests {
 
     #[test]
     fn test_content_array_no_pretty() {
-        let mut content = Content::with_settings(WriteSettings { pretty: false });
+        let mut content = Content::with_settings(Settings { pretty: false });
 
         content.set_font(Name(b"F1"), 12.0);
         content.set_font(Name(b"F2"), 15.0);
@@ -1775,7 +1771,7 @@ mod tests {
 
     #[test]
     fn test_content_dict_no_pretty() {
-        let mut content = Content::with_settings(WriteSettings { pretty: false });
+        let mut content = Content::with_settings(Settings { pretty: false });
 
         let mut mc = content.begin_marked_content_with_properties(Name(b"Test"));
         let mut properties = mc.properties();

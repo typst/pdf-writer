@@ -19,7 +19,7 @@ macro_rules! test {
 #[cfg(test)]
 macro_rules! test_obj {
     (|$obj:ident| $write:expr, $($tts:tt)*) => {{
-        test!(crate::tests::slice_obj(|$obj| { $write; }, crate::WriteSettings::default()), $($tts)*)
+        test!(crate::tests::slice_obj(|$obj| { $write; }, crate::Settings::default()), $($tts)*)
     }}
 }
 
@@ -27,7 +27,7 @@ macro_rules! test_obj {
 #[cfg(test)]
 macro_rules! test_obj_no_pretty {
     (|$obj:ident| $write:expr, $($tts:tt)*) => {{
-        test!(crate::tests::slice_obj(|$obj| { $write; }, crate::WriteSettings { pretty: false }), $($tts)*)
+        test!(crate::tests::slice_obj(|$obj| { $write; }, crate::Settings { pretty: false }), $($tts)*)
     }}
 }
 
