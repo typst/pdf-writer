@@ -18,7 +18,7 @@ impl Content {
         Self::with_capacity(1024)
     }
 
-    /// Create a new content stream with the given write settings.
+    /// Create a new content stream with the given settings.
     pub fn with_settings(settings: Settings) -> Self {
         let mut content = Self::new();
         content.settings = settings;

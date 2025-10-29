@@ -229,7 +229,7 @@ impl Pdf {
         Self::with_capacity(8 * 1024)
     }
 
-    /// Create a new PDF with the given write settings.
+    /// Create a new PDF with the given settings.
     pub fn with_settings(settings: Settings) -> Self {
         let mut pdf = Self::new();
         pdf.settings = settings;
