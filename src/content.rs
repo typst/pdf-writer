@@ -19,7 +19,7 @@ impl Content {
     }
 
     /// Create a new content stream with the given write settings.
-    pub fn new_with(write_settings: WriteSettings) -> Self {
+    pub fn with_settings(write_settings: WriteSettings) -> Self {
         let mut content = Self::new();
         content.write_settings = write_settings;
 
@@ -1751,7 +1751,7 @@ mod tests {
 
     #[test]
     fn test_content_array_no_pretty() {
-        let mut content = Content::new_with(WriteSettings { pretty: false });
+        let mut content = Content::with_settings(WriteSettings { pretty: false });
 
         content.set_font(Name(b"F1"), 12.0);
         content.set_font(Name(b"F2"), 15.0);
@@ -1775,7 +1775,7 @@ mod tests {
 
     #[test]
     fn test_content_dict_no_pretty() {
-        let mut content = Content::new_with(WriteSettings { pretty: false });
+        let mut content = Content::with_settings(WriteSettings { pretty: false });
 
         let mut mc = content.begin_marked_content_with_properties(Name(b"Test"));
         let mut properties = mc.properties();

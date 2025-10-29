@@ -230,7 +230,7 @@ impl Pdf {
     }
 
     /// Create a new PDF with the given write settings.
-    pub fn new_with(write_settings: WriteSettings) -> Self {
+    pub fn with_settings(write_settings: WriteSettings) -> Self {
         let mut pdf = Self::new();
         pdf.write_settings = write_settings;
 
@@ -426,7 +426,7 @@ mod tests {
     where
         F: FnOnce(&mut Pdf),
     {
-        let mut w = Pdf::new_with(write_settings);
+        let mut w = Pdf::with_settings(write_settings);
         let start = w.len();
         f(&mut w);
         let end = w.len();

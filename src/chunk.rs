@@ -50,7 +50,7 @@ impl Chunk {
     }
 
     /// Create a new chunk with the given write settings.
-    pub fn new_with(write_settings: WriteSettings) -> Self {
+    pub fn with_settings(write_settings: WriteSettings) -> Self {
         let mut chunk = Self::new();
         chunk.write_settings = write_settings;
 
