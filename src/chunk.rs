@@ -3,11 +3,11 @@ use super::*;
 /// Settings that should be applied while writing a PDF file.
 #[derive(Debug, Clone, Copy)]
 pub struct Settings {
-    /// Whether to enable pretty-writing. In this case, `pdf-writer` will 
-    /// serialize PDFs in such a way that they are easier to read by humans by 
+    /// Whether to enable pretty-writing. In this case, `pdf-writer` will
+    /// serialize PDFs in such a way that they are easier to read by humans by
     /// applying more padding and indentation, at the cost of larger file sizes.
-    /// If disabled, `pdf-writer` will serialize objects as compactly as 
-    /// possible, leading to better file sizes but making it harder to inspect 
+    /// If disabled, `pdf-writer` will serialize objects as compactly as
+    /// possible, leading to better file sizes but making it harder to inspect
     /// the file manually.
     pub pretty: bool,
 }
