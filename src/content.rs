@@ -22,7 +22,6 @@ impl Content {
     pub fn with_settings(settings: Settings) -> Self {
         let mut content = Self::new();
         content.settings = settings;
-
         content
     }
 

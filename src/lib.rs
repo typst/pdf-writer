@@ -233,7 +233,6 @@ impl Pdf {
     pub fn with_settings(settings: Settings) -> Self {
         let mut pdf = Self::new();
         pdf.settings = settings;
-
         pdf
     }
 
