@@ -9,7 +9,7 @@ pub struct Settings {
     /// If disabled, `pdf-writer` will serialize objects as compactly as
     /// possible, leading to better file sizes but making it harder to inspect
     /// the file manually.
-    /// 
+    ///
     /// _Default value_: `true`.
     pub pretty: bool,
 }
