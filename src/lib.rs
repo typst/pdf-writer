@@ -308,28 +308,52 @@ impl Pdf {
     }
 
     /// Write the cross-reference stream and file trailer and return the
-    /// underlying buffer. This method is functionally the same as [`Pdf::finish`],
-    /// the difference being that the cross-reference information is written as a
-    /// cross-reference stream instead of a cross-reference table. Cross-reference streams
-    /// usually allow for smaller file sizes since they can also be compressed (see below),
-    /// but are only available from PDF 1.5 onwards. It is also necessary to call
-    /// this method instead of [`Pdf::finish`] in case object stream are used anywhere
-    /// in the document.
+    /// underlying buffer. This method is functionally the same as
+    /// [`Pdf::finish`], the difference being that the cross-reference
+    /// information is written as a cross-reference stream instead of a
+    /// cross-reference table. Cross-reference streams usually allow for
+    /// smaller file sizes since they can also be compressed (see
+    /// [`Pdf::finish_with_xref_stream_and_filter`]),
+    /// but are only available from PDF 1.5 onwards. It is also necessary
+    /// to call this method instead of [`Pdf::finish`] in case object stream
+    /// are used anywhere in the document since normal xref tables do not
+    /// support object streams.
     ///
-    /// `xref_id` will be the object identifier used for the cross-reference stream. As in other
-    /// cases, the identifier needs to be unique throughout the whole document.
-    ///
-    /// In addition to that, you can optionally pass a closure to the `hook` parameter: The
-    /// input of the closure will be the raw content of the xref stream, and the output should be
-    /// the filtered data as well as a single filter or a lists of filters that need to be applied to
-    /// unfilter the data. In case you don't want to apply additional compression, you can simply
-    /// pass `None` as the hook.
+    /// `xref_id` will be the object identifier used for the cross-reference
+    /// stream. As in other cases, the identifier needs to be unique throughout
+    /// the whole document.
     ///
     /// Panics if any indirect reference id was used twice.
-    pub fn finish_with_xref_stream(
+    pub fn finish_with_xref_stream(self, xref_id: Ref) -> Vec<u8> {
+        self.finish_with_xref_stream_inner(xref_id, |buf| (buf, None))
+    }
+
+    /// Write the cross-reference stream and file trailer and return the
+    /// underlying buffer.
+    ///
+    /// This method is equivalent to [`Pdf::finish_with_xref_stream`], except
+    /// that it allows you to apply one or multiple filters to the xref stream
+    /// via the `filter` closure. The input of the closure will be the raw
+    /// content of the xref stream, and the output should be the filtered data
+    /// as well as a single filter or a  list of filters that need to be
+    /// applied to unfilter the data in the correct order.
+    pub fn finish_with_xref_stream_and_filter<
+        T: FnOnce(&[u8]) -> (Vec<u8>, XRefFilter),
+    >(
         self,
         xref_id: Ref,
-        hook: Option<Box<dyn FnOnce(&[u8]) -> (Vec<u8>, XRefFilter)>>,
+        filter: T,
+    ) -> Vec<u8> {
+        self.finish_with_xref_stream_inner(xref_id, |buf| {
+            let (xref_data, filter) = filter(&buf);
+            (xref_data, Some(filter))
+        })
+    }
+
+    fn finish_with_xref_stream_inner(
+        self,
+        xref_id: Ref,
+        filter: impl FnOnce(Vec<u8>) -> (Vec<u8>, Option<XRefFilter>),
     ) -> Vec<u8> {
         let Chunk { mut buf, mut offsets } = self.chunk;
         let trailer_data = self.trailer_data;
@@ -342,12 +366,7 @@ impl Pdf {
         let mut writer = XRefStreamWriter::new(field_width);
         let xref_len = write_offsets(offsets, &mut writer);
 
-        let (xref_data, filter) = if let Some(hook) = hook {
-            let (xref_data, filter) = hook(&writer.buf);
-            (xref_data, Some(filter))
-        } else {
-            (writer.buf, None)
-        };
+        let (xref_data, filter) = filter(writer.buf);
 
         let mut stream = Stream::start(Obj::indirect(&mut buf, xref_id), &xref_data);
 
@@ -705,7 +724,7 @@ mod tests {
         w.indirect(Ref::new(2)).primitive(2);
         w.indirect(Ref::new(5)).primitive(5);
         test!(
-            w.finish_with_xref_stream(Ref::new(6), None),
+            w.finish_with_xref_stream(Ref::new(6)),
             b"%PDF-1.7\n%\x80\x80\x80\x80\n",
             b"1 0 obj\n1\nendobj\n",
             b"2 0 obj\n2\nendobj\n",
@@ -723,7 +742,7 @@ mod tests {
         let mut w = Pdf::new();
         w.indirect(Ref::new(1)).primitive(1);
         test!(
-            w.finish_with_xref_stream(Ref::new(2), Some(Box::new(|_| (b"ABCDEFGH".to_vec(), XRefFilter::Single(Filter::FlateDecode))))),
+            w.finish_with_xref_stream_and_filter(Ref::new(2), |_| (b"ABCDEFGH".to_vec(), XRefFilter::Single(Filter::FlateDecode))),
             b"%PDF-1.7\n%\x80\x80\x80\x80\n",
             b"1 0 obj\n1\nendobj\n",
             b"2 0 obj\n<<\n  /Length 8\n  /Type /XRef\n  /Filter /FlateDecode\n  /Size 3\n  /W [1 1 2]\n>>\nstream",
@@ -739,7 +758,7 @@ mod tests {
         let mut w = Pdf::new();
         w.indirect(Ref::new(1)).primitive(1);
         test!(
-            w.finish_with_xref_stream(Ref::new(2), Some(Box::new(|_| (b"ABCDEFGH".to_vec(), XRefFilter::Multiple(vec![Filter::AsciiHexDecode, Filter::FlateDecode]))))),
+            w.finish_with_xref_stream_and_filter(Ref::new(2), |_| (b"ABCDEFGH".to_vec(), XRefFilter::Multiple(vec![Filter::AsciiHexDecode, Filter::FlateDecode]))),
             b"%PDF-1.7\n%\x80\x80\x80\x80\n",
             b"1 0 obj\n1\nendobj\n",
             b"2 0 obj\n<<\n  /Length 8\n  /Type /XRef\n  /Filter [/ASCIIHexDecode /FlateDecode]\n  /Size 3\n  /W [1 1 2]\n>>\nstream",
@@ -756,7 +775,7 @@ mod tests {
         w.stream(Ref::new(1), &[b'0'; 256]);
         w.indirect(Ref::new(2)).primitive(1);
         test!(
-            w.finish_with_xref_stream(Ref::new(3), None),
+            w.finish_with_xref_stream(Ref::new(3)),
             b"%PDF-1.7\n%\x80\x80\x80\x80\n",
             b"1 0 obj\n<<\n  /Length 256\n>>\nstream",
             b"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000\
