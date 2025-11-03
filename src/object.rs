@@ -5,17 +5,24 @@ use std::num::NonZeroI32;
 
 use super::*;
 use crate::chunk::Settings;
+use crate::object::sealed::Sealed;
 
-/// A primitive PDF object.
-pub trait Primitive {
-    /// Whether the primitive object starts with one of the PDF delimiter characters.
-    const STARTS_WITH_DELIMITER: bool;
+mod sealed {
+    use crate::Buf;
 
-    /// Write the object into a buffer.
-    fn write(self, buf: &mut Buf);
+    pub trait Sealed {
+        /// Whether the primitive object starts with one of the PDF delimiter characters.
+        const STARTS_WITH_DELIMITER: bool;
+
+        /// Write the object into a buffer.
+        fn write(self, buf: &mut Buf);
+    }
 }
 
-impl<T: Primitive> Primitive for &T
+/// A primitive PDF object.
+pub trait Primitive: Sealed {}
+
+impl<T: Sealed> Sealed for &T
 where
     T: Copy,
 {
@@ -27,7 +34,9 @@ where
     }
 }
 
-impl Primitive for bool {
+impl<T: Primitive> Primitive for &T where T: Copy {}
+
+impl Sealed for bool {
     const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
@@ -40,7 +49,9 @@ impl Primitive for bool {
     }
 }
 
-impl Primitive for i32 {
+impl Primitive for bool {}
+
+impl Sealed for i32 {
     const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
@@ -49,7 +60,9 @@ impl Primitive for i32 {
     }
 }
 
-impl Primitive for f32 {
+impl Primitive for i32 {}
+
+impl Sealed for f32 {
     const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
@@ -57,6 +70,8 @@ impl Primitive for f32 {
         buf.push_float(self);
     }
 }
+
+impl Primitive for f32 {}
 
 /// A string object (any byte sequence).
 ///
@@ -80,7 +95,7 @@ impl Str<'_> {
     }
 }
 
-impl Primitive for Str<'_> {
+impl Sealed for Str<'_> {
     const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
@@ -134,6 +149,8 @@ impl Primitive for Str<'_> {
     }
 }
 
+impl Primitive for Str<'_> {}
+
 /// A unicode text string object.
 ///
 /// This is written as a [`Str`] containing either bare ASCII (if possible) or a
@@ -146,7 +163,7 @@ impl Primitive for Str<'_> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TextStr<'a>(pub &'a str);
 
-impl Primitive for TextStr<'_> {
+impl Sealed for TextStr<'_> {
     const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
@@ -165,6 +182,8 @@ impl Primitive for TextStr<'_> {
         }
     }
 }
+
+impl Primitive for TextStr<'_> {}
 
 /// An identifier for the natural language in a section of a
 /// [`TextStrWithLang`].
@@ -233,7 +252,7 @@ impl LanguageIdentifier {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TextStrWithLang<'a, 'b>(pub &'b [(LanguageIdentifier, &'a str)]);
 
-impl<'a, 'b> Primitive for TextStrWithLang<'a, 'b> {
+impl<'a, 'b> Sealed for TextStrWithLang<'a, 'b> {
     const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
@@ -267,6 +286,8 @@ impl<'a, 'b> Primitive for TextStrWithLang<'a, 'b> {
         write_utf16be_text_str_footer(buf);
     }
 }
+
+impl Primitive for TextStrWithLang<'_, '_> {}
 
 fn write_utf16be_text_str_header(buf: &mut Buf) {
     buf.push(b'<');
@@ -311,7 +332,7 @@ impl<'a, 'b> TextStrLike for TextStrWithLang<'a, 'b> {}
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Name<'a>(pub &'a [u8]);
 
-impl Primitive for Name<'_> {
+impl Sealed for Name<'_> {
     const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
@@ -332,6 +353,8 @@ impl Primitive for Name<'_> {
         }
     }
 }
+
+impl Primitive for Name<'_> {}
 
 /// Regular characters are a PDF concept.
 fn is_regular_character(byte: u8) -> bool {
@@ -365,7 +388,7 @@ pub(crate) fn is_delimiter_character(byte: u8) -> bool {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Null;
 
-impl Primitive for Null {
+impl Sealed for Null {
     const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
@@ -373,6 +396,8 @@ impl Primitive for Null {
         buf.extend(b"null");
     }
 }
+
+impl Primitive for Null {}
 
 /// A reference to an indirect object.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -416,7 +441,7 @@ impl Ref {
     }
 }
 
-impl Primitive for Ref {
+impl Sealed for Ref {
     const STARTS_WITH_DELIMITER: bool = false;
 
     #[inline]
@@ -425,6 +450,8 @@ impl Primitive for Ref {
         buf.extend(b" 0 R");
     }
 }
+
+impl Primitive for Ref {}
 
 /// A rectangle, specified by two opposite corners.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -454,7 +481,7 @@ impl Rect {
     }
 }
 
-impl Primitive for Rect {
+impl Sealed for Rect {
     const STARTS_WITH_DELIMITER: bool = true;
 
     #[inline]
@@ -472,6 +499,8 @@ impl Primitive for Rect {
         buf.limits.register_array_len(4);
     }
 }
+
+impl Primitive for Rect {}
 
 /// A date, written as a text string.
 ///
@@ -571,7 +600,7 @@ impl Date {
     }
 }
 
-impl Primitive for Date {
+impl Sealed for Date {
     const STARTS_WITH_DELIMITER: bool = true;
 
     fn write(self, buf: &mut Buf) {
@@ -601,6 +630,8 @@ impl Primitive for Date {
         buf.push(b')');
     }
 }
+
+impl Primitive for Date {}
 
 /// Writer for an arbitrary object.
 #[must_use = "not consuming this leaves the writer in an inconsistent state"]
