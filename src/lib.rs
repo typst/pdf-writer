@@ -191,7 +191,7 @@ pub mod types {
 }
 
 pub use self::buf::{Buf, Limits};
-pub use self::chunk::Chunk;
+pub use self::chunk::{Chunk, Settings};
 pub use self::content::Content;
 pub use self::object::{
     Array, Date, Dict, Filter, Finish, LanguageIdentifier, Name, Null, Obj, Primitive,
@@ -221,15 +221,29 @@ pub struct Pdf {
 }
 
 impl Pdf {
-    /// Create a new PDF with the default buffer capacity (currently 8 KB).
+    /// Create a new PDF with the default settings and buffer capacity
+    /// (currently 8 KB).
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self::with_capacity(8 * 1024)
+        Self::with_settings(Settings::default())
     }
 
-    /// Create a new PDF with the specified initial buffer capacity.
+    /// Create a new PDF with the given settings and the default buffer capacity
+    /// (currently 8 KB).
+    pub fn with_settings(settings: Settings) -> Self {
+        Self::with_settings_and_capacity(settings, 8 * 1024)
+    }
+
+    /// Create a new PDF with the default settings and the specified initial
+    /// buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        let mut chunk = Chunk::with_capacity(capacity);
+        Self::with_settings_and_capacity(Settings::default(), capacity)
+    }
+
+    /// Create a new PDF with the given settings and the specified initial
+    /// buffer capacity.
+    pub fn with_settings_and_capacity(settings: Settings, capacity: usize) -> Self {
+        let mut chunk = Chunk::with_settings_and_capacity(settings, capacity);
         chunk.buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self {
             chunk,
@@ -298,7 +312,7 @@ impl Pdf {
     ///
     /// Panics if any indirect reference id was used twice.
     pub fn finish(self) -> Vec<u8> {
-        let Chunk { mut buf, mut offsets } = self.chunk;
+        let Chunk { mut buf, mut offsets, settings } = self.chunk;
 
         offsets.sort();
 
@@ -346,7 +360,7 @@ impl Pdf {
         // Write the trailer dictionary.
         buf.extend(b"trailer\n");
 
-        let mut trailer = Obj::direct(&mut buf, 0).dict();
+        let mut trailer = Obj::direct(&mut buf, 0, settings, false).dict();
         trailer.pair(Name(b"Size"), xref_len);
 
         if let Some(catalog_id) = self.catalog_id {
@@ -412,11 +426,11 @@ mod tests {
     }
 
     /// Return the slice of bytes written during the execution of `f`.
-    pub fn slice<F>(f: F) -> Vec<u8>
+    pub fn slice<F>(f: F, settings: Settings) -> Vec<u8>
     where
         F: FnOnce(&mut Pdf),
     {
-        let mut w = Pdf::new();
+        let mut w = Pdf::with_settings(settings);
         let start = w.len();
         f(&mut w);
         let end = w.len();
@@ -425,12 +439,16 @@ mod tests {
     }
 
     /// Return the slice of bytes written for an object.
-    pub fn slice_obj<F>(f: F) -> Vec<u8>
+    pub fn slice_obj<F>(f: F, settings: Settings) -> Vec<u8>
     where
         F: FnOnce(Obj<'_>),
     {
-        let buf = slice(|w| f(w.indirect(Ref::new(1))));
-        buf[8..buf.len() - 9].to_vec()
+        let buf = slice(|w| f(w.indirect(Ref::new(1))), settings);
+        if settings.pretty {
+            buf[8..buf.len() - 9].to_vec()
+        } else {
+            buf[8..buf.len() - 8].to_vec()
+        }
     }
 
     #[test]
