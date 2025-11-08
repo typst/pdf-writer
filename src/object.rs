@@ -678,13 +678,18 @@ impl<'a> Obj<'a> {
     /// Write a primitive object.
     #[inline]
     pub fn primitive<T: Primitive>(self, value: T) {
-        // Normally, we need to separate different PDF objects by a whitespace. the key to the
-        // optimizations applied here are explained in 7.2.3 in the PDF reference:
-        // > The delimiter characters (, ), <, >, [, ], /, and % are special. They
-        // > delimit syntactic entities such as arrays, names, and comments. Any of these
-        // > delimiters terminates the entity preceding it and is not included in the entity.
-        // Therefore, if either the previous byte is a delimiter character or the current token
-        // starts with one, we don't need to add a whitespace for padding.
+        // Usually, we need to separate different PDF objects by a whitespace.
+        // The key to the optimizations applied here are explained in 7.2.3 in
+        // the PDF reference:
+        //
+        // > The delimiter characters (, ), <, >, [, ], /, and % are special.
+        // > They delimit syntactic entities such as arrays, names, and
+        // > comments. Any of these delimiters terminates the entity preceding
+        // > it and is not included in the entity.
+        //
+        // Therefore, if either the previous byte is a delimiter character or
+        // the current token starts with one, we don't need to add a whitespace
+        // for padding.
 
         let ends_with_delimiter =
             self.buf.last().copied().is_some_and(is_delimiter_character);
@@ -704,8 +709,8 @@ impl<'a> Obj<'a> {
         }
     }
 
-    // Note: Arrays and dictionaries always start with a delimiter, so we don't need to do any case
-    // distinction, unlike in `primitive`.
+    // Note: Arrays and dictionaries always start with a delimiter, so we don't
+    // need to do any case distinction, unlike in `primitive`.
 
     /// Start writing an array.
     #[inline]

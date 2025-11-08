@@ -96,13 +96,14 @@ impl<'a> Operation<'a> {
     /// Start writing an arbitrary object operand.
     #[inline]
     pub fn obj(&mut self) -> Obj<'_> {
-        // In case we are writing the first object, we want a newline to separate it from
-        // previous operations (looks nicer). Otherwise, a space is sufficient.
+        // In case we are writing the first object, we want a newline to
+        // separate it from previous operations (looks nicer). Otherwise, a
+        // space is sufficient.
         let pad_byte = if self.first { b'\n' } else { b' ' };
 
-        // Similarly to how chunks are handled, we always add padding when pretty-writing
-        // is enabled, and only lazily add padding depending on whether it's really necessary
-        // if not.
+        // Similarly to how chunks are handled, we always add padding when
+        // pretty-writing is enabled, and only lazily add padding depending on
+        // whether it's really necessary if not.
         let needs_padding = if self.settings.pretty {
             if !self.buf.is_empty() {
                 self.buf.push(pad_byte);
@@ -123,8 +124,8 @@ impl Drop for Operation<'_> {
     fn drop(&mut self) {
         let pad_byte = if self.first { b'\n' } else { b' ' };
 
-        // For example, in case we previously wrote a BT operator and then a `[]` operand in the
-        // next operation, we don't need to pad them.
+        // For example, in case we previously wrote a BT operator and then a
+        // `[]` operand in the next operation, we don't need to pad them.
         if (self.settings.pretty
             || self.buf.last().is_some_and(|b| !is_delimiter_character(*b)))
             && !self.buf.is_empty()
