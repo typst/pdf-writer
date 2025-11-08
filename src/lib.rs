@@ -191,7 +191,7 @@ pub mod types {
 }
 
 pub use self::buf::{Buf, Limits};
-pub use self::chunk::Chunk;
+pub use self::chunk::{Chunk, Settings};
 pub use self::content::Content;
 pub use self::object::{
     Array, Date, Dict, Filter, Finish, LanguageIdentifier, Name, Null, Obj, Primitive,
@@ -202,8 +202,6 @@ pub use self::object::{
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
-
-use crate::chunk::Settings;
 
 use self::writers::*;
 
