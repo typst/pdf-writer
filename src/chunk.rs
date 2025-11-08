@@ -38,26 +38,33 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    /// Create a new chunk with the default capacity (currently 1 KB).
+    /// Create a new chunk with the default settings and buffer capacity
+    /// (currently 1 KB).
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self::with_capacity(1024)
+        Self::with_settings(Settings::default())
     }
 
-    /// Create a new chunk with the specified initial capacity.
+    /// Create a new chunk with the given settings and the default buffer
+    /// capacity (currently 1 KB).
+    pub fn with_settings(settings: Settings) -> Self {
+        Self::with_settings_and_capacity(settings, 1204)
+    }
+
+    /// Create a new chunk with the default settings and the specified initial
+    /// capacity.
     pub fn with_capacity(capacity: usize) -> Self {
+        Self::with_settings_and_capacity(Settings::default(), capacity)
+    }
+
+    /// Create a new chunk with the given settings and the specified initial
+    /// buffer capacity.
+    pub fn with_settings_and_capacity(settings: Settings, capacity: usize) -> Self {
         Self {
             buf: Buf::with_capacity(capacity),
             offsets: vec![],
-            settings: Default::default(),
+            settings,
         }
-    }
-
-    /// Create a new chunk with the given settings.
-    pub fn with_settings(settings: Settings) -> Self {
-        let mut chunk = Self::new();
-        chunk.settings = settings;
-        chunk
     }
 
     /// The number of bytes that were written so far.

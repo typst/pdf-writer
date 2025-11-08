@@ -221,22 +221,29 @@ pub struct Pdf {
 }
 
 impl Pdf {
-    /// Create a new PDF with the default buffer capacity (currently 8 KB).
+    /// Create a new PDF with the default settings and buffer capacity
+    /// (currently 8 KB).
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self::with_capacity(8 * 1024)
+        Self::with_settings(Settings::default())
     }
 
-    /// Create a new PDF with the given settings.
+    /// Create a new PDF with the given settings and the default buffer capacity
+    /// (currently 8 KB).
     pub fn with_settings(settings: Settings) -> Self {
-        let mut pdf = Self::new();
-        pdf.settings = settings;
-        pdf
+        Self::with_settings_and_capacity(settings, 8 * 1024)
     }
 
-    /// Create a new PDF with the specified initial buffer capacity.
+    /// Create a new PDF with the default settings and the specified initial
+    /// buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        let mut chunk = Chunk::with_capacity(capacity);
+        Self::with_settings_and_capacity(Settings::default(), capacity)
+    }
+
+    /// Create a new PDF with the given settings and the specified initial
+    /// buffer capacity.
+    pub fn with_settings_and_capacity(settings: Settings, capacity: usize) -> Self {
+        let mut chunk = Chunk::with_settings_and_capacity(settings, capacity);
         chunk.buf.extend(b"%PDF-1.7\n%\x80\x80\x80\x80\n\n");
         Self {
             chunk,
