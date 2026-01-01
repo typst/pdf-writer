@@ -349,7 +349,7 @@ impl Pdf {
     /// that it allows you to apply one or multiple filters to the xref stream
     /// via the `filter` closure. The input of the closure will be the raw
     /// content of the xref stream, and the output should be the filtered data
-    /// as well as a single filter or a  list of filters that need to be
+    /// as well as a single filter or a list of filters that need to be
     /// applied to unfilter the data in the correct order.
     pub fn finish_with_xref_stream_and_filter<
         T: FnOnce(&[u8]) -> (Vec<u8>, XRefFilter),
