@@ -305,7 +305,7 @@ impl Pdf {
     ///
     /// Panics if any indirect reference id was used twice.
     pub fn finish(self) -> Vec<u8> {
-        let Chunk { mut buf, offsets, set } = self.chunk;
+        let Chunk { mut buf, offsets, settings } = self.chunk;
         let trailer_data = self.trailer_data;
         let xref_offset = buf.len();
 
@@ -314,7 +314,7 @@ impl Pdf {
 
         // Write the trailer dictionary.
         buf.extend(b"trailer\n");
-        let mut trailer = Obj::direct(&mut buf, 0).dict();
+        let mut trailer = Obj::direct(&mut buf, 0, settings, false).dict();
         trailer_data.write_into_dict(&mut trailer, xref_len);
         trailer.finish();
 
@@ -382,7 +382,8 @@ impl Pdf {
 
         let (xref_data, filter) = filter(writer.buf);
 
-        let mut stream = Stream::start(Obj::indirect(&mut buf, xref_id), &xref_data);
+        let mut stream =
+            Stream::start(Obj::indirect(&mut buf, xref_id, settings), &xref_data);
 
         stream.pair(Name(b"Type"), Name(b"XRef"));
 
