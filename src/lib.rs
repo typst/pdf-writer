@@ -765,7 +765,6 @@ mod tests {
             b"%PDF-1.7\n%\x80\x80\x80\x80\n",
             b"1 0 obj\n1\nendobj\n",
             b"2 0 obj\n<<\n  /Length 8\n  /Type /XRef\n  /Filter /FlateDecode\n  /Size 3\n  /W [1 1 2]\n>>\nstream",
-            // [0, 0, 255, 255], [1, 16, 0, 0], [1, 34, 0, 0]
             b"ABCDEFGH",
             b"endstream\nendobj\n",
             b"startxref\n34\n%%EOF",
@@ -781,7 +780,6 @@ mod tests {
             b"%PDF-1.7\n%\x80\x80\x80\x80\n",
             b"1 0 obj\n1\nendobj\n",
             b"2 0 obj\n<<\n  /Length 8\n  /Type /XRef\n  /Filter [/ASCIIHexDecode /FlateDecode]\n  /Size 3\n  /W [1 1 2]\n>>\nstream",
-            // [0, 0, 255, 255], [1, 16, 0, 0], [1, 34, 0, 0]
             b"ABCDEFGH",
             b"endstream\nendobj\n",
             b"startxref\n34\n%%EOF",
