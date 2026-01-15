@@ -351,12 +351,10 @@ impl Pdf {
     /// content of the xref stream, and the output should be the filtered data
     /// as well as a single filter or a list of filters that need to be
     /// applied to unfilter the data in the correct order.
-    pub fn finish_with_xref_stream_and_filter<
-        T: FnOnce(&[u8]) -> (Vec<u8>, XRefFilter),
-    >(
+    pub fn finish_with_xref_stream_and_filter(
         self,
         xref_id: Ref,
-        filter: T,
+        filter: impl FnOnce(&[u8]) -> (Vec<u8>, XRefFilter),
     ) -> Vec<u8> {
         self.finish_with_xref_stream_inner(xref_id, |buf| {
             let (xref_data, filter) = filter(&buf);
