@@ -318,7 +318,7 @@ impl Pdf {
         trailer_data.write_into_dict(&mut trailer, xref_len);
         trailer.finish();
 
-        finish_trailer(buf, xref_offset, &[b'\n'])
+        finish_trailer(buf, xref_offset, b"\n")
     }
 
     /// Write the cross-reference stream and file trailer and return the
