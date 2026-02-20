@@ -932,7 +932,7 @@ impl StructRole {
         match self {
             Self::Document => Some(StructRole2::Document),
             Self::Part => Some(StructRole2::Part),
-            Self::Art => None,
+            Self::Art => Some(StructRole2::Article),
             Self::Sect => Some(StructRole2::Sect),
             Self::Div => Some(StructRole2::Div),
             Self::BlockQuote => None,
@@ -1099,6 +1099,8 @@ pub enum StructRole2 {
     DocumentFragment,
     /// A part of a document that may contain multiple articles or sections.
     Part,
+    /// An article with largely self-contained content.
+    Article,
     /// Section of a larger document.
     Sect,
     /// Generic subdivision.
@@ -1188,6 +1190,7 @@ impl StructRole2 {
             Self::Document => b"Document",
             Self::DocumentFragment => b"DocumentFragment",
             Self::Part => b"Part",
+            Self::Article => b"Article",
             Self::Sect => b"Sect",
             Self::Div => b"Div",
             Self::Aside => b"Aside",
@@ -1243,6 +1246,7 @@ impl StructRole2 {
             Self::Document => StructRole2Compat::Compatible(StructRole::Document),
             Self::DocumentFragment => StructRole2Compat::RoleMapping(StructRole::Div),
             Self::Part => StructRole2Compat::Compatible(StructRole::Part),
+            Self::Article => StructRole2Compat::Compatible(StructRole::Art),
             Self::Sect => StructRole2Compat::Compatible(StructRole::Sect),
             Self::Div => StructRole2Compat::Compatible(StructRole::Div),
             Self::Aside => StructRole2Compat::RoleMapping(StructRole::Div),
@@ -1326,9 +1330,12 @@ impl StructRole2 {
     pub fn role_type(self) -> StructRoleType2 {
         match self {
             Self::Document | Self::DocumentFragment => StructRoleType2::Document,
-            Self::Part | Self::Sect | Self::Div | Self::Aside | Self::NonStruct => {
-                StructRoleType2::Grouping
-            }
+            Self::Part
+            | Self::Article
+            | Self::Sect
+            | Self::Div
+            | Self::Aside
+            | Self::NonStruct => StructRoleType2::Grouping,
             Self::P
             | Self::Heading(_)
             | Self::StructuredHeading
