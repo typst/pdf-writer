@@ -11,27 +11,50 @@ pub struct Content {
 
 /// Core methods.
 impl Content {
-    /// Create a new content stream with the default buffer capacity
-    /// (currently 1 KB).
+    /// Create a new content stream with the default settings and buffer
+    /// capacity (currently 1 KB).
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self::with_capacity(1024)
+        Self::with_settings(Settings::default())
     }
 
-    /// Create a new content stream with the given settings.
+    /// Create a new content stream with the given settings and the default
+    /// buffer capacity (currently 1 KB).
     pub fn with_settings(settings: Settings) -> Self {
-        let mut content = Self::new();
-        content.settings = settings;
-        content
+        Self::with_settings_and_capacity(settings, 1204)
     }
 
-    /// Create a new content stream with the specified initial buffer capacity.
+    /// Create a new content stream with the default settings and the specified
+    /// initial buffer capacity.
     pub fn with_capacity(capacity: usize) -> Self {
+        Self::with_settings_and_capacity(Settings::default(), capacity)
+    }
+
+    /// Create a new content stream with the given settings and the specified
+    /// initial buffer capacity.
+    pub fn with_settings_and_capacity(settings: Settings, capacity: usize) -> Self {
         Self {
             buf: Buf::with_capacity(capacity),
+            settings,
             q_depth: 0,
-            settings: Default::default(),
         }
+    }
+
+    /// The number of bytes that were written so far.
+    #[inline]
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    /// Reserve an additional number of bytes in the buffer.
+    pub fn reserve(&mut self, additional: usize) {
+        self.buf.reserve(additional);
+    }
+
+    /// The bytes already written so far.
+    pub fn as_bytes(&self) -> &[u8] {
+        self.buf.as_slice()
     }
 
     /// Start writing an arbitrary operation.
