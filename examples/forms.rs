@@ -27,7 +27,7 @@ fn main() -> std::io::Result<()> {
 
     // While the `/T` attribute is optional according to the spec, you should
     // include it, most readers will only render widget annotations with both
-    // partial name and field type. Next, we set it's value and default value:
+    // partial name and field type. Next, we set its value and default value:
     // - The value is used to store what the user has put into the field.
     // - The default value is used when resetting the form.
     field
@@ -40,7 +40,7 @@ fn main() -> std::io::Result<()> {
     // with its widget annotation. The widget annotation is what declares the
     // appearance and position in the document, whereas the field defines its
     // semantic behavior for the document-wide form. The appearance is more
-    // relevant to button fields, we'll see how to cofigure it below.
+    // relevant to button fields, we'll see how to configure it below.
     let mut annot = field.into_annotation();
     annot.rect(Rect::new(108.0, 730.0, 208.0, 748.0));
 
@@ -53,7 +53,7 @@ fn main() -> std::io::Result<()> {
 
     // The reader will usually provide a default appearance and automatically
     // highlight form fields. The appearance is relevant for printing however.
-    // While we don't provide an explicit appearnce here, if we did we likely
+    // While we don't provide an explicit appearance here, if we did we likely
     // want this flag to be set.
     annot.flags(AnnotationFlags::PRINT);
     annot.finish();
@@ -93,10 +93,10 @@ fn main() -> std::io::Result<()> {
     //   the same appearance on-state, they'll be toggled in unison with the
     //   others (although we don't use this here).
     // Finally we define the children of this field, the widget annotations
-    // which again define appearance and postion of the individual buttons.
+    // which again define appearance and position of the individual buttons.
     //
     // NOTE: by the time of writing this, RADIOS_IN_UNISON does not work
-    //       correctly pdf.js (firefox), okular or evince.
+    //       correctly pdf.js (Firefox), okular or evince.
     field
         .partial_name(TextStr("radio"))
         .field_type(FieldType::Button)
@@ -172,7 +172,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Let's add a dropdown menu and allow the user to chose from preconfigrued
+    // Let's add a dropdown menu and allow the user to chose from preconfigured
     // options while allowing them to add their own custom option too.
     let dropdown_id = Ref::new(11);
     let mut field = pdf.form_field(dropdown_id);
@@ -205,7 +205,7 @@ fn main() -> std::io::Result<()> {
     // PDFs can also have push buttons, buttons which retain no state when
     // pressed. We'll use that to demonstrate form actions. Actions can be
     // activated on many events, like a change in the input of a field, or
-    // simply the mous cursor moving over the annotation.
+    // simply the mouse cursor moving over the annotation.
     let button_id = Ref::new(12);
     let mut field = pdf.form_field(button_id);
 
@@ -228,7 +228,7 @@ fn main() -> std::io::Result<()> {
     // Finally, we set the action that is taken when the button is pushed.
     // It should reset fields in the form, but we must tell it which fields.
     // By setting the `FormActionFlags::INCLUDE_EXCLUDE` flag, we tell it to
-    // exclude all fields in the we specify and by specifying no fields we
+    // exclude all fields in the array we specify and by specifying no fields we
     // ensure all fields are reset.
     annot
         .action()
@@ -260,7 +260,7 @@ fn main() -> std::io::Result<()> {
         .fonts()
         .pair(text_font_name, text_font_id);
 
-    // Now we write each widget annotations refereence into the annotations
+    // Now we write each widget annotations reference into the annotations
     // array. Those are our terminal fields, those with no children.
     page.annotations([
         text_field_id,
