@@ -490,6 +490,371 @@ impl ChoiceOptions<'_> {
 
 deref!('a, ChoiceOptions<'a> => Array<'a>, array);
 
+impl Field<'_> {
+    /// Write the `/Lock` attribute which points to a [signature field lock
+    /// dictionary](SignatureFieldLock), containing a set of form fields that shall
+    /// be locked when this signature field is signed. PDF 1.5+.
+    pub fn signature_field_lock(&mut self, field_lock: Ref) -> &mut Self {
+        self.pair(Name(b"Lock"), field_lock);
+        self
+    }
+
+    /// Write the `/SV` attribute which points to a [seed value
+    /// dictionary](SignatureSeedValue), containing constraints for the
+    /// properties of a signature that is applied to this field. PDF 1.5+.
+    pub fn signature_seed_value(&mut self, seed_value: Ref) -> &mut Self {
+        self.pair(Name(b"SV"), seed_value);
+        self
+    }
+}
+
+/// Writer for a _signature field lock dictionary_.
+///
+/// This struct is created by [`Chunk::signature_field_lock`].
+pub struct SignatureFieldLock<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureFieldLock: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"SigFieldLock"));
+    Self { dict }
+});
+
+impl SignatureFieldLock<'_> {
+    /// Write the `/Action` attribute which, in conjunction with
+    /// [Fields](SignatureFieldLock::fields), indicates the set of fields
+    /// that should be locked when the signature field is signed.
+    /// Required.
+    pub fn action(&mut self, action: SignatureLockAction) -> &mut Self {
+        self.dict.pair(Name(b"Action"), action.to_name());
+        self
+    }
+
+    /// Write the `/Fields` array which contains field names,
+    /// indicating the set of fields that should be locked when the
+    /// signature field is signed.
+    /// The behavior of this array depends on the value of [Action](SignatureFieldLock::action).
+    /// Required if action is not [All](SignatureLockAction::All).
+    pub fn fields<'b>(
+        &mut self,
+        fields: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"Fields")).array().items(fields);
+        self
+    }
+}
+
+deref!('a, SignatureFieldLock<'a> => Dict<'a>, dict);
+
+/// In conjunction with [Fields](SignatureFieldLock::fields), indicates
+/// the set of fields that should be locked when the signature field is signed.
+pub enum SignatureLockAction {
+    /// All fields in the document.
+    All,
+    /// All fields specified in [Fields](SignatureFieldLock::fields).
+    Include,
+    /// All fields except those specified in [Fields](SignatureFieldLock::fields).
+    Exclude,
+}
+
+impl SignatureLockAction {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::All => Name(b"All"),
+            Self::Include => Name(b"Include"),
+            Self::Exclude => Name(b"Exclude"),
+        }
+    }
+}
+
+/// Writer for a _seed value dictionary_.
+///
+/// This struct is created by [`Chunk::signature_seed_value`].
+pub struct SignatureSeedValue<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureSeedValue: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"SV"));
+    Self { dict }
+});
+
+impl SignatureSeedValue<'_> {
+    pub fn constraint_flags(&mut self, flags: SignatureSeedValueFlags) -> &mut Self {
+        self.pair(Name(b"Ff"), flags.bits() as i32);
+        self
+    }
+
+    pub fn filter(&mut self, signature_handler: Name) -> &mut Self {
+        self.pair(Name(b"Filter"), signature_handler);
+        self
+    }
+
+    pub fn sub_filter<'b>(
+        &mut self,
+        encodings: impl IntoIterator<Item = Name<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"SubFilter")).array().items(encodings);
+        self
+    }
+
+    pub fn digest_method(&mut self, digest_method: SignatureDigestMethod) -> &mut Self {
+        self.pair(Name(b"DigestMethod"), digest_method.to_name());
+        self
+    }
+
+    pub fn version(&mut self, version: f32) -> &mut Self {
+        self.pair(Name(b"V"), version);
+        self
+    }
+
+    pub fn certificate(&mut self) -> CertificateSeedValue<'_> {
+        self.insert(Name(b"Cert")).start()
+    }
+
+    pub fn reasons<'b>(
+        &mut self,
+        reasons: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Reasons")).array().items(reasons);
+        self
+    }
+
+    pub fn modification_detection_prevention(
+        &mut self,
+    ) -> SignatureModificationDetectionPrevention<'_> {
+        self.insert(Name(b"MDP")).start()
+    }
+
+    pub fn timestamp(&mut self) -> SignatureTimeStamp<'_> {
+        self.insert(Name(b"TimeStamp")).start()
+    }
+
+    pub fn legal_attestation<'b>(
+        &mut self,
+        legal_attestations: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"LegalAttestation"))
+            .array()
+            .items(legal_attestations);
+        self
+    }
+
+    pub fn add_rev_info(&mut self, check_revocation: bool) -> &mut Self {
+        self.pair(Name(b"AddRevInfo"), check_revocation);
+        self
+    }
+}
+
+deref!('a, SignatureSeedValue<'a> => Dict<'a>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing the whether a specific entry in a
+    /// [seed value dictionary](SignatureSeedValue) is required (1)
+    /// or optional (0).
+    pub struct SignatureSeedValueFlags: u32 {
+        const FILTER = 1 << 0;
+        const SUB_FILTER = 1 << 1;
+        const VERSION = 1 << 2;
+        const REASONS = 1 << 3;
+        const LEGAL_ATTESTATION = 1 << 4;
+        const ADD_REV_INFO = 1 << 5;
+        const DIGEST_METHOD = 1 << 6;
+    }
+}
+
+pub enum SignatureDigestMethod {
+    SHA1,
+    SHA256,
+    SHA384,
+    SHA512,
+    RIPEMD160,
+}
+
+impl SignatureDigestMethod {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::SHA1 => Name(b"SHA1"),
+            Self::SHA256 => Name(b"SHA256"),
+            Self::SHA384 => Name(b"SHA384"),
+            Self::SHA512 => Name(b"SHA512"),
+            Self::RIPEMD160 => Name(b"RIPEMD160"),
+        }
+    }
+}
+
+pub struct SignatureModificationDetectionPrevention<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureModificationDetectionPrevention: |obj| Self { dict: obj.dict() });
+
+impl SignatureModificationDetectionPrevention<'_> {
+    pub fn allowed_changes(&mut self, p: i32) -> &mut Self {
+        self.dict.pair(Name(b"P"), p);
+        self
+    }
+}
+
+deref!('a, SignatureModificationDetectionPrevention<'a> => Dict<'a>, dict);
+
+pub struct SignatureTimeStamp<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureTimeStamp: |obj| Self { dict: obj.dict() });
+
+impl SignatureTimeStamp<'_> {
+    pub fn url(&mut self, url: Str<'_>) -> &mut Self {
+        self.dict.pair(Name(b"URL"), url);
+        self
+    }
+    pub fn required(&mut self, required: i32) -> &mut Self {
+        self.dict.pair(Name(b"Ff"), required);
+        self
+    }
+}
+
+deref!('a, SignatureTimeStamp<'a> => Dict<'a>, dict);
+
+pub struct CertificateSeedValue<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(CertificateSeedValue: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"SVCert"));
+    Self { dict }
+});
+
+impl CertificateSeedValue<'_> {
+    pub fn requirement_flags(&mut self, flags: CertificateSeedValueFlags) -> &mut Self {
+        self.pair(Name(b"Ff"), flags.bits() as i32);
+        self
+    }
+
+    pub fn subject<'b>(
+        &mut self,
+        // TODO this should be a byte string, is that a thing?
+        certificates: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Subject")).array().items(certificates);
+        self
+    }
+
+    pub fn subject_dn(&mut self) -> TypedArray<'_, Dict<'_>> {
+        self.insert(Name(b"SubjectDN")).array().typed()
+    }
+
+    pub fn key_usage(
+        &mut self,
+        key_usages: impl IntoIterator<Item = CertificateKeyUsage>,
+    ) -> &mut Self {
+        let mut array = self.insert(Name(b"KeyUsage")).array();
+        key_usages.into_iter().for_each(|usage| {
+            array.item(Str(&usage.to_string()));
+        });
+        array.finish();
+        self
+    }
+
+    pub fn issuer<'b>(
+        &mut self,
+        // TODO this should be a byte string, is that a thing?
+        issuers: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Issuer")).array().items(issuers);
+        self
+    }
+
+    pub fn oid<'b>(
+        &mut self,
+        // TODO this should be a byte string, is that a thing?
+        oids: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"OID")).array().items(oids);
+        self
+    }
+
+    pub fn url(&mut self, url: Str<'_>) -> &mut Self {
+        self.pair(Name(b"URL"), url);
+        self
+    }
+
+    pub fn url_type(&mut self, url_type: CertificateUrlType) -> &mut Self {
+        self.pair(Name(b"URLType"), url_type.to_name());
+        self
+    }
+}
+
+deref!('a, CertificateSeedValue<'a> => Dict<'a>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing the whether a specific entry in a
+    // TODO
+    pub struct CertificateSeedValueFlags: u32 {
+        const SUBJECT = 1 << 0;
+        const ISSUER = 1 << 1;
+        const OID = 1 << 2;
+        const SUBJECT_DN = 1 << 3;
+        // const RESERVED = 1 << 4;
+        const KEY_USAGE = 1 << 5;
+        const URL = 1 << 6;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct CertificateKeyUsage {
+    digital_signature: Option<bool>,
+    non_repudiation: Option<bool>,
+    key_encipherment: Option<bool>,
+    data_encipherment: Option<bool>,
+    key_agreement: Option<bool>,
+    key_cert_sign: Option<bool>,
+    crl_sign: Option<bool>,
+    encipher_only: Option<bool>,
+    decipher_only: Option<bool>,
+}
+
+impl CertificateKeyUsage {
+    fn to_byte(value: Option<bool>) -> u8 {
+        match value {
+            Some(true) => b'1',
+            Some(false) => b'0',
+            None => b'X',
+        }
+    }
+    pub fn to_string(&self) -> [u8; 9] {
+        [
+            Self::to_byte(self.digital_signature),
+            Self::to_byte(self.non_repudiation),
+            Self::to_byte(self.key_encipherment),
+            Self::to_byte(self.data_encipherment),
+            Self::to_byte(self.key_agreement),
+            Self::to_byte(self.key_cert_sign),
+            Self::to_byte(self.crl_sign),
+            Self::to_byte(self.encipher_only),
+            Self::to_byte(self.decipher_only),
+        ]
+    }
+}
+
+pub enum CertificateUrlType<'a> {
+    Browser,
+    Custom(Name<'a>),
+}
+
+impl<'a> CertificateUrlType<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Browser => Name(b"Browser"),
+            Self::Custom(name) => name,
+        }
+    }
+}
+
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of a form field.
     pub struct FieldFlags: u32 {

@@ -1,3 +1,5 @@
+use crate::forms::{SignatureFieldLock, SignatureSeedValue};
+
 use super::*;
 
 /// Settings that should be applied while writing a PDF file.
@@ -479,6 +481,16 @@ impl Chunk {
 
     /// Start writing a form field dictionary.
     pub fn form_field(&mut self, id: Ref) -> Field<'_> {
+        self.indirect(id).start()
+    }
+
+    /// Start writing a signature field lock dictionary.
+    pub fn signature_field_lock(&mut self, id: Ref) -> SignatureFieldLock<'_> {
+        self.indirect(id).start()
+    }
+
+    /// Start writing a seed value dictionary.
+    pub fn signature_seed_value(&mut self, id: Ref) -> SignatureSeedValue<'_> {
         self.indirect(id).start()
     }
 }
