@@ -180,7 +180,7 @@ pub mod types {
     pub use forms::{
         AccessPermissions, CertificateKeyUsage, CertificateSeedValueFlags,
         CertificateUrlType, CheckBoxState, ChoiceOptions, FieldFlags, FieldType,
-        MdpSignatureType, Quadding, SeedValueParserVersion, SigFlags,
+        LockingIntent, MdpSignatureType, Quadding, SeedValueParserVersion, SigFlags,
         SignatureDigestMethod, SignatureLockAction, SignatureSeedValueFlags,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
