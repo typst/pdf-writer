@@ -524,8 +524,8 @@ writer!(SignatureFieldLock: |obj| {
 
 impl SignatureFieldLock<'_> {
     /// Write the `/Action` attribute which, in conjunction with
-    /// [Fields](SignatureFieldLock::fields), indicates the set of fields
-    /// that should be locked when the signature field is signed.
+    /// the [`/Fields`](SignatureFieldLock::fields) array, indicates the
+    /// set of fields that should be locked when the signature field is signed.
     /// Required.
     pub fn action(&mut self, action: SignatureLockAction) -> &mut Self {
         self.dict.pair(Name(b"Action"), action.to_name());
@@ -535,8 +535,9 @@ impl SignatureFieldLock<'_> {
     /// Write the `/Fields` array which contains field names,
     /// indicating the set of fields that should be locked when the
     /// signature field is signed.
-    /// The behavior of this array depends on the value of [Action](SignatureFieldLock::action).
-    /// Required if action is not [All](SignatureLockAction::All).
+    /// The behavior of this array depends on the value of
+    /// the [`/Action`](SignatureFieldLock::action) attribute.
+    /// Required if action is not [`SignatureLockAction::All`].
     pub fn fields<'b>(
         &mut self,
         fields: impl IntoIterator<Item = TextStr<'b>>,
@@ -544,19 +545,28 @@ impl SignatureFieldLock<'_> {
         self.dict.insert(Name(b"Fields")).array().items(fields);
         self
     }
+
+    /// Write the `/P` attribute to set the changes allowed without
+    /// invalidating the signature.
+    pub fn access_permissions(&mut self, p: AccessPermissions) -> &mut Self {
+        self.dict.pair(Name(b"P"), p.to_int());
+        self
+    }
 }
 
 deref!('a, SignatureFieldLock<'a> => Dict<'a>, dict);
 
-/// In conjunction with [Fields](SignatureFieldLock::fields), indicates
-/// the set of fields that should be locked when the signature field is signed.
+/// In conjunction with the [`/Fields`](SignatureFieldLock::fields) array,
+/// indicates the set of fields that should be locked when the signature
+/// field is signed.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum SignatureLockAction {
     /// All fields in the document.
     All,
-    /// All fields specified in [Fields](SignatureFieldLock::fields).
+    /// All fields specified in the [`/Fields`](SignatureFieldLock::fields) array.
     Include,
-    /// All fields except those specified in [Fields](SignatureFieldLock::fields).
+    /// All fields except those specified in the
+    /// [`/Fields`](SignatureFieldLock::fields) array.
     Exclude,
 }
 
@@ -633,8 +643,8 @@ impl SignatureSeedValue<'_> {
     /// If [`SignatureSeedValueFlags::VERSION`] is present on
     /// [constraint flags](SignatureSeedValue::constraint_flags),
     /// this is a required constraint.
-    pub fn version(&mut self, version: f32) -> &mut Self {
-        self.pair(Name(b"V"), version);
+    pub fn version(&mut self, version: SeedValueParserVersion) -> &mut Self {
+        self.pair(Name(b"V"), version.to_int());
         self
     }
 
@@ -696,6 +706,29 @@ impl SignatureSeedValue<'_> {
         self.pair(Name(b"AddRevInfo"), check_revocation);
         self
     }
+
+    /// Write the `/LockDocument` attribute to set the author's intent for
+    /// whether the signing dialog should allow the user to lock the document
+    /// at the time of signing.
+    /// Unless this is set to [`LockingIntent::Auto`], the user cannot
+    /// override this if [`SignatureSeedValueFlags::LOCK_DOCUMENT`] is present
+    /// on [constraint flags](SignatureSeedValue::constraint_flags).
+    /// PDF 2.0+.
+    pub fn lock_document(&mut self, intent: LockingIntent) -> &mut Self {
+        self.pair(Name(b"LockDocument"), intent.to_name());
+        self
+    }
+
+    /// Write the `/AppearanceFilter` attribute to set the appearance that
+    /// shall be used when signing the signature field.
+    /// If [`SignatureSeedValueFlags::APPEARANCE_FILTER`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags),
+    /// the appearance must be available and used to sign the document.
+    /// PDF 2.0+.
+    pub fn appearance_filter(&mut self, signature_appearance: TextStr<'_>) -> &mut Self {
+        self.pair(Name(b"LockDocument"), signature_appearance);
+        self
+    }
 }
 
 deref!('a, SignatureSeedValue<'a> => Dict<'a>, dict);
@@ -719,13 +752,17 @@ bitflags::bitflags! {
         const ADD_REV_INFO = 1 << 5;
         /// The `/DigestMethod` entry is a mandatory constraint. PDF 1.7+.
         const DIGEST_METHOD = 1 << 6;
+        /// The `/LockDocument` entry is a mandatory constraint. PDF 2.0+.
+        const LOCK_DOCUMENT = 1 << 7;
+        /// The `/AppearanceFilter` entry is a mandatory constraint. PDF 2.0+.
+        const APPEARANCE_FILTER = 1 << 8;
     }
 }
 
 /// The digest algorithm of a signature.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum SignatureDigestMethod {
-    /// The SHA-1 digest algorithm.
+    /// The SHA-1 digest algorithm. Deprecated in PDF 2.0.
     SHA1,
     /// The SHA-256 digest algorithm.
     SHA256,
@@ -749,6 +786,31 @@ impl SignatureDigestMethod {
     }
 }
 
+/// The capability of a signature field seed value
+/// dictionary parser.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum SeedValueParserVersion {
+    /// The parser can recognize all seed value dictionary entries
+    /// in a PDF 1.5 file.
+    Pdf15,
+    /// The parser can recognize all seed value dictionary entries
+    /// specified for PDF 1.7 or earlier.
+    Pdf17,
+    /// The parser can recognize all seed value dictionary entries
+    /// specified for PDF 2.0 or earlier.
+    Pdf20,
+}
+
+impl SeedValueParserVersion {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Pdf15 => 1,
+            Self::Pdf17 => 2,
+            Self::Pdf20 => 3,
+        }
+    }
+}
+
 /// Writer for the `/MDP` dictionary in the
 /// [_signature seed value dictionary_](SignatureSeedValue).
 ///
@@ -760,15 +822,58 @@ pub struct SignatureModificationDetectionPrevention<'a> {
 writer!(SignatureModificationDetectionPrevention: |obj| Self { dict: obj.dict() });
 
 impl SignatureModificationDetectionPrevention<'_> {
-    /// Write the `/P` attribute to set the changes allowed
-    /// without invalidating the signature.
-    pub fn allowed_changes(&mut self, p: i32) -> &mut Self {
-        self.dict.pair(Name(b"P"), p);
+    /// Write the `/P` attribute to set the type of signature of
+    /// this field and the changes allowed without invalidating the signature.
+    pub fn signature_type(&mut self, p: MdpSignatureType) -> &mut Self {
+        self.dict.pair(Name(b"P"), p.to_int());
         self
     }
 }
 
 deref!('a, SignatureModificationDetectionPrevention<'a> => Dict<'a>, dict);
+
+/// The access permissions granted for the document
+/// without invalidating the signature.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum AccessPermissions {
+    /// No changes to the document are permitted.
+    NoChanges,
+    /// Permitted changes shall be filling in forms, instantiating page
+    ///templates, and signing.
+    FillAndSign,
+    /// Permitted changes are the same as for [`AccessPermissions::FillAndSign`],
+    /// as well as annotation creation, deletion, and modification.
+    Annotations,
+}
+
+impl AccessPermissions {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::NoChanges => 1,
+            Self::FillAndSign => 2,
+            Self::Annotations => 3,
+        }
+    }
+}
+
+/// The signature type to be used when signing a signature field.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum MdpSignatureType {
+    /// The signature shall be an approval signature.
+    ApprovalSignature,
+    /// The signature shell be a certification signature
+    /// with the given access permissions.
+    CertificationSignature(AccessPermissions),
+}
+
+impl MdpSignatureType {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::ApprovalSignature => 0,
+            Self::CertificationSignature(permission) => permission.to_int(),
+        }
+    }
+}
 
 /// Writer for the `/TimeStamp` dictionary in the
 /// [_signature seed value dictionary_](SignatureSeedValue).
@@ -789,13 +894,36 @@ impl SignatureTimeStamp<'_> {
     }
     /// Write the `/Ff` attribute to set whether the signature
     /// must have a timestamp.
-    pub fn required(&mut self, required: i32) -> &mut Self {
-        self.dict.pair(Name(b"Ff"), required);
+    pub fn required(&mut self, required: bool) -> &mut Self {
+        self.dict.pair(Name(b"Ff"), required as i32);
         self
     }
 }
 
 deref!('a, SignatureTimeStamp<'a> => Dict<'a>, dict);
+
+/// The author's intent for whether the signing dialog
+/// should allow the user to lock the document at the time
+/// of signing.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum LockingIntent {
+    /// Document should be locked at the time of signing.
+    Lock,
+    /// Document should not be locked at the time of signing.
+    DoNotLock,
+    /// The consuming application decides.
+    Auto,
+}
+
+impl LockingIntent {
+    pub(crate) fn to_name<'b>(self) -> Name<'b> {
+        match self {
+            Self::Lock => Name(b"true"),
+            Self::DoNotLock => Name(b"false"),
+            Self::Auto => Name(b"auto"),
+        }
+    }
+}
 
 /// Writer for a _certificate seed value dictionary_.
 ///
@@ -828,6 +956,51 @@ impl CertificateSeedValue<'_> {
         certificates: impl IntoIterator<Item = Str<'b>>,
     ) -> &mut Self {
         self.insert(Name(b"Subject")).array().items(certificates);
+        self
+    }
+
+    /// Write the `/SignaturePolicyOID` attribute to set the OID of
+    /// the signature policy to use when signing. PDF 2.0+.
+    pub fn signature_policy_oid(&mut self, oid: Str<'_>) -> &mut Self {
+        self.pair(Name(b"SignaturePolicyOID"), oid);
+        self
+    }
+
+    /// Write the `/SignaturePolicyHashValue` attribute to set the
+    /// computed hash value of the signature policy, according to the
+    /// hash algorithm specified by the
+    /// [`/SignaturePolicyHashAlgorithm`](CertificateSeedValue::signature_policy_hash_algorithm)
+    /// attribute. PDF 2.0+.
+    pub fn signature_policy_hash_value(&mut self, hash_value: Str<'_>) -> &mut Self {
+        self.pair(Name(b"SignaturePolicyHashValue"), hash_value);
+        self
+    }
+
+    /// Write the `/SignaturePolicyHashAlgorithm` attribute to set the
+    /// hash function used to compute the value of the
+    /// [`/SignaturePolicyHashValue`](CertificateSeedValue::signature_policy_hash_value)
+    /// attribute. PDF 2.0+.
+    pub fn signature_policy_hash_algorithm(
+        &mut self,
+        hash_algorithm: Name<'_>,
+    ) -> &mut Self {
+        self.pair(Name(b"SignaturePolicyHashAlgorithm"), hash_algorithm);
+        self
+    }
+
+    /// Write the `/SignaturePolicyCommitmentType` attribute to set the
+    /// commitment types that may be used within the signature policy,
+    /// if the [`/SignaturePolicyOID`](CertificateSeedValue::signature_policy_oid)
+    /// attribute is present.
+    /// An empty string may be used to indicate that all commitments defined
+    /// by the signature policy may be used. PDF 2.0+.
+    pub fn signature_policy_commitment_type<'b>(
+        &mut self,
+        commitment_types: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"SignaturePolicyHashAlgorithm"))
+            .array()
+            .items(commitment_types);
         self
     }
 
