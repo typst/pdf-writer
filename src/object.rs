@@ -727,7 +727,7 @@ impl<'a> Obj<'a> {
     /// Start writing with an arbitrary writer.
     ///
     /// For example, using this, you could write a Type 1 font directly into
-    /// a page's resource directionary.
+    /// a page's resource dictionary.
     /// ```
     /// use pdf_writer::{Pdf, Ref, Name, writers::Type1Font};
     ///

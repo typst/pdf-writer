@@ -20,7 +20,7 @@ impl Form<'_> {
     }
 
     /// Write the `/SigFlags` attribute to set various document-level
-    /// characteristics related to signature fields.
+    /// characteristics related to signature fields. PDF 1.3+.
     pub fn sig_flags(&mut self, flags: SigFlags) -> &mut Self {
         self.pair(Name(b"SigFlags"), flags.bits() as i32);
         self
@@ -28,7 +28,7 @@ impl Form<'_> {
 
     /// Write the `/CO` attribute to set the field dictionaries with calculation
     /// actions, defining the calculation order in which their values will be
-    /// recalculated when the value of any field changes.
+    /// recalculated when the value of any field changes. PDF 1.3+.
     pub fn calculation_order(
         &mut self,
         actions: impl IntoIterator<Item = Ref>,
@@ -113,7 +113,7 @@ impl<'a> Field<'a> {
 
     /// Write the `/T` attribute to set the partial field name.
     ///
-    /// The fully qualified field name of a field is a path along it's
+    /// The fully qualified field name of a field is a path along its
     /// ancestor's partial field names separated by periods `.`. Therefore, a
     /// partial field name may not contain a period `.`.
     ///
@@ -283,7 +283,7 @@ impl Field<'_> {
     /// Write the `/MaxLen` attribute to set the maximum length of the fields
     /// text in characters. Only permissible on text fields.
     ///
-    /// The definition of a chracter depends on the encoding of the content of
+    /// The definition of a character depends on the encoding of the content of
     /// `/V`. Which is either one byte for PDFDocEncoding or 2 for UTF16-BE.
     pub fn text_max_len(&mut self, len: i32) -> &mut Self {
         self.pair(Name(b"MaxLen"), len);
@@ -317,7 +317,7 @@ impl Field<'_> {
     }
 
     /// Write the `/Q` attribute to set the quadding (justification) that shall
-    /// be used in dispalying the text. Only permissible on fields containing
+    /// be used in displaying the text. Only permissible on fields containing
     /// variable text.
     pub fn vartext_quadding(&mut self, quadding: Quadding) -> &mut Self {
         self.pair(Name(b"Q"), quadding as i32);
@@ -1185,15 +1185,15 @@ bitflags::bitflags! {
         /// will not respond to mouse clicks or change their appearance in
         /// response to mouse motions. This flag is useful for fields whose
         /// values are computed or imported from a database.
-        const READ_ONLY = 1;
+        const READ_ONLY = 1 << 0;
         /// The field shall have a value at the time it is exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
-        const REQUIRED = 2;
+        /// [submit-form](crate::types::ActionType::SubmitForm) [`Action`].
+        const REQUIRED = 1 << 1;
         /// The field shall not be exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
+        /// [submit-form](crate::types::ActionType::SubmitForm) [`Action`].
         const NO_EXPORT = 1 << 2;
         /// The entered text shall not be spell-checked, can be used for text
-        /// and choice fields.
+        /// and choice fields. PDF 1.4+.
         const DO_NOT_SPELL_CHECK = 1 << 22;
 
         // Button specific flags
@@ -1228,7 +1228,7 @@ bitflags::bitflags! {
         /// submitted as the value of the field. PDF 1.4+.
         const FILE_SELECT = 1 << 20;
         /// The field shall not scroll horizontally (for single-line) or
-        /// vertically (for multi-line) to accomodate more text. Once the field
+        /// vertically (for multi-line) to accommodate more text. Once the field
         /// is full, no further text shall be accepted for interactive form
         /// filling; for non-interactive form filling, the filler should take
         /// care not to add more character than will visibly fit in the defined
@@ -1236,7 +1236,7 @@ bitflags::bitflags! {
         const DO_NOT_SCROLL = 1 << 23;
         /// The field shall be automatically divided into as many equally
         /// spaced positions or _combs_ as the value of [`Field::max_len`]
-        /// and the text is layed out into these combs. May only be set if
+        /// and the text is laid out into these combs. May only be set if
         /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
         /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
         const COMB = 1 << 24;
