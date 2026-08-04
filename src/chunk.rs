@@ -1,5 +1,3 @@
-use crate::forms::{SignatureFieldLock, SignatureSeedValue};
-
 use super::*;
 
 /// Settings that should be applied while writing a PDF file.
