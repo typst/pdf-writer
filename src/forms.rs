@@ -20,7 +20,7 @@ impl Form<'_> {
     }
 
     /// Write the `/SigFlags` attribute to set various document-level
-    /// characteristics related to signature fields.
+    /// characteristics related to signature fields. PDF 1.3+.
     pub fn sig_flags(&mut self, flags: SigFlags) -> &mut Self {
         self.pair(Name(b"SigFlags"), flags.bits() as i32);
         self
@@ -28,7 +28,7 @@ impl Form<'_> {
 
     /// Write the `/CO` attribute to set the field dictionaries with calculation
     /// actions, defining the calculation order in which their values will be
-    /// recalculated when the value of any field changes.
+    /// recalculated when the value of any field changes. PDF 1.3+.
     pub fn calculation_order(
         &mut self,
         actions: impl IntoIterator<Item = Ref>,
@@ -113,7 +113,7 @@ impl<'a> Field<'a> {
 
     /// Write the `/T` attribute to set the partial field name.
     ///
-    /// The fully qualified field name of a field is a path along it's
+    /// The fully qualified field name of a field is a path along its
     /// ancestor's partial field names separated by periods `.`. Therefore, a
     /// partial field name may not contain a period `.`.
     ///
@@ -283,7 +283,7 @@ impl Field<'_> {
     /// Write the `/MaxLen` attribute to set the maximum length of the fields
     /// text in characters. Only permissible on text fields.
     ///
-    /// The definition of a chracter depends on the encoding of the content of
+    /// The definition of a character depends on the encoding of the content of
     /// `/V`. Which is either one byte for PDFDocEncoding or 2 for UTF16-BE.
     pub fn text_max_len(&mut self, len: i32) -> &mut Self {
         self.pair(Name(b"MaxLen"), len);
@@ -317,7 +317,7 @@ impl Field<'_> {
     }
 
     /// Write the `/Q` attribute to set the quadding (justification) that shall
-    /// be used in dispalying the text. Only permissible on fields containing
+    /// be used in displaying the text. Only permissible on fields containing
     /// variable text.
     pub fn vartext_quadding(&mut self, quadding: Quadding) -> &mut Self {
         self.pair(Name(b"Q"), quadding as i32);
@@ -490,6 +490,690 @@ impl ChoiceOptions<'_> {
 
 deref!('a, ChoiceOptions<'a> => Array<'a>, array);
 
+/// Only permissible on signature fields.
+impl Field<'_> {
+    /// Write the `/Lock` attribute which points to a [signature field lock
+    /// dictionary](SignatureFieldLock), containing a set of form fields that shall
+    /// be locked when this signature field is signed. PDF 1.5+.
+    pub fn signature_field_lock(&mut self, field_lock: Ref) -> &mut Self {
+        self.pair(Name(b"Lock"), field_lock);
+        self
+    }
+
+    /// Write the `/SV` attribute which points to a [seed value
+    /// dictionary](SignatureSeedValue), containing constraints for the
+    /// properties of a signature that is applied to this field. PDF 1.5+.
+    pub fn signature_seed_value(&mut self, seed_value: Ref) -> &mut Self {
+        self.pair(Name(b"SV"), seed_value);
+        self
+    }
+}
+
+/// Writer for a _signature field lock dictionary_.
+///
+/// This struct is created by [`Chunk::signature_field_lock`].
+pub struct SignatureFieldLock<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureFieldLock: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"SigFieldLock"));
+    Self { dict }
+});
+
+impl SignatureFieldLock<'_> {
+    /// Write the `/Action` attribute which, in conjunction with
+    /// the [`/Fields`](SignatureFieldLock::fields) array, indicates the
+    /// set of fields that should be locked when the signature field is signed.
+    /// Required.
+    pub fn action(&mut self, action: SignatureLockAction) -> &mut Self {
+        self.dict.pair(Name(b"Action"), action.to_name());
+        self
+    }
+
+    /// Write the `/Fields` array which contains field names,
+    /// indicating the set of fields that should be locked when the
+    /// signature field is signed.
+    /// The behavior of this array depends on the value of
+    /// the [`/Action`](SignatureFieldLock::action) attribute.
+    /// Required if action is not [`SignatureLockAction::All`].
+    pub fn fields<'b>(
+        &mut self,
+        fields: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.dict.insert(Name(b"Fields")).array().items(fields);
+        self
+    }
+
+    /// Write the `/P` attribute to set the changes allowed without
+    /// invalidating the signature.
+    pub fn access_permissions(&mut self, p: AccessPermissions) -> &mut Self {
+        self.dict.pair(Name(b"P"), p.to_int());
+        self
+    }
+}
+
+deref!('a, SignatureFieldLock<'a> => Dict<'a>, dict);
+
+/// In conjunction with the [`/Fields`](SignatureFieldLock::fields) array,
+/// indicates the set of fields that should be locked when the signature
+/// field is signed.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum SignatureLockAction {
+    /// All fields in the document.
+    All,
+    /// All fields specified in the [`/Fields`](SignatureFieldLock::fields) array.
+    Include,
+    /// All fields except those specified in the
+    /// [`/Fields`](SignatureFieldLock::fields) array.
+    Exclude,
+}
+
+impl SignatureLockAction {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::All => Name(b"All"),
+            Self::Include => Name(b"Include"),
+            Self::Exclude => Name(b"Exclude"),
+        }
+    }
+}
+
+/// Writer for a _seed value dictionary_.
+///
+/// This struct is created by [`Chunk::signature_seed_value`].
+pub struct SignatureSeedValue<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureSeedValue: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"SV"));
+    Self { dict }
+});
+
+impl SignatureSeedValue<'_> {
+    /// Write the `/Ff` attribute to set which entries of this signature
+    /// seed value dictionary are mandatory constraints.
+    pub fn constraint_flags(&mut self, flags: SignatureSeedValueFlags) -> &mut Self {
+        self.pair(Name(b"Ff"), flags.bits() as i32);
+        self
+    }
+
+    /// Write the `/Filter` attribute to set which signature handler
+    /// shall be used to sign the signature field.
+    /// If [`SignatureSeedValueFlags::FILTER`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags),
+    /// this is a required constraint.
+    pub fn filter(&mut self, signature_handler: Name) -> &mut Self {
+        self.pair(Name(b"Filter"), signature_handler);
+        self
+    }
+
+    /// Write the `/Filter` attribute to set which encodings
+    /// to use when signing. One of these must be used if
+    /// [`SignatureSeedValueFlags::SUB_FILTER`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags).
+    pub fn sub_filter<'b>(
+        &mut self,
+        encodings: impl IntoIterator<Item = Name<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"SubFilter")).array().items(encodings);
+        self
+    }
+
+    /// Write the `/DigestMethod` attribute to set which digest algorithms
+    /// to use while signing. One of these must be used if
+    /// [`SignatureSeedValueFlags::DIGEST_METHOD`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags).
+    /// PDF 1.7+.
+    pub fn digest_method(
+        &mut self,
+        digest_method: impl IntoIterator<Item = SignatureDigestMethod>,
+    ) -> &mut Self {
+        self.insert(Name(b"DigestMethod"))
+            .array()
+            .items(digest_method.into_iter().map(SignatureDigestMethod::to_name));
+        self
+    }
+
+    /// Write the `/V` attribute to set the minimum required capability
+    /// of the signature field seed value dictionary parser.
+    /// If [`SignatureSeedValueFlags::VERSION`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags),
+    /// this is a required constraint.
+    pub fn version(&mut self, version: SeedValueParserVersion) -> &mut Self {
+        self.pair(Name(b"V"), version.to_int());
+        self
+    }
+
+    /// Start writing the `/Cert` dictionary to set various characteristics
+    /// of the certificate that shall be used when signing.
+    pub fn certificate(&mut self) -> CertificateSeedValue<'_> {
+        self.insert(Name(b"Cert")).start()
+    }
+
+    /// Write the `/Reasons` attribute to set the possible reasons
+    /// for signing a document.
+    /// If [`SignatureSeedValueFlags::REASONS`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags),
+    /// one of these reasons must be used when signing.
+    pub fn reasons<'b>(
+        &mut self,
+        reasons: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Reasons")).array().items(reasons);
+        self
+    }
+
+    /// Start writing the `/MDP` dictionary to set which changes
+    /// to the document will invalidate the signature. PDF 1.6+.
+    pub fn modification_detection_prevention(
+        &mut self,
+    ) -> SignatureModificationDetectionPrevention<'_> {
+        self.insert(Name(b"MDP")).start()
+    }
+
+    /// Start writing the `/TimeStamp` dictionary to set a
+    /// timestamping server and whether a timestamp is required
+    /// while signing. PDF 1.6+.
+    pub fn timestamp(&mut self) -> SignatureTimeStamp<'_> {
+        self.insert(Name(b"TimeStamp")).start()
+    }
+
+    /// Write the `/LegalAttestation` attribute to set the possible
+    /// legal attestations.
+    /// If [`SignatureSeedValueFlags::LEGAL_ATTESTATION`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags),
+    /// one of these must be used when signing.
+    pub fn legal_attestation<'b>(
+        &mut self,
+        legal_attestations: impl IntoIterator<Item = TextStr<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"LegalAttestation"))
+            .array()
+            .items(legal_attestations);
+        self
+    }
+
+    /// Write the `/AddRevInfo` attribute to set whether revocation
+    /// checking shall be carried out.
+    /// If [`SignatureSeedValueFlags::ADD_REV_INFO`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags)
+    /// and revocation checking fails, then signing shall fail.
+    pub fn add_rev_info(&mut self, check_revocation: bool) -> &mut Self {
+        self.pair(Name(b"AddRevInfo"), check_revocation);
+        self
+    }
+
+    /// Write the `/LockDocument` attribute to set the author's intent for
+    /// whether the signing dialog should allow the user to lock the document
+    /// at the time of signing.
+    /// Unless this is set to [`LockingIntent::Auto`], the user cannot
+    /// override this if [`SignatureSeedValueFlags::LOCK_DOCUMENT`] is present
+    /// on [constraint flags](SignatureSeedValue::constraint_flags).
+    /// PDF 2.0+.
+    pub fn lock_document(&mut self, intent: LockingIntent) -> &mut Self {
+        self.pair(Name(b"LockDocument"), intent.to_name());
+        self
+    }
+
+    /// Write the `/AppearanceFilter` attribute to set the appearance that
+    /// shall be used when signing the signature field.
+    /// If [`SignatureSeedValueFlags::APPEARANCE_FILTER`] is present on
+    /// [constraint flags](SignatureSeedValue::constraint_flags),
+    /// the appearance must be available and used to sign the document.
+    /// PDF 2.0+.
+    pub fn appearance_filter(&mut self, signature_appearance: TextStr<'_>) -> &mut Self {
+        self.pair(Name(b"LockDocument"), signature_appearance);
+        self
+    }
+}
+
+deref!('a, SignatureSeedValue<'a> => Dict<'a>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing the whether a specific entry in a
+    /// [seed value dictionary](SignatureSeedValue) is required (1)
+    /// or optional (0).
+    pub struct SignatureSeedValueFlags: u32 {
+        /// The `/Filter` entry is a mandatory constraint.
+        const FILTER = 1 << 0;
+        /// The `/SubFilter` entry is a mandatory constraint.
+        const SUB_FILTER = 1 << 1;
+        /// The `/V` entry is a mandatory constraint.
+        const VERSION = 1 << 2;
+        /// The `/Reasons` entry is a mandatory constraint.
+        const REASONS = 1 << 3;
+        /// The `/LegalAttestation` entry is a mandatory constraint. PDF 1.6+.
+        const LEGAL_ATTESTATION = 1 << 4;
+        /// The `/AddRevInfo` entry is a mandatory constraint. PDF 1.7+.
+        const ADD_REV_INFO = 1 << 5;
+        /// The `/DigestMethod` entry is a mandatory constraint. PDF 1.7+.
+        const DIGEST_METHOD = 1 << 6;
+        /// The `/LockDocument` entry is a mandatory constraint. PDF 2.0+.
+        const LOCK_DOCUMENT = 1 << 7;
+        /// The `/AppearanceFilter` entry is a mandatory constraint. PDF 2.0+.
+        const APPEARANCE_FILTER = 1 << 8;
+    }
+}
+
+/// The digest algorithm of a signature.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum SignatureDigestMethod {
+    /// The SHA-1 digest algorithm. Deprecated in PDF 2.0.
+    SHA1,
+    /// The SHA-256 digest algorithm.
+    SHA256,
+    /// The SHA-384 digest algorithm.
+    SHA384,
+    /// The SHA-512 digest algorithm.
+    SHA512,
+    /// The RIPEMD-160 digest algorithm.
+    RIPEMD160,
+}
+
+impl SignatureDigestMethod {
+    pub(crate) fn to_name(self) -> Name<'static> {
+        match self {
+            Self::SHA1 => Name(b"SHA1"),
+            Self::SHA256 => Name(b"SHA256"),
+            Self::SHA384 => Name(b"SHA384"),
+            Self::SHA512 => Name(b"SHA512"),
+            Self::RIPEMD160 => Name(b"RIPEMD160"),
+        }
+    }
+}
+
+/// The capability of a signature field seed value
+/// dictionary parser.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum SeedValueParserVersion {
+    /// The parser can recognize all seed value dictionary entries
+    /// in a PDF 1.5 file.
+    Pdf15,
+    /// The parser can recognize all seed value dictionary entries
+    /// specified for PDF 1.7 or earlier.
+    Pdf17,
+    /// The parser can recognize all seed value dictionary entries
+    /// specified for PDF 2.0 or earlier.
+    Pdf20,
+}
+
+impl SeedValueParserVersion {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::Pdf15 => 1,
+            Self::Pdf17 => 2,
+            Self::Pdf20 => 3,
+        }
+    }
+}
+
+/// Writer for the `/MDP` dictionary in the
+/// [_signature seed value dictionary_](SignatureSeedValue).
+///
+/// This struct is created by [`SignatureSeedValue::modification_detection_prevention`].
+pub struct SignatureModificationDetectionPrevention<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureModificationDetectionPrevention: |obj| Self { dict: obj.dict() });
+
+impl SignatureModificationDetectionPrevention<'_> {
+    /// Write the `/P` attribute to set the type of signature of
+    /// this field and the changes allowed without invalidating the signature.
+    pub fn signature_type(&mut self, p: MdpSignatureType) -> &mut Self {
+        self.dict.pair(Name(b"P"), p.to_int());
+        self
+    }
+}
+
+deref!('a, SignatureModificationDetectionPrevention<'a> => Dict<'a>, dict);
+
+/// The access permissions granted for the document
+/// without invalidating the signature.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum AccessPermissions {
+    /// No changes to the document are permitted.
+    NoChanges,
+    /// Permitted changes shall be filling in forms, instantiating page
+    ///templates, and signing.
+    FillAndSign,
+    /// Permitted changes are the same as for [`AccessPermissions::FillAndSign`],
+    /// as well as annotation creation, deletion, and modification.
+    Annotations,
+}
+
+impl AccessPermissions {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::NoChanges => 1,
+            Self::FillAndSign => 2,
+            Self::Annotations => 3,
+        }
+    }
+}
+
+/// The signature type to be used when signing a signature field.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum MdpSignatureType {
+    /// The signature shall be an approval signature.
+    ApprovalSignature,
+    /// The signature shell be a certification signature
+    /// with the given access permissions.
+    CertificationSignature(AccessPermissions),
+}
+
+impl MdpSignatureType {
+    pub(crate) fn to_int(self) -> i32 {
+        match self {
+            Self::ApprovalSignature => 0,
+            Self::CertificationSignature(permission) => permission.to_int(),
+        }
+    }
+}
+
+/// Writer for the `/TimeStamp` dictionary in the
+/// [_signature seed value dictionary_](SignatureSeedValue).
+///
+/// This struct is created by [`SignatureSeedValue::timestamp`].
+pub struct SignatureTimeStamp<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(SignatureTimeStamp: |obj| Self { dict: obj.dict() });
+
+impl SignatureTimeStamp<'_> {
+    /// Write the `/URL` attribute to set the URL of the timestamping
+    /// server to use when signing.
+    pub fn url(&mut self, url: Str<'_>) -> &mut Self {
+        self.dict.pair(Name(b"URL"), url);
+        self
+    }
+    /// Write the `/Ff` attribute to set whether the signature
+    /// must have a timestamp.
+    pub fn required(&mut self, required: bool) -> &mut Self {
+        self.dict.pair(Name(b"Ff"), required as i32);
+        self
+    }
+}
+
+deref!('a, SignatureTimeStamp<'a> => Dict<'a>, dict);
+
+/// The author's intent for whether the signing dialog
+/// should allow the user to lock the document at the time
+/// of signing.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum LockingIntent {
+    /// Document should be locked at the time of signing.
+    Lock,
+    /// Document should not be locked at the time of signing.
+    DoNotLock,
+    /// The consuming application decides.
+    Auto,
+}
+
+impl LockingIntent {
+    pub(crate) fn to_name<'b>(self) -> Name<'b> {
+        match self {
+            Self::Lock => Name(b"true"),
+            Self::DoNotLock => Name(b"false"),
+            Self::Auto => Name(b"auto"),
+        }
+    }
+}
+
+/// Writer for a _certificate seed value dictionary_.
+///
+/// This struct is created by [`SignatureSeedValue::certificate`].
+pub struct CertificateSeedValue<'a> {
+    dict: Dict<'a>,
+}
+
+writer!(CertificateSeedValue: |obj| {
+    let mut dict = obj.dict();
+    dict.pair(Name(b"Type"), Name(b"SVCert"));
+    Self { dict }
+});
+
+impl CertificateSeedValue<'_> {
+    /// Write the `/Ff` attribute to set which entries of this certificate
+    /// seed value dictionary are mandatory constraints.
+    pub fn constraint_flags(&mut self, flags: CertificateSeedValueFlags) -> &mut Self {
+        self.pair(Name(b"Ff"), flags.bits() as i32);
+        self
+    }
+
+    /// Write the `/Subject` attribute to set which DER-encoded X.509v3
+    /// certificates are acceptable for signing.
+    /// If [`CertificateSeedValueFlags::SUBJECT`] is present on
+    /// [constraint flags](CertificateSeedValue::constraint_flags),
+    /// this is a required constraint.
+    pub fn subject<'b>(
+        &mut self,
+        certificates: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Subject")).array().items(certificates);
+        self
+    }
+
+    /// Write the `/SignaturePolicyOID` attribute to set the OID of
+    /// the signature policy to use when signing. PDF 2.0+.
+    pub fn signature_policy_oid(&mut self, oid: Str<'_>) -> &mut Self {
+        self.pair(Name(b"SignaturePolicyOID"), oid);
+        self
+    }
+
+    /// Write the `/SignaturePolicyHashValue` attribute to set the
+    /// computed hash value of the signature policy, according to the
+    /// hash algorithm specified by the
+    /// [`/SignaturePolicyHashAlgorithm`](CertificateSeedValue::signature_policy_hash_algorithm)
+    /// attribute. PDF 2.0+.
+    pub fn signature_policy_hash_value(&mut self, hash_value: Str<'_>) -> &mut Self {
+        self.pair(Name(b"SignaturePolicyHashValue"), hash_value);
+        self
+    }
+
+    /// Write the `/SignaturePolicyHashAlgorithm` attribute to set the
+    /// hash function used to compute the value of the
+    /// [`/SignaturePolicyHashValue`](CertificateSeedValue::signature_policy_hash_value)
+    /// attribute. PDF 2.0+.
+    pub fn signature_policy_hash_algorithm(
+        &mut self,
+        hash_algorithm: Name<'_>,
+    ) -> &mut Self {
+        self.pair(Name(b"SignaturePolicyHashAlgorithm"), hash_algorithm);
+        self
+    }
+
+    /// Write the `/SignaturePolicyCommitmentType` attribute to set the
+    /// commitment types that may be used within the signature policy,
+    /// if the [`/SignaturePolicyOID`](CertificateSeedValue::signature_policy_oid)
+    /// attribute is present.
+    /// An empty string may be used to indicate that all commitments defined
+    /// by the signature policy may be used. PDF 2.0+.
+    pub fn signature_policy_commitment_type<'b>(
+        &mut self,
+        commitment_types: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"SignaturePolicyHashAlgorithm"))
+            .array()
+            .items(commitment_types);
+        self
+    }
+
+    /// Start writing the `/SubjectDN` array of dictionaries, each
+    /// specifying a Subject Distinguished Name (DN) that shall be
+    /// present within the certificate for it to be acceptable for
+    /// signing.
+    /// Attribute names shall contain characters in the set `a-z`,
+    /// `A-Z` `0-9` and `PERIOD`.
+    /// If [`CertificateSeedValueFlags::SUBJECT_DN`] is present on
+    /// [constraint flags](CertificateSeedValue::constraint_flags),
+    /// this is a required constraint.
+    /// PDF 1.7+.
+    pub fn subject_dn(&mut self) -> TypedArray<'_, Dict<'_>> {
+        self.insert(Name(b"SubjectDN")).array().typed()
+    }
+
+    /// Write the `/KeyUsage` attribute to set which key-usage extensions
+    /// shall be present in the signing certificate.
+    /// If [`CertificateSeedValueFlags::KEY_USAGE`] is present on
+    /// [constraint flags](CertificateSeedValue::constraint_flags),
+    /// this is a required constraint.
+    /// PDF 1.7+.
+    pub fn key_usage(
+        &mut self,
+        key_usages: impl IntoIterator<Item = CertificateKeyUsage>,
+    ) -> &mut Self {
+        let mut array = self.insert(Name(b"KeyUsage")).array();
+        key_usages.into_iter().for_each(|usage| {
+            array.item(Str(&usage.into_ascii()));
+        });
+        array.finish();
+        self
+    }
+
+    /// Write the `/Issuer` attribute to set which issuers' DER-encoded
+    /// X.509v3 certificates are acceptable for signing.
+    /// If [`CertificateSeedValueFlags::ISSUER`] is present on
+    /// [constraint flags](CertificateSeedValue::constraint_flags),
+    /// this is a required constraint.
+    pub fn issuer<'b>(
+        &mut self,
+        issuers: impl IntoIterator<Item = Str<'b>>,
+    ) -> &mut Self {
+        self.insert(Name(b"Issuer")).array().items(issuers);
+        self
+    }
+
+    /// Write the `/OID` attribute to set which certificate policies'
+    /// Object Identifiers (OIDs) shall be present in the signing certificate.
+    /// If [`CertificateSeedValueFlags::OID`] is present on
+    /// [constraint flags](CertificateSeedValue::constraint_flags),
+    /// this is a required constraint.
+    pub fn oid<'b>(&mut self, oids: impl IntoIterator<Item = Str<'b>>) -> &mut Self {
+        self.insert(Name(b"OID")).array().items(oids);
+        self
+    }
+
+    /// Write the `/URL` attribute to set a URL whose use is defined
+    /// by the [`/URLType`](CertificateSeedValue::url_type) attribute.
+    pub fn url(&mut self, url: Str<'_>) -> &mut Self {
+        self.pair(Name(b"URL"), url);
+        self
+    }
+
+    /// Write the `/URLType` attribute to set the use of
+    /// the [`/URL`](CertificateSeedValue::url) attribute.
+    /// PDF 1.7+.
+    pub fn url_type(&mut self, url_type: CertificateUrlType) -> &mut Self {
+        self.pair(Name(b"URLType"), url_type.to_name());
+        self
+    }
+}
+
+deref!('a, CertificateSeedValue<'a> => Dict<'a>, dict);
+
+bitflags::bitflags! {
+    /// Bitflags describing the whether a specific entry in a
+    /// [certificate seed value dictionary](CertificateSeedValue)
+    /// is required to be present in the signing certificate (1)
+    /// or optional (0).
+    pub struct CertificateSeedValueFlags: u32 {
+        /// The `/Subject` entry is a mandatory constraint.
+        const SUBJECT = 1 << 0;
+        /// The `/Issuer` entry is a mandatory constraint.
+        const ISSUER = 1 << 1;
+        /// The `/OID` entry is a mandatory constraint.
+        const OID = 1 << 2;
+        /// The `/SubjectDN` entry is a mandatory constraint.
+        const SUBJECT_DN = 1 << 3;
+
+        // Bit 5 (1 << 4) is reserved
+
+        /// The `/KeyUsage` entry is a mandatory constraint.
+        const KEY_USAGE = 1 << 5;
+        /// The `/URL` entry is a mandatory constraint.
+        const URL = 1 << 6;
+    }
+}
+
+/// The key-usage extensions that shall or shall not be present in a
+/// certificate.
+///
+/// For each field of this struct, its value is interpreted as follows:
+/// `Some(true)` if it shall be set;
+/// `Some(false)` if it shall not be set; or
+/// `None` if it does not matter.
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
+pub struct CertificateKeyUsage {
+    /// Whether the `digitalSignature` key-usage extension shall be set.
+    pub digital_signature: Option<bool>,
+    /// Whether the `non-Repudiation` key-usage extension shall be set.
+    pub non_repudiation: Option<bool>,
+    /// Whether the `keyEncipherment` key-usage extension shall be set.
+    pub key_encipherment: Option<bool>,
+    /// Whether the `dataEncipherment` key-usage extension shall be set.
+    pub data_encipherment: Option<bool>,
+    /// Whether the `keyAgreement` key-usage extension shall be set.
+    pub key_agreement: Option<bool>,
+    /// Whether the `KeyCertSign` key-usage extension shall be set.
+    pub key_cert_sign: Option<bool>,
+    /// Whether the `cRLSign` key-usage extension shall be set.
+    pub crl_sign: Option<bool>,
+    /// Whether the `encipherOnly` key-usage extension shall be set.
+    pub encipher_only: Option<bool>,
+    /// Whether the `decipherOnly` key-usage extension shall be set.
+    pub decipher_only: Option<bool>,
+}
+
+impl CertificateKeyUsage {
+    pub(crate) fn into_ascii(self) -> [u8; 9] {
+        [
+            Self::to_byte(self.digital_signature),
+            Self::to_byte(self.non_repudiation),
+            Self::to_byte(self.key_encipherment),
+            Self::to_byte(self.data_encipherment),
+            Self::to_byte(self.key_agreement),
+            Self::to_byte(self.key_cert_sign),
+            Self::to_byte(self.crl_sign),
+            Self::to_byte(self.encipher_only),
+            Self::to_byte(self.decipher_only),
+        ]
+    }
+
+    fn to_byte(value: Option<bool>) -> u8 {
+        match value {
+            Some(true) => b'1',
+            Some(false) => b'0',
+            None => b'X',
+        }
+    }
+}
+
+/// The usage of the [URL entry](CertificateSeedValue::url).
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum CertificateUrlType<'a> {
+    /// The URL references content that shall be displayed in a web
+    /// browser to allow enrolling for a new credential if a matching
+    /// credential is not found.
+    Browser,
+    /// An implementation-specific third-party extension.
+    Custom(Name<'a>),
+}
+
+impl<'a> CertificateUrlType<'a> {
+    pub(crate) fn to_name(self) -> Name<'a> {
+        match self {
+            Self::Browser => Name(b"Browser"),
+            Self::Custom(name) => name,
+        }
+    }
+}
+
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of a form field.
     pub struct FieldFlags: u32 {
@@ -498,15 +1182,15 @@ bitflags::bitflags! {
         /// will not respond to mouse clicks or change their appearance in
         /// response to mouse motions. This flag is useful for fields whose
         /// values are computed or imported from a database.
-        const READ_ONLY = 1;
+        const READ_ONLY = 1 << 0;
         /// The field shall have a value at the time it is exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
-        const REQUIRED = 2;
+        /// [submit-form](crate::types::ActionType::SubmitForm) [`Action`].
+        const REQUIRED = 1 << 1;
         /// The field shall not be exported by a
-        /// [submit-form](crate::types::ActionType::SubmitForm)[`Action`].
+        /// [submit-form](crate::types::ActionType::SubmitForm) [`Action`].
         const NO_EXPORT = 1 << 2;
         /// The entered text shall not be spell-checked, can be used for text
-        /// and choice fields.
+        /// and choice fields. PDF 1.4+.
         const DO_NOT_SPELL_CHECK = 1 << 22;
 
         // Button specific flags
@@ -541,7 +1225,7 @@ bitflags::bitflags! {
         /// submitted as the value of the field. PDF 1.4+.
         const FILE_SELECT = 1 << 20;
         /// The field shall not scroll horizontally (for single-line) or
-        /// vertically (for multi-line) to accomodate more text. Once the field
+        /// vertically (for multi-line) to accommodate more text. Once the field
         /// is full, no further text shall be accepted for interactive form
         /// filling; for non-interactive form filling, the filler should take
         /// care not to add more character than will visibly fit in the defined
@@ -549,7 +1233,7 @@ bitflags::bitflags! {
         const DO_NOT_SCROLL = 1 << 23;
         /// The field shall be automatically divided into as many equally
         /// spaced positions or _combs_ as the value of [`Field::max_len`]
-        /// and the text is layed out into these combs. May only be set if
+        /// and the text is laid out into these combs. May only be set if
         /// the [`Field::max_len`] property is set and if the [`MULTILINE`],
         /// [`PASSWORD`] and [`FILE_SELECT`] flags are clear. PDF 1.5+.
         const COMB = 1 << 24;

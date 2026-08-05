@@ -130,7 +130,10 @@ pub mod writers {
         CidFont, Cmap, Differences, Encoding, FontDescriptor, FontDescriptorOverride,
         Type0Font, Type1Font, Type3Font, WMode, Widths,
     };
-    pub use forms::{Field, Form};
+    pub use forms::{
+        CertificateSeedValue, Field, Form, SignatureFieldLock,
+        SignatureModificationDetectionPrevention, SignatureSeedValue, SignatureTimeStamp,
+    };
     pub use functions::{
         ExponentialFunction, PostScriptFunction, SampledFunction, StitchingFunction,
     };
@@ -175,7 +178,10 @@ pub mod types {
         CidFontType, CjkClass, FontFlags, FontStretch, GlyphId, SystemInfo, UnicodeCmap,
     };
     pub use forms::{
-        CheckBoxState, ChoiceOptions, FieldFlags, FieldType, Quadding, SigFlags,
+        AccessPermissions, CertificateKeyUsage, CertificateSeedValueFlags,
+        CertificateUrlType, CheckBoxState, ChoiceOptions, FieldFlags, FieldType,
+        LockingIntent, MdpSignatureType, Quadding, SeedValueParserVersion, SigFlags,
+        SignatureDigestMethod, SignatureLockAction, SignatureSeedValueFlags,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
     pub use object::Predictor;
