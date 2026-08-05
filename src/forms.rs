@@ -1030,7 +1030,7 @@ impl CertificateSeedValue<'_> {
     ) -> &mut Self {
         let mut array = self.insert(Name(b"KeyUsage")).array();
         key_usages.into_iter().for_each(|usage| {
-            array.item(Str(&usage.into_string()));
+            array.item(Str(&usage.into_ascii()));
         });
         array.finish();
         self
@@ -1108,7 +1108,7 @@ bitflags::bitflags! {
 /// `Some(true)` if it shall be set;
 /// `Some(false)` if it shall not be set; or
 /// `None` if it does not matter.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Default)]
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
 pub struct CertificateKeyUsage {
     /// Whether the `digitalSignature` key-usage extension shall be set.
     pub digital_signature: Option<bool>,
@@ -1131,14 +1131,7 @@ pub struct CertificateKeyUsage {
 }
 
 impl CertificateKeyUsage {
-    fn to_byte(value: Option<bool>) -> u8 {
-        match value {
-            Some(true) => b'1',
-            Some(false) => b'0',
-            None => b'X',
-        }
-    }
-    pub(crate) fn into_string(&self) -> [u8; 9] {
+    pub(crate) fn into_ascii(self) -> [u8; 9] {
         [
             Self::to_byte(self.digital_signature),
             Self::to_byte(self.non_repudiation),
@@ -1150,6 +1143,14 @@ impl CertificateKeyUsage {
             Self::to_byte(self.encipher_only),
             Self::to_byte(self.decipher_only),
         ]
+    }
+
+    fn to_byte(value: Option<bool>) -> u8 {
+        match value {
+            Some(true) => b'1',
+            Some(false) => b'0',
+            None => b'X',
+        }
     }
 }
 
