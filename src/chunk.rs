@@ -98,6 +98,18 @@ impl Chunk {
         self.offsets.iter().map(|&(id, _)| id)
     }
 
+    /// The byte offsets of the top-level indirect objects in this chunk.
+    ///
+    /// Each entry is `(object_ref, byte_offset_in_chunk)`, in the order the
+    /// objects appear in the chunk. This mirrors [`refs()`](Self::refs) but
+    /// also exposes where each object starts inside the chunk's buffer —
+    /// useful for callers that want to index into [`as_bytes()`](Self::as_bytes)
+    /// directly, e.g. to serialize a chunk piecewise or to record the offsets
+    /// alongside the bytes in an external store.
+    pub fn object_offsets(&self) -> &[(Ref, usize)] {
+        &self.offsets
+    }
+
     /// Returns the limits of data written into the chunk.
     pub fn limits(&self) -> &Limits {
         self.buf.limits()
@@ -530,5 +542,30 @@ mod tests {
             b"<<\n  /Size 3\n>>",
             b"startxref\n160\n%%EOF",
         );
+    }
+
+    #[test]
+    fn test_chunk_object_offsets() {
+        let mut c = Chunk::new();
+        c.font_descriptor(Ref::new(5)).name(Name(b"A"));
+        let start_b = c.len();
+        c.font_descriptor(Ref::new(9)).name(Name(b"B"));
+
+        // object_offsets() and refs() must report the same references in the
+        // same order, and the offsets must land at real indirect-object
+        // starts inside the chunk's byte buffer.
+        let offsets = c.object_offsets();
+        let refs: Vec<Ref> = c.refs().collect();
+        assert_eq!(offsets.len(), refs.len());
+        assert_eq!(offsets.len(), 2);
+        assert_eq!(offsets[0], (Ref::new(5), 0));
+        assert_eq!(offsets[1].0, Ref::new(9));
+        assert_eq!(offsets[1].1, start_b);
+
+        let bytes = c.as_bytes();
+        for (r, off) in offsets {
+            let header = format!("{} 0 obj", r.get());
+            assert!(bytes[*off..].starts_with(header.as_bytes()));
+        }
     }
 }
