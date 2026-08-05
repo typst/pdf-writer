@@ -131,7 +131,7 @@ pub mod writers {
         Type0Font, Type1Font, Type3Font, WMode, Widths,
     };
     pub use forms::{
-        CertificateSeedValue, Field, Form, SignatureFieldLock,
+        CertificateSeedValue, ChoiceOptions, Field, Form, SignatureFieldLock,
         SignatureModificationDetectionPrevention, SignatureSeedValue, SignatureTimeStamp,
     };
     pub use functions::{
@@ -179,8 +179,8 @@ pub mod types {
     };
     pub use forms::{
         AccessPermissions, CertificateKeyUsage, CertificateSeedValueFlags,
-        CertificateUrlType, CheckBoxState, ChoiceOptions, FieldFlags, FieldType,
-        LockingIntent, MdpSignatureType, Quadding, SeedValueParserVersion, SigFlags,
+        CertificateUrlType, CheckBoxState, FieldFlags, FieldType, LockingIntent,
+        MdpSignatureType, Quadding, SeedValueParserVersion, SigFlags,
         SignatureDigestMethod, SignatureLockAction, SignatureSeedValueFlags,
     };
     pub use functions::{InterpolationOrder, PostScriptOp};
