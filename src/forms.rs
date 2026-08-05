@@ -1056,7 +1056,6 @@ impl CertificateSeedValue<'_> {
     /// this is a required constraint.
     pub fn oid<'b>(
         &mut self,
-        // TODO this should be a byte string, is that a thing?
         oids: impl IntoIterator<Item = Str<'b>>,
     ) -> &mut Self {
         self.insert(Name(b"OID")).array().items(oids);
