@@ -1054,10 +1054,7 @@ impl CertificateSeedValue<'_> {
     /// If [`CertificateSeedValueFlags::OID`] is present on
     /// [constraint flags](CertificateSeedValue::constraint_flags),
     /// this is a required constraint.
-    pub fn oid<'b>(
-        &mut self,
-        oids: impl IntoIterator<Item = Str<'b>>,
-    ) -> &mut Self {
+    pub fn oid<'b>(&mut self, oids: impl IntoIterator<Item = Str<'b>>) -> &mut Self {
         self.insert(Name(b"OID")).array().items(oids);
         self
     }
