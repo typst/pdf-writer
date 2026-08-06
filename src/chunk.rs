@@ -97,6 +97,12 @@ impl Chunk {
     pub fn refs(&self) -> impl ExactSizeIterator<Item = Ref> + '_ {
         self.offsets.iter().map(|&(id, _)| id)
     }
+    
+    /// Reset the chunk.
+    pub fn reset(&mut self) {
+        self.buf.reset();
+        self.offsets.clear();
+    }
 
     /// Returns the limits of data written into the chunk.
     pub fn limits(&self) -> &Limits {
