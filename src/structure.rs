@@ -764,7 +764,7 @@ deref!('a, ClassMap<'a> => Dict<'a>, dict);
 /// Role the structure element fulfills in the document for PDF 1.7 and below.
 ///
 /// These are the predefined standard roles in PDF 1.7 and below, matching the
-/// `https://www.iso.org/pdf/ssn` namespace. The writer may write their own
+/// `http://iso.org/pdf/ssn` namespace. The writer may write their own
 /// roles and then provide a mapping with [`StructTreeRoot::role_map`], or, if
 /// writing PDF 2.0, with [`Namespace::role_map_ns`]. PDF 1.4+.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -1089,7 +1089,7 @@ impl TryFrom<StructRole> for StructRole2 {
 /// PDF 2.0 roles the structure element fulfills in the document.
 ///
 /// These are the predefined standard roles in PDF 2.0, matching the
-/// `https://www.iso.org/pdf2/ssn` namespace. The writer may write their own
+/// `http://iso.org/pdf2/ssn` namespace. The writer may write their own
 /// types and then provide a mapping using [`Namespace::role_map_ns`]. PDF 2.0+.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum StructRole2 {
@@ -1546,18 +1546,18 @@ impl Namespace<'_> {
     /// Write the namespace dictionary for the _standard structure namespace for
     /// PDF 2.0_.
     pub fn pdf_2_ns(mut self) {
-        self.ns(TextStr("https://www.iso.org/pdf2/ssn"));
+        self.ns(TextStr("http://iso.org/pdf2/ssn"));
     }
 
     /// Write the namespace dictionary for the _standard structure namespace for
     /// PDF 1.7_.
     pub fn pdf_1_7_ns(mut self) {
-        self.ns(TextStr("https://www.iso.org/pdf/ssn"));
+        self.ns(TextStr("http://iso.org/pdf/ssn"));
     }
 
     /// Write the namespace dictionary for MathML 3.0.
     pub fn mathml_3_0_ns(mut self) {
-        self.ns(TextStr("https://www.w3.org/1998/Math/MathML"));
+        self.ns(TextStr("http://www.w3.org/1998/Math/MathML"));
     }
 }
 
