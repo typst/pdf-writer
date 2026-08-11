@@ -233,6 +233,7 @@ impl ActionType {
 
 bitflags::bitflags! {
     /// A set of flags specifying various characteristics of an [`Action`].
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct FormActionFlags: u32 {
         /// Whether to include (unset) or exclude (set) the values in the
         /// `/Fields` attribute on form submission or reset. This Flag has very

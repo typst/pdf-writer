@@ -66,6 +66,7 @@ deref!('a, Form<'a> => Dict<'a>, dict);
 bitflags::bitflags! {
     /// Bitflags describing various document-level characteristics related to
     /// signature fields.
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct SigFlags: u32 {
         /// The document contains at least one signature field.
         const SIGNATURES_EXIST = 1;
@@ -737,6 +738,7 @@ bitflags::bitflags! {
     /// Bitflags describing the whether a specific entry in a
     /// [seed value dictionary](SignatureSeedValue) is required (1)
     /// or optional (0).
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct SignatureSeedValueFlags: u32 {
         /// The `/Filter` entry is a mandatory constraint.
         const FILTER = 1 << 0;
@@ -1082,6 +1084,7 @@ bitflags::bitflags! {
     /// [certificate seed value dictionary](CertificateSeedValue)
     /// is required to be present in the signing certificate (1)
     /// or optional (0).
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct CertificateSeedValueFlags: u32 {
         /// The `/Subject` entry is a mandatory constraint.
         const SUBJECT = 1 << 0;
@@ -1176,6 +1179,7 @@ impl<'a> CertificateUrlType<'a> {
 
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of a form field.
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct FieldFlags: u32 {
         /// The user may not change the value of the field. Any associated
         /// widget annotations will not interact with the user; that is, they
