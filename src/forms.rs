@@ -69,14 +69,14 @@ bitflags::bitflags! {
     #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct SigFlags: u32 {
         /// The document contains at least one signature field.
-        const SIGNATURES_EXIST = 1;
+        const SIGNATURES_EXIST = 1 << 0;
 
         /// The document contains signatures that may be invalidated if the
         /// file is saved (written) in a way that alters its previous contents,
         /// as opposed to an incremental update. Merely updating the file by
         /// appending new information to the end of the previous version is
         /// safe.
-        const APPEND_ONLY = 2;
+        const APPEND_ONLY = 1 << 1;
     }
 }
 
