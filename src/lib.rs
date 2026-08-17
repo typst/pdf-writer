@@ -98,6 +98,7 @@ mod font;
 mod forms;
 mod functions;
 mod object;
+mod object_stream;
 mod renditions;
 mod renumber;
 mod structure;
@@ -204,11 +205,13 @@ pub use self::object::{
     Rect, Ref, Rewrite, Str, Stream, TextStr, TextStrLike, TextStrWithLang, TypedArray,
     TypedDict, Writer,
 };
+pub use self::object_stream::{ObjectStreamBuilder, ObjectStreamFilter, ObjectStreamJob};
 
 use std::fmt::{self, Debug, Formatter};
 use std::io::Write;
 use std::ops::{Deref, DerefMut};
 
+use self::chunk::ChunkEntry;
 use self::writers::*;
 
 /// A builder for a PDF file.
@@ -311,12 +314,18 @@ impl Pdf {
     ///
     /// Panics if any indirect reference id was used twice.
     pub fn finish(self) -> Vec<u8> {
-        let Chunk { mut buf, offsets, settings } = self.chunk;
+        let Chunk { mut buf, entries, settings, .. } = self.chunk;
+        assert!(
+            !entries
+                .iter()
+                .any(|entry| matches!(entry, ChunkEntry::Compressed { .. })),
+            "plain xref tables cannot reference compressed objects"
+        );
         let trailer_data = self.trailer_data;
         let xref_offset = buf.len();
 
         let mut writer = PlainXRefWriter::new(&mut buf);
-        let xref_len = write_offsets(offsets, &mut writer);
+        let xref_len = write_offsets(entries, &mut writer);
 
         // Write the trailer dictionary.
         buf.extend(b"trailer\n");
@@ -348,6 +357,23 @@ impl Pdf {
         self.finish_with_xref_stream_inner(xref_id, |buf| (buf, None))
     }
 
+    /// Write the cross-reference stream using the next available reference id.
+    pub fn finish_with_xref_stream_auto(self) -> Vec<u8> {
+        let max_ref = self
+            .chunk
+            .entries
+            .iter()
+            .flat_map(|entry| match *entry {
+                ChunkEntry::Normal { id, .. } => [id.get(), 0],
+                ChunkEntry::Compressed { id, object_stream, .. } => {
+                    [id.get(), object_stream.get()]
+                }
+            })
+            .max()
+            .unwrap_or(0);
+        self.finish_with_xref_stream(Ref::new(max_ref + 1))
+    }
+
     /// Write the cross-reference stream and file trailer and return the
     /// underlying buffer.
     ///
@@ -373,16 +399,38 @@ impl Pdf {
         xref_id: Ref,
         filter: impl FnOnce(Vec<u8>) -> (Vec<u8>, Option<XRefFilter>),
     ) -> Vec<u8> {
-        let Chunk { mut buf, mut offsets, settings } = self.chunk;
+        let Chunk { mut buf, mut entries, settings, .. } = self.chunk;
         let trailer_data = self.trailer_data;
 
-        // Include the reference of the xref stream in the offsets as well!
+        // Include the reference of the xref stream in the entries as well!
         let xref_offset = buf.len();
-        offsets.push((xref_id, xref_offset));
-        let field_width = determine_field_width(xref_offset);
+        entries.push(ChunkEntry::Normal { id: xref_id, offset: xref_offset });
+        let offset_width = determine_field_width(
+            entries
+                .iter()
+                .map(|entry| match *entry {
+                    ChunkEntry::Normal { offset, .. } => offset,
+                    ChunkEntry::Compressed { object_stream, .. } => {
+                        object_stream.get() as usize
+                    }
+                })
+                .max()
+                .unwrap(),
+        );
+        let index_width = determine_field_width(
+            entries
+                .iter()
+                .filter_map(|entry| match *entry {
+                    ChunkEntry::Normal { .. } => None,
+                    ChunkEntry::Compressed { index, .. } => Some(index as usize),
+                })
+                .chain(std::iter::once(u16::MAX as usize))
+                .max()
+                .unwrap(),
+        );
 
-        let mut writer = XRefStreamWriter::new(field_width);
-        let xref_len = write_offsets(offsets, &mut writer);
+        let mut writer = XRefStreamWriter::new(offset_width, index_width);
+        let xref_len = write_offsets(entries, &mut writer);
 
         let (xref_data, filter) = filter(writer.buf);
 
@@ -412,8 +460,8 @@ impl Pdf {
             .insert(Name(b"W"))
             .array()
             .item(1)
-            .item(field_width as i32)
-            .item(2);
+            .item(offset_width as i32)
+            .item(index_width as i32);
 
         stream.finish();
 
@@ -440,18 +488,19 @@ fn finish_trailer(mut buf: Buf, xref_offset: usize, pad: &[u8]) -> Vec<u8> {
     buf.into_vec()
 }
 
-fn write_offsets(mut offsets: Vec<(Ref, usize)>, writer: &mut impl XRefWriter) -> i32 {
-    offsets.sort();
+fn write_offsets(mut entries: Vec<ChunkEntry>, writer: &mut impl XRefWriter) -> i32 {
+    entries.sort_by_key(|entry| entry.id());
 
-    let xref_len = 1 + offsets.last().map_or(0, |p| p.0.get());
+    let xref_len = 1 + entries.last().map_or(0, |entry| entry.id().get());
     writer.prologue(xref_len);
 
-    if offsets.is_empty() {
+    if entries.is_empty() {
         writer.write_free_entry(0, 65535);
     }
 
     let mut written = 0;
-    for (i, (object_id, offset)) in offsets.iter().enumerate() {
+    for (i, entry) in entries.iter().enumerate() {
+        let object_id = entry.id();
         if written > object_id.get() {
             panic!("duplicate indirect reference id: {}", object_id.get());
         }
@@ -462,7 +511,7 @@ fn write_offsets(mut offsets: Vec<(Ref, usize)>, writer: &mut impl XRefWriter) -
             let mut next = free_id + 1;
             if next == object_id.get() {
                 // Find next free id.
-                for (used_id, _) in &offsets[i..] {
+                for used_id in entries[i..].iter().map(|entry| entry.id()) {
                     if next < used_id.get() {
                         break;
                     } else {
@@ -476,7 +525,14 @@ fn write_offsets(mut offsets: Vec<(Ref, usize)>, writer: &mut impl XRefWriter) -
             written += 1;
         }
 
-        writer.write_occupied_entry(*offset, 0);
+        match *entry {
+            ChunkEntry::Normal { offset, .. } => {
+                writer.write_occupied_entry(offset, 0);
+            }
+            ChunkEntry::Compressed { object_stream, index, .. } => {
+                writer.write_compressed_entry(object_stream, index);
+            }
+        }
         written += 1;
     }
 
@@ -534,30 +590,31 @@ trait XRefWriter {
     fn prologue(&mut self, xref_len: i32);
     fn write_free_entry(&mut self, offset: usize, gen_number: u16);
     fn write_occupied_entry(&mut self, offset: usize, gen_number: u16);
+    fn write_compressed_entry(&mut self, object_stream: Ref, index: u32);
 }
 
 struct XRefStreamWriter {
     buf: Vec<u8>,
-    field_width: u32,
+    offset_width: u32,
+    index_width: u32,
 }
 
 impl XRefStreamWriter {
-    fn new(field_width: u32) -> Self {
-        Self { buf: Vec::new(), field_width }
+    fn new(offset_width: u32, index_width: u32) -> Self {
+        Self { buf: Vec::new(), offset_width, index_width }
     }
 }
 
 impl XRefStreamWriter {
-    fn write(&mut self, entry_type: u8, offset: usize, gen_number: u16) {
-        let offset_bytes = (offset as u64).to_be_bytes();
+    fn write_int(&mut self, value: u64, width: u32) {
+        let bytes = value.to_be_bytes();
+        self.buf.extend(bytes.iter().skip(bytes.len() - width as usize));
+    }
 
+    fn write(&mut self, entry_type: u8, field2: u64, field3: u64) {
         self.buf.push(entry_type);
-        self.buf.extend(
-            offset_bytes
-                .iter()
-                .skip(offset_bytes.len() - self.field_width as usize),
-        );
-        self.buf.extend_from_slice(&gen_number.to_be_bytes());
+        self.write_int(field2, self.offset_width);
+        self.write_int(field3, self.index_width);
     }
 }
 
@@ -565,11 +622,15 @@ impl XRefWriter for XRefStreamWriter {
     fn prologue(&mut self, _: i32) {}
 
     fn write_free_entry(&mut self, offset: usize, gen_number: u16) {
-        self.write(0, offset, gen_number);
+        self.write(0, offset as u64, gen_number as u64);
     }
 
     fn write_occupied_entry(&mut self, offset: usize, gen_number: u16) {
-        self.write(1, offset, gen_number);
+        self.write(1, offset as u64, gen_number as u64);
+    }
+
+    fn write_compressed_entry(&mut self, object_stream: Ref, index: u32) {
+        self.write(2, object_stream.get() as u64, index as u64);
     }
 }
 
@@ -597,6 +658,10 @@ impl<'a> XRefWriter for PlainXRefWriter<'a> {
     fn write_occupied_entry(&mut self, offset: usize, gen_number: u16) {
         write!(self.buf.inner, "{offset:010} {gen_number:05} n\r\n").unwrap();
     }
+
+    fn write_compressed_entry(&mut self, _: Ref, _: u32) {
+        unreachable!("plain xref tables cannot reference compressed objects");
+    }
 }
 
 fn determine_field_width(offset: usize) -> u32 {
@@ -611,8 +676,20 @@ mod tests {
     #[allow(unused)]
     pub fn print_chunk(chunk: &Chunk) {
         println!("========== Chunk ==========");
-        for &(id, offset) in &chunk.offsets {
-            println!("[{}]: {}", id.get(), offset);
+        for &entry in &chunk.entries {
+            match entry {
+                ChunkEntry::Normal { id, offset } => {
+                    println!("[{}]: {}", id.get(), offset);
+                }
+                ChunkEntry::Compressed { id, object_stream, index } => {
+                    println!(
+                        "[{}]: object stream {}, index {}",
+                        id.get(),
+                        object_stream.get(),
+                        index
+                    );
+                }
+            }
         }
         println!("---------------------------");
         print!("{}", String::from_utf8_lossy(&chunk.buf));
@@ -758,6 +835,28 @@ mod tests {
             b"endstream\nendobj\n",
             b"startxref\n70\n%%EOF",
         )
+    }
+
+    #[test]
+    fn test_xref_stream_compressed_entry() {
+        let mut w = Pdf::new();
+        let mut source = Chunk::new();
+        source.indirect(Ref::new(1)).primitive(1);
+
+        let mut builder = ObjectStreamBuilder::new(Settings::default(), 100);
+        let mut next_ref = || Ref::new(2);
+        let mut spawn = ObjectStreamJob::build;
+
+        builder.extend_with(&source, &mut next_ref, &mut spawn);
+        for chunk in builder.finish_with(&mut next_ref, &mut spawn) {
+            w.extend(&chunk);
+        }
+
+        let pdf = w.finish_with_xref_stream_auto();
+        assert!(pdf.windows(b"/W [1 1 2]".len()).any(|window| window == b"/W [1 1 2]"));
+        assert!(pdf
+            .windows(b"\x02\x02\x00\x00".len())
+            .any(|window| window == b"\x02\x02\x00\x00"));
     }
 
     #[test]
