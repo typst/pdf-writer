@@ -233,15 +233,16 @@ impl ActionType {
 
 bitflags::bitflags! {
     /// A set of flags specifying various characteristics of an [`Action`].
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct FormActionFlags: u32 {
         /// Whether to include (unset) or exclude (set) the values in the
         /// `/Fields` attribute on form submission or reset. This Flag has very
         /// specific interacitons with other flags and fields, read the PDF 1.7
         /// spec for more info.
-        const INCLUDE_EXCLUDE = 1;
+        const INCLUDE_EXCLUDE = 1 << 0;
         /// Fields shall be submitted regardless of if they have a value or
         /// not, otherwise they are excluded.
-        const INCLUDE_NO_VALUE_FIELDS = 2;
+        const INCLUDE_NO_VALUE_FIELDS = 1 << 1;
         /// Export the fields as HTML instead of submitting as FDF. Ignored if
         /// `SUBMIT_PDF` or `XFDF` are set.
         const EXPORT_FORMAT = 1 << 2;

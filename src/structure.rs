@@ -1371,6 +1371,7 @@ impl StructRole2 {
 
 bitflags::bitflags! {
     /// Options for mapping PDF 2.0 [`StructRole2`] to PDF 1.7 [`StructRole`].
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct RoleMapOpts: u8 {
         /// Whether to map headings with levels higher than 6 to [`StructRole::H6`]
         /// (`true`) or [`StructRole::P`] (`false`).
@@ -1381,12 +1382,6 @@ bitflags::bitflags! {
         /// Whether to map the `Sub` role to [`StructRole::Span`] (`true`) or
         /// [`StructRole::Div`] (`false`).
         const MAP_SUB_TO_SPAN = 1 << 2;
-    }
-}
-
-impl Default for RoleMapOpts {
-    fn default() -> Self {
-        Self::empty()
     }
 }
 
@@ -2186,6 +2181,7 @@ deref!('a, OutlineItem<'a> => Dict<'a>, dict);
 
 bitflags::bitflags! {
     /// Bitflags describing the appearance of an outline item.
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct OutlineItemFlags: u32 {
         /// This renders the outline item italicized.
         const ITALIC = 1 << 0;

@@ -343,6 +343,7 @@ impl<'a> AnnotationIcon<'a> {
 
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of annotations.
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct AnnotationFlags: u32 {
         /// This will hide the annotation if the viewer does not recognize its
         /// subtype. Otherwise, it will be rendered as specified in its appearance

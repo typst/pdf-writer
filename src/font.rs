@@ -741,6 +741,7 @@ impl FontStretch {
 
 bitflags::bitflags! {
     /// Bitflags describing various characteristics of fonts.
+    #[derive(Debug, Copy, Clone, Default, Eq, PartialEq, Hash)]
     pub struct FontFlags: u32 {
         /// All glyphs have the same width.
         const FIXED_PITCH = 1 << 0;
