@@ -35,6 +35,12 @@ impl Buf {
     pub fn limits(&self) -> &Limits {
         &self.limits
     }
+    
+    /// Reset the buffer.
+    pub fn reset(&mut self) {
+        self.inner.clear();
+        self.limits = Limits::new();
+    }
 
     #[inline]
     pub(crate) fn push_val<T: Primitive>(&mut self, value: T) {
