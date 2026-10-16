@@ -1,3 +1,4 @@
+use crate::chunk::ChunkEntry;
 use crate::{Buf, Chunk, Ref};
 
 /// Renumbers a chunk of objects.
@@ -5,14 +6,26 @@ use crate::{Buf, Chunk, Ref};
 /// See [`Chunk::renumber`] for more details.
 pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref) -> Ref) {
     target.buf.limits.merge(source.limits());
+    target.has_streams |= source.has_streams();
 
-    let mut iter = source.offsets.iter().copied().peekable();
+    let mut iter = source
+        .entries
+        .iter()
+        .filter_map(|entry| match *entry {
+            ChunkEntry::Normal { id, offset } => Some((id, offset)),
+            ChunkEntry::Compressed { .. } => {
+                panic!("chunks with object streams cannot be renumbered");
+            }
+        })
+        .peekable();
     while let Some((id, offset)) = iter.next() {
         let new = mapping(id);
         let end = iter.peek().map_or(source.buf.len(), |&(_, offset)| offset);
         let slice = &source.buf[offset..end];
         let Some((gen, slice)) = extract_object(slice) else { continue };
-        target.offsets.push((new, target.buf.len()));
+        target
+            .entries
+            .push(ChunkEntry::Normal { id: new, offset: target.buf.len() });
         target.buf.push_int(new.get());
         target.buf.push(b' ');
         target.buf.push_int(gen);
@@ -27,7 +40,7 @@ pub fn renumber(source: &Chunk, target: &mut Chunk, mapping: &mut dyn FnMut(Ref)
 }
 
 /// Extract the generation number and interior of an indirect object.
-fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
+pub(crate) fn extract_object(slice: &[u8]) -> Option<(i32, &[u8])> {
     let offset = memchr::memmem::find(slice, b"obj")?;
     let mut prefix = &slice[..offset];
     require_whitespace_rev(&mut prefix);
@@ -169,7 +182,7 @@ mod tests {
     use std::collections::HashMap;
 
     use super::*;
-    use crate::{Name, Ref, TextStr};
+    use crate::{Name, ObjectStreamBuilder, ObjectStreamJob, Ref, Settings, TextStr};
 
     #[test]
     fn test_renumber() {
@@ -188,7 +201,8 @@ mod tests {
             .pair(Name(b"Unsafe"), TextStr("()(And (More) 17 0 R())"));
 
         // Manually write an untidy object.
-        c.offsets.push((Ref::new(8), c.buf.len()));
+        c.entries
+            .push(ChunkEntry::Normal { id: Ref::new(8), offset: c.buf.len() });
         c.buf.extend(b"8  3  obj\n<</Fmt false/Niceness(4 0\nR-)");
         c.buf.extend(b"/beginobj/endobj%4 0 R\n");
         c.buf.extend(b"/Me 8 3  R/Unknown 11 0  R/R[4  0\nR]>>%\n\nendobj");
@@ -240,5 +254,25 @@ mod tests {
             b"endstream",
             b"endobj\n\n"
         );
+    }
+
+    #[test]
+    #[should_panic(expected = "chunks with object streams cannot be renumbered")]
+    fn test_renumber_object_stream_panics() {
+        let mut source = Chunk::new();
+        source.indirect(Ref::new(1)).primitive(1);
+
+        let mut builder = ObjectStreamBuilder::new(Settings::default(), 100);
+        let mut next_ref = || Ref::new(2);
+        let mut spawn = ObjectStreamJob::build;
+
+        builder.extend_with(&source, &mut next_ref, &mut spawn);
+        let object_stream = builder
+            .finish_with(&mut next_ref, &mut spawn)
+            .into_iter()
+            .next()
+            .unwrap();
+
+        object_stream.renumber(|old| old);
     }
 }
