@@ -377,12 +377,9 @@ impl Field<'_> {
     /// and correspond to 0-based indices in the [`Field::choice_options`]
     /// array.
     ///
-    /// This entry shall be used for choice fields which allow multiple
-    /// selections ([`FieldFlags::MULTI_SELECT`]). This means when two or more
-    /// elements in the [`Field::choice_options`] array have different names
-    /// but export the same value or when the value fo the choice field is an
-    /// array. This entry should not be used for choice fields that do not allow
-    /// multiple selections. PDF 1.4+.
+    /// This entry shall be used when two or more elements in the
+    /// [`Field::choice_options`] array have different names but export
+    /// the same value. PDF 1.4+.
     pub fn choice_indices(
         &mut self,
         indices: impl IntoIterator<Item = i32>,
