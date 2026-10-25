@@ -1150,6 +1150,9 @@ impl Drop for Stream<'_> {
         let dict_len = self.dict.len as usize;
         self.dict.buf.limits.register_dict_entries(dict_len);
 
+        const TAIL_LEN: usize = b"\n>>\nstream\n\nendstream\nendobj\n\n".len();
+        self.dict.buf.reserve(self.data.len() + TAIL_LEN);
+
         if self.dict.settings.pretty {
             self.dict.buf.extend(b"\n");
         }
