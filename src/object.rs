@@ -1720,6 +1720,14 @@ mod tests {
     }
 
     #[test]
+    fn test_stream_capacity() {
+        let data = vec![0; 1024 * 1024];
+        let mut chunk = Chunk::new();
+        chunk.stream(Ref::new(1), &data).filter(Filter::FlateDecode);
+        assert!(chunk.buf.inner.capacity() < chunk.len() + 256);
+    }
+
+    #[test]
     fn test_arrays_no_pretty() {
         test_obj_no_pretty!(|obj| obj.array(), b"[]");
         test_obj_no_pretty!(
