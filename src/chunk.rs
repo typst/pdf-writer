@@ -33,8 +33,33 @@ impl Default for Settings {
 #[derive(Clone)]
 pub struct Chunk {
     pub(crate) buf: Buf,
-    pub(crate) offsets: Vec<(Ref, usize)>,
+    pub(crate) entries: Vec<ChunkEntry>,
     pub(crate) settings: Settings,
+    pub(crate) has_streams: bool,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+pub(crate) enum ChunkEntry {
+    Normal { id: Ref, offset: usize },
+    Compressed { id: Ref, object_stream: Ref, index: u32 },
+}
+
+impl ChunkEntry {
+    pub(crate) fn id(self) -> Ref {
+        match self {
+            Self::Normal { id, .. } | Self::Compressed { id, .. } => id,
+        }
+    }
+}
+
+/// An indirect object stored in a [`Chunk`].
+pub(crate) struct IndirectObject<'a> {
+    /// The reference of the indirect object.
+    pub(crate) id: Ref,
+    /// The generation number of the indirect object.
+    pub(crate) generation: i32,
+    /// The body of the indirect object, without the surrounding object header and footer.
+    pub(crate) body: &'a [u8],
 }
 
 impl Chunk {
@@ -62,8 +87,9 @@ impl Chunk {
     pub fn with_settings_and_capacity(settings: Settings, capacity: usize) -> Self {
         Self {
             buf: Buf::with_capacity(capacity),
-            offsets: vec![],
+            entries: vec![],
             settings,
+            has_streams: false,
         }
     }
 
@@ -88,14 +114,55 @@ impl Chunk {
     pub fn extend(&mut self, other: &Chunk) {
         let base = self.len();
         self.buf.extend_buf(&other.buf);
-        self.offsets
-            .extend(other.offsets.iter().map(|&(id, offset)| (id, base + offset)));
+        self.entries.extend(other.entries.iter().map(|&entry| match entry {
+            ChunkEntry::Normal { id, offset } => {
+                ChunkEntry::Normal { id, offset: base + offset }
+            }
+            ChunkEntry::Compressed { id, object_stream, index } => {
+                ChunkEntry::Compressed { id, object_stream, index }
+            }
+        }));
+        self.has_streams |= other.has_streams;
     }
 
     /// An iterator over the references of the top-level objects
     /// of the chunk, in the order they appear in the chunk.
     pub fn refs(&self) -> impl ExactSizeIterator<Item = Ref> + '_ {
-        self.offsets.iter().map(|&(id, _)| id)
+        self.entries.iter().map(|&entry| entry.id())
+    }
+
+    /// An iterator over the top-level indirect objects in the chunk.
+    pub(crate) fn indirect_objects(
+        &self,
+    ) -> impl Iterator<Item = IndirectObject<'_>> + '_ {
+        self.entries.iter().copied().enumerate().filter_map(|(idx, entry)| {
+            let ChunkEntry::Normal { id, offset } = entry else {
+                return None;
+            };
+
+            let end = self.entries[idx + 1..]
+                .iter()
+                .find_map(|&entry| match entry {
+                    ChunkEntry::Normal { offset, .. } => Some(offset),
+                    ChunkEntry::Compressed { .. } => None,
+                })
+                .unwrap_or(self.buf.len());
+            let slice = &self.buf[offset..end];
+            let (generation, body) = crate::renumber::extract_object(slice)?;
+            Some(IndirectObject { id, generation, body })
+        })
+    }
+
+    /// Whether the chunk contains compressed cross-reference entries.
+    pub fn has_compressed_xref_entries(&self) -> bool {
+        self.entries
+            .iter()
+            .any(|entry| matches!(entry, ChunkEntry::Compressed { .. }))
+    }
+
+    /// Whether the chunk contains stream objects.
+    pub fn has_streams(&self) -> bool {
+        self.has_streams
     }
 
     /// Returns the limits of data written into the chunk.
@@ -167,6 +234,8 @@ impl Chunk {
     /// for them will probably not make sense, so it's up to you to either not
     /// have dangling references or handle them in a way that makes sense for
     /// your use case.
+    ///
+    /// Panics if this chunk contains objects stored in object streams.
     pub fn renumber<F>(&self, mapping: F) -> Chunk
     where
         F: FnMut(Ref) -> Ref,
@@ -178,6 +247,8 @@ impl Chunk {
 
     /// Same as [`renumber`](Self::renumber), but writes the results into an
     /// existing `target` chunk instead of creating a new chunk.
+    ///
+    /// Panics if this chunk contains objects stored in object streams.
     pub fn renumber_into<F>(&self, target: &mut Chunk, mut mapping: F)
     where
         F: FnMut(Ref) -> Ref,
@@ -191,7 +262,7 @@ impl Chunk {
 impl Chunk {
     /// Start writing an indirectly referenceable object.
     pub fn indirect(&mut self, id: Ref) -> Obj<'_> {
-        self.offsets.push((id, self.buf.len()));
+        self.entries.push(ChunkEntry::Normal { id, offset: self.buf.len() });
         Obj::indirect(&mut self.buf, id, self.settings)
     }
 
@@ -245,6 +316,7 @@ impl Chunk {
     ///
     /// Panics if the stream length exceeds `i32::MAX`.
     pub fn stream<'a>(&'a mut self, id: Ref, data: &'a [u8]) -> Stream<'a> {
+        self.has_streams = true;
         Stream::start(self.indirect(id), data)
     }
 }
