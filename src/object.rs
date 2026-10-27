@@ -1150,6 +1150,9 @@ impl Drop for Stream<'_> {
         let dict_len = self.dict.len as usize;
         self.dict.buf.limits.register_dict_entries(dict_len);
 
+        const TAIL_LEN: usize = b"\n>>\nstream\n\nendstream\nendobj\n\n".len();
+        self.dict.buf.reserve(self.data.len() + TAIL_LEN);
+
         if self.dict.settings.pretty {
             self.dict.buf.extend(b"\n");
         }
@@ -1717,6 +1720,14 @@ mod tests {
             b"<<\n  /Size 2\n>>",
             b"startxref\n94\n%%EOF",
         )
+    }
+
+    #[test]
+    fn test_stream_capacity() {
+        let data = vec![0; 1024 * 1024];
+        let mut chunk = Chunk::new();
+        chunk.stream(Ref::new(1), &data).filter(Filter::FlateDecode);
+        assert!(chunk.buf.inner.capacity() < chunk.len() + 256);
     }
 
     #[test]
