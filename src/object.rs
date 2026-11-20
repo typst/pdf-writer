@@ -106,35 +106,42 @@ impl Sealed for Str<'_> {
         //   also be represented fully in visible ASCII. We also escape
         //   parentheses because they are delimiters.
         // - Hex strings for anything non-ASCII.
-        if self.0.iter().all(|b| b.is_ascii()) {
+        if self.0.is_ascii() {
             buf.reserve(self.0.len());
-            buf.inner.push(b'(');
+            buf.push(b'(');
 
             let mut balanced = None;
-            for &byte in self.0 {
+            let mut start = 0;
+            for (i, &byte) in self.0.iter().enumerate() {
+                let escape = match byte {
+                    b'(' | b')' => !*balanced
+                        .get_or_insert_with(|| byte != b')' && self.is_balanced()),
+                    b'\\' => true,
+                    b' '..=b'~' => false,
+                    _ => true,
+                };
+                if !escape {
+                    continue;
+                }
+                buf.extend(&self.0[start..i]);
+                start = i + 1;
                 match byte {
-                    b'(' | b')' => {
-                        if !*balanced
-                            .get_or_insert_with(|| byte != b')' && self.is_balanced())
-                        {
-                            buf.push(b'\\');
-                        }
-                        buf.push(byte);
-                    }
+                    b'(' | b')' => buf.extend(&[b'\\', byte]),
                     b'\\' => buf.extend(br"\\"),
-                    b' '..=b'~' => buf.push(byte),
                     b'\n' => buf.extend(br"\n"),
                     b'\r' => buf.extend(br"\r"),
                     b'\t' => buf.extend(br"\t"),
                     b'\x08' => buf.extend(br"\b"),
                     b'\x0c' => buf.extend(br"\f"),
-                    _ => {
-                        buf.push(b'\\');
-                        buf.push_octal(byte);
-                    }
+                    _ => buf.extend(&[
+                        b'\\',
+                        b'0' + (byte >> 6),
+                        b'0' + ((byte >> 3) & 7),
+                        b'0' + (byte & 7),
+                    ]),
                 }
             }
-
+            buf.extend(&self.0[start..]);
             buf.push(b')');
         } else {
             buf.reserve(2 + 2 * self.0.len());

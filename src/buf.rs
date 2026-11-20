@@ -108,17 +108,6 @@ impl Buf {
     }
 
     #[inline]
-    pub(crate) fn push_octal(&mut self, value: u8) {
-        fn octal(b: u8) -> u8 {
-            b'0' + b
-        }
-
-        self.push(octal(value >> 6));
-        self.push(octal((value >> 3) & 7));
-        self.push(octal(value & 7));
-    }
-
-    #[inline]
     pub(crate) fn reserve(&mut self, additional: usize) {
         self.inner.reserve(additional)
     }
